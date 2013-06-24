@@ -4615,7 +4615,7 @@ int Main::SetFullScreen(bool newFullScreen)
 	glShaderSourceARB(shader_frag, 1, (const GLcharARB**)&shader_frag_source, &len);
 
 	string shaderError = "";
-	GLint shaderStatus;
+	GLint shaderStatus = GL_FALSE;
 	shaderError = compileShader(shader_vert);
 	if(shaderError.empty()) { shaderError = "No message."; }
 	glGetShaderiv(shader_vert, GL_COMPILE_STATUS, &shaderStatus);
@@ -4628,7 +4628,9 @@ int Main::SetFullScreen(bool newFullScreen)
 		UpdateLog("Error compiling vertex shader: " + shaderError, true);
 		return -1;
 	}
-
+	
+	shaderError = "";
+	shaderStatus = GL_FALSE;
 	shaderError = compileShader(shader_frag);
 	if(shaderError.empty()) { shaderError = "No message."; }
 	glGetShaderiv(shader_frag, GL_COMPILE_STATUS, &shaderStatus);
@@ -4644,7 +4646,9 @@ int Main::SetFullScreen(bool newFullScreen)
 
 	glAttachObjectARB(shader_prog, shader_vert);
 	glAttachObjectARB(shader_prog, shader_frag);
-
+	
+	shaderError = "";
+	shaderStatus = GL_FALSE;
 	shaderError = linkProgram(shader_prog);
 	if(shaderError.empty()) { shaderError = "No message."; }
 	glGetProgramiv(shader_prog, GL_LINK_STATUS, &shaderStatus);
