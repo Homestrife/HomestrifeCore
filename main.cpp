@@ -4552,7 +4552,7 @@ int Main::SetFullScreen(bool newFullScreen)
 	if(shading_enabled == false || buffer_objects_enabled == false)
 	{
 		UpdateLog("OpenGL shaders and/or buffer objects are not enabled.", true);
-		return -1; //just bail for now because I'm not handling this at the moment
+		return -1;
 	}
 
 	UpdateLog("OpenGL shaders and buffer objects enabled.", false);
@@ -4617,30 +4617,56 @@ int Main::SetFullScreen(bool newFullScreen)
 	string shaderError = "";
 	GLint shaderStatus = GL_FALSE;
 	shaderError = compileShader(shader_vert);
-	if(shaderError.empty()) { shaderError = "No message."; }
 	glGetShaderiv(shader_vert, GL_COMPILE_STATUS, &shaderStatus);
 	if(shaderStatus == GL_TRUE)
 	{
-		UpdateLog("Vertex shader compiled successfully with message: " + shaderError, false);
+		if(shaderError.empty())
+		{
+			UpdateLog("Vertex shader compiled successfully.", false);
+		}
+		else
+		{
+			UpdateLog("Vertex shader compiled successfully with message: " + shaderError, false);
+		}
 	}
 	else if(shaderStatus == GL_FALSE)
 	{
-		UpdateLog("Error compiling vertex shader: " + shaderError, true);
+		if(shaderError.empty())
+		{
+			UpdateLog("Graphics device does not support GLSL shaders.", true);
+		}
+		else
+		{
+			UpdateLog("Error compiling vertex shader: " + shaderError, true);
+		}
 		return -1;
 	}
 	
 	shaderError = "";
 	shaderStatus = GL_FALSE;
 	shaderError = compileShader(shader_frag);
-	if(shaderError.empty()) { shaderError = "No message."; }
 	glGetShaderiv(shader_frag, GL_COMPILE_STATUS, &shaderStatus);
 	if(shaderStatus == GL_TRUE)
 	{
-		UpdateLog("Fragment shader compiled successfully with message: " + shaderError, false);
+		if(shaderError.empty())
+		{
+			UpdateLog("Fragment shader compiled successfully.", false);
+		}
+		else
+		{
+			UpdateLog("Fragment shader compiled successfully with message: " + shaderError, false);
+		}
 	}
 	else if(shaderStatus == GL_FALSE)
 	{
-		UpdateLog("Error compiling fragment shader: " + shaderError, true);
+		if(shaderError.empty())
+		{
+			UpdateLog("Graphics device does not support GLSL shaders.", true);
+		}
+		else
+		{
+			UpdateLog("Error compiling fragment shader: " + shaderError, true);
+		}
 		return -1;
 	}
 
@@ -4650,15 +4676,28 @@ int Main::SetFullScreen(bool newFullScreen)
 	shaderError = "";
 	shaderStatus = GL_FALSE;
 	shaderError = linkProgram(shader_prog);
-	if(shaderError.empty()) { shaderError = "No message."; }
 	glGetProgramiv(shader_prog, GL_LINK_STATUS, &shaderStatus);
 	if(shaderStatus == GL_TRUE)
 	{
-		UpdateLog("Shaders linked successfully with message: " + shaderError, false);
+		if(shaderError.empty())
+		{
+			UpdateLog("Shaders linked successfully.", false);
+		}
+		else
+		{
+			UpdateLog("Shaders linked successfully with message: " + shaderError, false);
+		}
 	}
 	else if(shaderStatus == GL_FALSE)
 	{
-		UpdateLog("Error linking shaders: " + shaderError, true);
+		if(shaderError.empty())
+		{
+			UpdateLog("Graphics device does not support GLSL shaders.", true);
+		}
+		else
+		{
+			UpdateLog("Error linking shaders: " + shaderError, true);
+		}
 		return -1;
 	}
 
