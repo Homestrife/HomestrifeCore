@@ -148,7 +148,7 @@ HSObjectHold::~HSObjectHold()
 	}
 }
 
-int HSObjectHold::Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec, bool openGL3)
+int HSObjectHold::Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec, bool openGL3, bool useTGAPalettes)
 {
 	//get the hold's settings
 	if(definition->QueryUnsignedAttribute("id", &(id)) != XML_NO_ERROR)
@@ -169,7 +169,7 @@ int HSObjectHold::Define(XMLElement * definition, string defFileDirectory, list<
 			if(strcmp(k->Value(), "Texture") == 0)
 			{
 				//add the texture to the hold
-				if(int error = AddTexture(k, defFileDirectory, textureRegistry, openGL3) != 0)
+				if(int error = AddTexture(k, defFileDirectory, textureRegistry, openGL3, useTGAPalettes) != 0)
 				{
 					return error; //there was an error adding the texture
 				}
@@ -240,7 +240,7 @@ bool HSObjectHold::IsFighterHold()
 	return false;
 }
 
-int HSObjectHold::AddTexture(XMLElement * texture, string defFileDirectory, list<HSTexture*> * textureRegistry, bool openGL3)
+int HSObjectHold::AddTexture(XMLElement * texture, string defFileDirectory, list<HSTexture*> * textureRegistry, bool openGL3, bool useTGAPalettes)
 {
 	//get the file path
 	string textureFilePath = CreateAbsolutePath(defFileDirectory, texture->Attribute("textureFilePath"));
@@ -269,11 +269,12 @@ int HSObjectHold::AddTexture(XMLElement * texture, string defFileDirectory, list
 		newTex->usingCount = 1;
 		newTex->textureFilePath = textureFilePath;
 
-		if(int error = LoadTGAToTexture(newTex, openGL3) != 0) //load the texture
+		if(int error = LoadTGAToTexture(newTex, openGL3, useTGAPalettes) != 0) //load the texture
 		{
 			return error;
 		}
 
+		if(!useTGAPalettes) { newTex->ownPalette = NULL; }
 		newTexInst.hsTex = newTex;
 		textureRegistry->push_back(newTex);
 	}
@@ -467,65 +468,10 @@ HSObject::~HSObject()
 	}
 }
 
-int HSObject::Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSPalette*> * paletteRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec, bool openGL3)
+int HSObject::LoadPalettes(list<HSPalette*> * paletteRegistry)
 {
-	//get the HSObject's settings
-	//get the lifetime
-	definition->QueryUnsignedAttribute("lifetime", &(lifetime)); //lifetime can be undefined
-
-	//get the specified palette
-	//string palFilePath = "";
-	//if(palette > 0)
-	//{
-	//	if(palette == 1)		{ palFilePath = definition->Attribute("palette1FilePath"); }
-	//	else if(palette == 2)	{ palFilePath = definition->Attribute("palette2FilePath"); }
-	//	else if(palette == 3)	{ palFilePath = definition->Attribute("palette3FilePath"); }
-	//	else if(palette == 4)	{ palFilePath = definition->Attribute("palette4FilePath"); }
-	//	else if(palette == 5)	{ palFilePath = definition->Attribute("palette5FilePath"); }
-	//	else if(palette == 6)	{ palFilePath = definition->Attribute("palette6FilePath"); }
-	//	else if(palette == 7)	{ palFilePath = definition->Attribute("palette7FilePath"); }
-	//	else if(palette == 8)	{ palFilePath = definition->Attribute("palette8FilePath"); }
-	//	else if(palette == 9)	{ palFilePath = definition->Attribute("palette9FilePath"); }
-	//	else if(palette == 10)	{ palFilePath = definition->Attribute("palette10FilePath"); }
-
-	//	//the file path assumes a starting point of the location of the definition. So add that on.
-	//	if(!defFileDirectory.empty())
-	//	{
-	//		palFilePath = defFileDirectory + "\\" + palFilePath;
-	//		
-	//		//see if the palette has already been loaded
-	//		bool alreadyLoaded = false;
-	//		list<HSPalette*>::iterator plIt;
-	//		for ( plIt=(*paletteRegistry).begin(); plIt != (*paletteRegistry).end(); plIt++)
-	//		{
-	//			if((*plIt)->paletteFilePath.compare(palFilePath) == 0)
-	//			{
-	//				this->palette = (*plIt);
-	//				this->palette->usingCount++;
-	//				alreadyLoaded = true;
-	//			}
-	//		}
-
-	//		if(!alreadyLoaded)
-	//		{
-	//			//make a new palette
-	//			HSPalette * newPal = new HSPalette();
-	//			newPal->usingCount = 1;
-	//			newPal->paletteFilePath = palFilePath;
-
-	//			if(int error = LoadHSPToPalette(newPal) != 0) //load the texture
-	//			{
-	//				return error;
-	//			}
-
-	//			this->palette = newPal;
-	//			paletteRegistry->push_back(newPal);
-	//		}
-	//	}
-	//}
-
 	//get every available palette for this object
-	string palletesDirectory = defFileDirectory + "\\palettes\\*";
+	string palletesDirectory = definitionFileDirectory + "\\palettes\\*";
 	HANDLE hFind = INVALID_HANDLE_VALUE;
     WIN32_FIND_DATA ffd;
 	hFind = FindFirstFile(palletesDirectory.data(), &ffd);
@@ -544,7 +490,7 @@ int HSObject::Define(XMLElement * definition, string defFileDirectory, list<HSTe
 
 			useTGAPalettes = false;
 
-			string palFilePath = defFileDirectory + "\\palettes\\" + filename;
+			string palFilePath = definitionFileDirectory + "\\palettes\\" + filename;
 			
 			//see if the palette has already been loaded
 			bool alreadyLoaded = false;
@@ -580,27 +526,20 @@ int HSObject::Define(XMLElement * definition, string defFileDirectory, list<HSTe
 	
 	SetPalette(0);
 
-	//if(!useTGAPalettes)
-	//{
-	//	//get a palette that isn't used
-	//	list<HSPalette*>::iterator plIt;
-	//	for ( plIt=palettes.begin(); plIt != palettes.end(); plIt++)
-	//	{
-	//		if((*plIt)->usingCount <= 0)
-	//		{
-	//			palette = (*plIt);
-	//			(*plIt)->usingCount++;
-	//			break;
-	//		}
-	//	}
+	return 0;
+}
 
-	//	//if all palettes are used, just get the first one
-	//	if(palette == NULL && !palettes.empty())
-	//	{
-	//		palette = palettes.front();
-	//		palette->usingCount++;
-	//	}
-	//}
+int HSObject::Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSPalette*> * paletteRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec, bool openGL3)
+{
+	//get the HSObject's settings
+	//get the lifetime
+	definition->QueryUnsignedAttribute("lifetime", &(lifetime)); //lifetime can be undefined
+
+	//save the definition file directory
+	definitionFileDirectory = defFileDirectory;
+
+	//load all palettes
+	if(int error = LoadPalettes(paletteRegistry) != 0) { return error; }
 
 	//loop through the object's holds
 	XMLElement * holds;
@@ -623,7 +562,7 @@ int HSObject::Define(XMLElement * definition, string defFileDirectory, list<HSTe
 		newHold->nextListHold = NULL;
 
 		//execute the hold's local definition code
-		if(int error = newHold->Define(j, defFileDirectory, textureRegistry, audioRegistry, obtainedAudioSpec, openGL3) != 0)
+		if(int error = newHold->Define(j, defFileDirectory, textureRegistry, audioRegistry, obtainedAudioSpec, openGL3, useTGAPalettes) != 0)
 		{
 			return error; //there was an error defining the hold
 		}

@@ -138,7 +138,7 @@ public:
 	HSObjectHold();
 	~HSObjectHold();
 
-	virtual int Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec, bool openGL3); //initialize this hold based on definition file info
+	virtual int Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec, bool openGL3, bool useTGAPalettes); //initialize this hold based on definition file info
 	HSObjectHold * Clone(); //return a copy of this hold
 
 	virtual bool IsTerrainObjectHold();
@@ -146,7 +146,7 @@ public:
 	virtual bool IsFighterHold();
 
 protected:
-	int AddTexture(XMLElement * texture, string defFileDirectory, list<HSTexture*> * textureRegistry, bool openGL3); //add a texture to the list of textures
+	int AddTexture(XMLElement * texture, string defFileDirectory, list<HSTexture*> * textureRegistry, bool openGL3, bool useTGAPalettes); //add a texture to the list of textures
 	int AddAudio(XMLElement * audio, string defFileDirectory, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec); //add a piece of audio to be played with the hold
 	int AddSpawnObject(XMLElement * spawnObject, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec); //add an object to the list of spawn objects
 	virtual HSObjectHold * CreateHoldOfSameType();
@@ -163,6 +163,7 @@ class HSObject
 public:
 	unsigned int id; //the object's id. Every object should have a unique id
 	string definitionFilePath; //path to the object's definition file
+	string definitionFileDirectory; //path to the directory containing the definition file
 
 	//int player; //player currently in control of this object. -1 means no player controls this
 	
@@ -197,6 +198,7 @@ public:
 	HSObject();
 	~HSObject();
 
+	int LoadPalettes(list<HSPalette*> * paletteRegistry);
 	virtual int Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSPalette*> * paletteRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec, bool openGL3); //initialize this object based on definition file info
 	HSObject * Clone(); //return a copy of this object
 

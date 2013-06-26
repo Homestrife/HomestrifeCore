@@ -26,7 +26,7 @@ int freadError(FILE * file, string texFilePath)
 	return -1;
 }
 
-int LoadTGAToTexture(HSTexture * hsTex, bool openGL3)
+int LoadTGAToTexture(HSTexture * hsTex, bool openGL3, bool useTGAPalette)
 {
 	if(hsTex == NULL)
 	{
@@ -109,7 +109,7 @@ int LoadTGAToTexture(HSTexture * hsTex, bool openGL3)
 		rightAlign = false; //the pixels are left-aligned
 	}
 	if(GLubyte error = fseek(file, (long)imageIDLength, SEEK_CUR) != 0) {return fseekError(error, texFilePath);} //skip the imageID
-	if(colorMapType != 0)
+	if(useTGAPalette && colorMapType != 0)
 	{
 		//save the palette data
 		HSPalette * hsPal = new HSPalette();
@@ -136,8 +136,10 @@ int LoadTGAToTexture(HSTexture * hsTex, bool openGL3)
 		}
 
 		hsTex->ownPalette = hsPal;
-
-		//if(GLubyte error = fseek(file, (long)(colorMapLength * bytesPerColorMapEntry), SEEK_CUR) != 0) {return fseekError(error, texFilePath);} //skip the color map data
+	}
+	else
+	{
+		if(GLubyte error = fseek(file, (long)(colorMapLength * bytesPerColorMapEntry), SEEK_CUR) != 0) {return fseekError(error, texFilePath);} //skip the color map
 	}
 	
 	//okay, time for the fun part: picking through the image data.

@@ -3,14 +3,13 @@
 uniform sampler2D tex;
 uniform bool indexed;
 uniform bool openGL3;
-uniform sampler2D indexTex;
 uniform sampler2D palette;
 
 void main()
 {
 	if (indexed)
 	{
-		vec4 indexVec = texture2D(indexTex, gl_TexCoord[0].st);
+		vec4 indexVec = texture2D(tex, gl_TexCoord[0].st);
 
 		float index;
 		if(openGL3)

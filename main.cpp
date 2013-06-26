@@ -688,7 +688,6 @@ int Main::Render()
 	int uniformTexLocation = glGetUniformLocationARB(shader_prog, "tex");
 	int uniformOpenGL3Location = glGetUniformLocationARB(shader_prog, "openGL3");
 	int uniformIndexedLocation = glGetUniformLocationARB(shader_prog, "indexed");
-	int uniformIndexTexLocation = glGetUniformLocationARB(shader_prog, "indexTex");
 	int uniformPaletteLocation = glGetUniformLocationARB(shader_prog, "palette");
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -704,7 +703,7 @@ int Main::Render()
 		list<TextureInstance>::iterator texIt;
 		for ( texIt=(*objIt)->curHold->textures.begin(); texIt != (*objIt)->curHold->textures.end(); texIt++)
 		{
-			RenderTexture((*objIt), (*texIt), uniformTexLocation, uniformOpenGL3Location, uniformIndexedLocation, uniformIndexTexLocation, uniformPaletteLocation);
+			RenderTexture((*objIt), (*texIt), uniformTexLocation, uniformOpenGL3Location, uniformIndexedLocation, uniformPaletteLocation);
 		}
 	}
 
@@ -728,7 +727,7 @@ int Main::Render()
 		list<TextureInstance>::iterator texIt;
 		for ( texIt=(*objIt)->curHold->textures.begin(); texIt != (*objIt)->curHold->textures.end(); texIt++)
 		{
-			RenderTexture((*objIt), (*texIt), uniformTexLocation, uniformOpenGL3Location, uniformIndexedLocation, uniformIndexTexLocation, uniformPaletteLocation);
+			RenderTexture((*objIt), (*texIt), uniformTexLocation, uniformOpenGL3Location, uniformIndexedLocation, uniformPaletteLocation);
 		}
 	}
 
@@ -744,15 +743,29 @@ int Main::Render()
 	return 0;
 }
 
-int Main::RenderTexture(HSObject * obj, TextureInstance tex, int uTexLoc, int openGLLoc, int uIndLoc, int uIndTexLoc, int uPalLoc)
+int Main::RenderTexture(HSObject * obj, TextureInstance tex, int uTexLoc, int openGLLoc, int uIndLoc, int uPalLoc)
 {
-	//get the texture and fragment shader inputs set up
+	//set up the texture
 	glActiveTextureARB(GL_TEXTURE0);
+	glUniform1iARB(uTexLoc, 0);
 	glBindTexture(GL_TEXTURE_2D, tex.hsTex->textureID);
+	if(openGL3)
+	{
+		glUniform1iARB(openGLLoc, GL_TRUE);
+	}
+	else
+	{
+		glUniform1iARB(openGLLoc, GL_FALSE);
+	}
 	if(tex.hsTex->indexed)
 	{
-		glUniform1iARB(uIndTexLoc, 0);
+		glUniform1iARB(uIndLoc, GL_TRUE);
+		glPixelStorei(GL_PACK_ALIGNMENT, 1);
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+		//set up the palette
 		glActiveTextureARB(GL_TEXTURE1);
+		glUniform1iARB(uPalLoc, 1);
 		if(obj->palette == NULL || obj->useTGAPalettes)
 		{
 			glBindTexture(GL_TEXTURE_2D, tex.hsTex->ownPalette->textureID);
@@ -763,23 +776,9 @@ int Main::RenderTexture(HSObject * obj, TextureInstance tex, int uTexLoc, int op
 		}
 		glPixelStorei(GL_PACK_ALIGNMENT, 4);
 		glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-		glActiveTextureARB(GL_TEXTURE0);
-		glUniform1iARB(uPalLoc, 1);
-		glUniform1iARB(uIndLoc, GL_TRUE);
-		if(openGL3)
-		{
-			glUniform1iARB(openGLLoc, GL_TRUE);
-		}
-		else
-		{
-			glUniform1iARB(openGLLoc, GL_FALSE);
-		}
-		glPixelStorei(GL_PACK_ALIGNMENT, 1);
-		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 	}
 	else
 	{
-		glUniform1iARB(uTexLoc, 0);
 		glUniform1iARB(uIndLoc, GL_FALSE);
 		glPixelStorei(GL_PACK_ALIGNMENT, 4);
 		glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
@@ -4493,6 +4492,23 @@ int Main::SetFullScreen(bool newFullScreen)
 
 			(*trIt)->textureID = 0;
 			(*trIt)->bufferID = 0;
+
+			if((*trIt)->ownPalette != NULL)
+			{
+				glDeleteTextures(1, &(*trIt)->ownPalette->textureID);
+				(*trIt)->ownPalette->textureID = 0;
+			}
+		}
+	}
+
+	if(paletteRegistry.size() > 0)
+	{
+		list<HSPalette*>::iterator palIt;
+		for (palIt=paletteRegistry.begin(); palIt != paletteRegistry.end(); palIt++)
+		{
+			glDeleteTextures(1, &(*palIt)->textureID);
+
+			(*palIt)->textureID = 0;
 		}
 	}
 
@@ -4743,7 +4759,20 @@ int Main::SetFullScreen(bool newFullScreen)
 		list<HSTexture*>::iterator trIt;
 		for ( trIt=textureRegistry.begin(); trIt != textureRegistry.end(); trIt++)
 		{
-			if(int error = LoadTGAToTexture((*trIt), openGL3) != 0)
+			if(int error = LoadTGAToTexture((*trIt), openGL3, (*trIt)->ownPalette != NULL) != 0)
+			{
+				return error;
+			}
+		}
+	}
+
+	if(paletteRegistry.size() > 0)
+	{
+		//need to reload all palettes
+		list<HSPalette*>::iterator palIt;
+		for ( palIt=paletteRegistry.begin(); palIt != paletteRegistry.end(); palIt++)
+		{
+			if(int error = LoadHSPToPalette((*palIt)) != 0)
 			{
 				return error;
 			}

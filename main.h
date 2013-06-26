@@ -235,7 +235,7 @@ protected:
 	int Collide();
 	int SpawnObjects();
 	int Render();
-	int RenderTexture(HSObject * obj, TextureInstance tex, int uTexLoc, int openGLLoc, int uIndLoc, int uIndTexLoc, int uPalLoc); 
+	int RenderTexture(HSObject * obj, TextureInstance tex, int uTexLoc, int openGLLoc, int uIndLoc, int uPalLoc); 
 	int PlayAudio();
 	int DeleteObjects();
 	int Cleanup();
