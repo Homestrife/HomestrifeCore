@@ -1,0 +1,30 @@
+#version 110
+
+uniform sampler2D tex;
+uniform bool openGL3;
+uniform sampler2D palette;
+
+void main()
+{
+	vec4 indexVec = texture2D(tex, gl_TexCoord[0].st);
+
+	float index;
+	if(openGL3)
+	{
+		index = indexVec.r;
+	}
+	else
+	{
+		index = indexVec.a;
+	}
+
+	if(index == 0.0)
+	{
+		gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
+	}
+	else
+	{
+		vec4 texel = texture2D(palette, vec2(index, 0.0));
+		gl_FragColor = vec4(texel.r, texel.g, texel.b, 1.0);
+	}
+}

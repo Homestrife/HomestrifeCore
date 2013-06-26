@@ -8,8 +8,10 @@
 #include <SDL_opengl.h>
 
 extern GLenum shader_vert;
-extern GLenum shader_frag;
-extern GLenum shader_prog;
+extern GLenum shader_fragNonIndexed;
+extern GLenum shader_fragIndexed;
+extern GLenum shader_progNonIndexed;
+extern GLenum shader_progIndexed;
 
 extern bool shading_enabled;
 extern bool buffer_objects_enabled;

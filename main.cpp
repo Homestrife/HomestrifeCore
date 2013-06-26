@@ -1,8 +1,10 @@
 #include "main.h"
 
 GLenum shader_vert;
-GLenum shader_frag;
-GLenum shader_prog;
+GLenum shader_fragNonIndexed;
+GLenum shader_fragIndexed;
+GLenum shader_progNonIndexed;
+GLenum shader_progIndexed;
 
 Main::Main()
 {
@@ -685,11 +687,6 @@ int Main::Render()
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 
-	int uniformTexLocation = glGetUniformLocationARB(shader_prog, "tex");
-	int uniformOpenGL3Location = glGetUniformLocationARB(shader_prog, "openGL3");
-	int uniformIndexedLocation = glGetUniformLocationARB(shader_prog, "indexed");
-	int uniformPaletteLocation = glGetUniformLocationARB(shader_prog, "palette");
-
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glEnableClientState(GL_VERTEX_ARRAY);
@@ -703,7 +700,7 @@ int Main::Render()
 		list<TextureInstance>::iterator texIt;
 		for ( texIt=(*objIt)->curHold->textures.begin(); texIt != (*objIt)->curHold->textures.end(); texIt++)
 		{
-			RenderTexture((*objIt), (*texIt), uniformTexLocation, uniformOpenGL3Location, uniformIndexedLocation, uniformPaletteLocation);
+			RenderTexture((*objIt), (*texIt));
 		}
 	}
 
@@ -727,7 +724,7 @@ int Main::Render()
 		list<TextureInstance>::iterator texIt;
 		for ( texIt=(*objIt)->curHold->textures.begin(); texIt != (*objIt)->curHold->textures.end(); texIt++)
 		{
-			RenderTexture((*objIt), (*texIt), uniformTexLocation, uniformOpenGL3Location, uniformIndexedLocation, uniformPaletteLocation);
+			RenderTexture((*objIt), (*texIt));
 		}
 	}
 
@@ -743,29 +740,29 @@ int Main::Render()
 	return 0;
 }
 
-int Main::RenderTexture(HSObject * obj, TextureInstance tex, int uTexLoc, int openGLLoc, int uIndLoc, int uPalLoc)
+int Main::RenderTexture(HSObject * obj, TextureInstance tex)
 {
 	//set up the texture
-	glActiveTextureARB(GL_TEXTURE0);
-	glUniform1iARB(uTexLoc, 0);
-	glBindTexture(GL_TEXTURE_2D, tex.hsTex->textureID);
-	if(openGL3)
-	{
-		glUniform1iARB(openGLLoc, GL_TRUE);
-	}
-	else
-	{
-		glUniform1iARB(openGLLoc, GL_FALSE);
-	}
 	if(tex.hsTex->indexed)
 	{
-		glUniform1iARB(uIndLoc, GL_TRUE);
+		glUseProgramObjectARB(shader_progIndexed);
+		glActiveTextureARB(GL_TEXTURE0);
+		glUniform1iARB(indexedTexLoc, 0);
+		glBindTexture(GL_TEXTURE_2D, tex.hsTex->textureID);
+		if(openGL3)
+		{
+			glUniform1iARB(openGL3Loc, GL_TRUE);
+		}
+		else
+		{
+			glUniform1iARB(openGL3Loc, GL_FALSE);
+		}
 		glPixelStorei(GL_PACK_ALIGNMENT, 1);
 		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
 		//set up the palette
 		glActiveTextureARB(GL_TEXTURE1);
-		glUniform1iARB(uPalLoc, 1);
+		glUniform1iARB(paletteLoc, 1);
 		if(obj->palette == NULL || obj->useTGAPalettes)
 		{
 			glBindTexture(GL_TEXTURE_2D, tex.hsTex->ownPalette->textureID);
@@ -779,7 +776,10 @@ int Main::RenderTexture(HSObject * obj, TextureInstance tex, int uTexLoc, int op
 	}
 	else
 	{
-		glUniform1iARB(uIndLoc, GL_FALSE);
+		glUseProgramObjectARB(shader_progNonIndexed);
+		glActiveTextureARB(GL_TEXTURE0);
+		glUniform1iARB(nonIndexedTexLoc, 0);
+		glBindTexture(GL_TEXTURE_2D, tex.hsTex->textureID);
 		glPixelStorei(GL_PACK_ALIGNMENT, 4);
 		glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 	}
@@ -884,8 +884,10 @@ int Main::Cleanup()
 	ClearAllObjects();
 
 	glDeleteObjectARB(shader_vert);
-	glDeleteObjectARB(shader_frag);
-	glDeleteObjectARB(shader_prog);
+	glDeleteObjectARB(shader_fragNonIndexed);
+	glDeleteObjectARB(shader_fragIndexed);
+	glDeleteObjectARB(shader_progNonIndexed);
+	glDeleteObjectARB(shader_progIndexed);
 
 	list<SDL_Joystick*>::iterator it2;
 	for ( it2=sticks.begin(); it2 != sticks.end(); it2++)
@@ -4594,13 +4596,23 @@ int Main::SetFullScreen(bool newFullScreen)
 	UpdateLog("OpenGL shaders and buffer objects enabled.", false);
 
 	//set up all the shader stuff
-	shader_vert = 0;
-	shader_frag = 0;
-	shader_prog = 0;
+	glDeleteObjectARB(shader_vert);
+	glDeleteObjectARB(shader_fragNonIndexed);
+	glDeleteObjectARB(shader_fragIndexed);
+	glDeleteObjectARB(shader_progNonIndexed);
+	glDeleteObjectARB(shader_progIndexed);
 
-	shader_prog = glCreateProgramObjectARB();
+	shader_vert = 0;
+	shader_fragNonIndexed = 0;
+	shader_fragIndexed = 0;
+	shader_progNonIndexed = 0;
+	shader_progIndexed = 0;
+	
+	shader_progNonIndexed = glCreateProgramObjectARB();
+	shader_progIndexed = glCreateProgramObjectARB();
 	shader_vert = glCreateShaderObjectARB(GL_VERTEX_SHADER_ARB);
-	shader_frag = glCreateShaderObjectARB(GL_FRAGMENT_SHADER_ARB);
+	shader_fragNonIndexed = glCreateShaderObjectARB(GL_FRAGMENT_SHADER_ARB);
+	shader_fragIndexed = glCreateShaderObjectARB(GL_FRAGMENT_SHADER_ARB);
 
 	string shader_vert_source_string = loadSource("vertexShader1.glsl.txt");
 
@@ -4610,21 +4622,35 @@ int Main::SetFullScreen(bool newFullScreen)
 		return -1;
 	}
 
-	string shader_frag_source_string = loadSource("fragmentShader1.glsl.txt");
+	string shader_fragNonIndexed_source_string = loadSource("fragmentShaderNonIndexed1.glsl.txt");
 
-	if(shader_vert_source_string.compare("READ ERROR") == 0)
+	if(shader_fragNonIndexed_source_string.compare("READ ERROR") == 0)
 	{
-		UpdateLog("Could not read shader source file: fragmentShader1.glsl.txt", true);
+		UpdateLog("Could not read shader source file: fragmentShaderNonIndexed1.glsl.txt", true);
+		return -1;
+	}
+
+	string shader_fragIndexed_source_string = loadSource("fragmentShaderIndexed1.glsl.txt");
+
+	if(shader_fragIndexed_source_string.compare("READ ERROR") == 0)
+	{
+		UpdateLog("Could not read shader source file: fragmentShaderIndexed1.glsl.txt", true);
 		return -1;
 	}
 
 	//add some newlines so it compiles correctly
 	unsigned int verPos = shader_vert_source_string.find("#version 110", 0);
 	if(verPos != string::npos) { shader_vert_source_string.insert(verPos + 12, "\n"); }
-	verPos = shader_frag_source_string.find("#version 110", 0);
-	if(verPos != string::npos) { shader_frag_source_string.insert(verPos + 12, "\n"); }
-	unsigned int extPos = shader_frag_source_string.find("#extension GL_EXT_gpu_shader4 : enable", 0);
-	if(extPos != string::npos) { shader_frag_source_string.insert(extPos + 38, "\n"); }
+
+	verPos = shader_fragNonIndexed_source_string.find("#version 110", 0);
+	if(verPos != string::npos) { shader_fragNonIndexed_source_string.insert(verPos + 12, "\n"); }
+	unsigned int extPos = shader_fragNonIndexed_source_string.find("#extension GL_EXT_gpu_shader4 : enable", 0);
+	if(extPos != string::npos) { shader_fragNonIndexed_source_string.insert(extPos + 38, "\n"); }
+
+	verPos = shader_fragIndexed_source_string.find("#version 110", 0);
+	if(verPos != string::npos) { shader_fragIndexed_source_string.insert(verPos + 12, "\n"); }
+	extPos = shader_fragIndexed_source_string.find("#extension GL_EXT_gpu_shader4 : enable", 0);
+	if(extPos != string::npos) { shader_fragIndexed_source_string.insert(extPos + 38, "\n"); }
 
 	//add more newlines after semicolons so warning/error positions are meaningful
 	unsigned int scPos = shader_vert_source_string.find(";", 0);
@@ -4634,22 +4660,33 @@ int Main::SetFullScreen(bool newFullScreen)
 		scPos = shader_vert_source_string.find(";", scPos+1);
 	}
 	
-	scPos = shader_frag_source_string.find(";", 0);
+	scPos = shader_fragNonIndexed_source_string.find(";", 0);
 	while(scPos != string::npos)
 	{
-		shader_frag_source_string.insert(scPos+1, "\n");
-		scPos = shader_frag_source_string.find(";", scPos+1);
+		shader_fragNonIndexed_source_string.insert(scPos+1, "\n");
+		scPos = shader_fragNonIndexed_source_string.find(";", scPos+1);
+	}
+	
+	scPos = shader_fragIndexed_source_string.find(";", 0);
+	while(scPos != string::npos)
+	{
+		shader_fragIndexed_source_string.insert(scPos+1, "\n");
+		scPos = shader_fragIndexed_source_string.find(";", scPos+1);
 	}
 
 	const char * shader_vert_source = shader_vert_source_string.data();
-	const char * shader_frag_source = shader_frag_source_string.data();
+	const char * shader_fragNonIndexed_source = shader_fragNonIndexed_source_string.data();
+	const char * shader_fragIndexed_source = shader_fragIndexed_source_string.data();
 
 	int len = 0;
 	len = shader_vert_source_string.length();
 	glShaderSourceARB(shader_vert, 1, (const GLcharARB**)&shader_vert_source, &len);
-	len = shader_frag_source_string.length();
-	glShaderSourceARB(shader_frag, 1, (const GLcharARB**)&shader_frag_source, &len);
+	len = shader_fragNonIndexed_source_string.length();
+	glShaderSourceARB(shader_fragNonIndexed, 1, (const GLcharARB**)&shader_fragNonIndexed_source, &len);
+	len = shader_fragIndexed_source_string.length();
+	glShaderSourceARB(shader_fragIndexed, 1, (const GLcharARB**)&shader_fragIndexed_source, &len);
 
+	//compile vertex shader
 	string shaderError = "";
 	GLint shaderStatus = GL_FALSE;
 	shaderError = compileShader(shader_vert);
@@ -4678,19 +4715,20 @@ int Main::SetFullScreen(bool newFullScreen)
 		return -1;
 	}
 	
+	//compile non-indexed fragment shader
 	shaderError = "";
 	shaderStatus = GL_FALSE;
-	shaderError = compileShader(shader_frag);
-	glGetShaderiv(shader_frag, GL_COMPILE_STATUS, &shaderStatus);
+	shaderError = compileShader(shader_fragNonIndexed);
+	glGetShaderiv(shader_fragNonIndexed, GL_COMPILE_STATUS, &shaderStatus);
 	if(shaderStatus == GL_TRUE)
 	{
 		if(shaderError.empty())
 		{
-			UpdateLog("Fragment shader compiled successfully.", false);
+			UpdateLog("Non-Indexed fragment shader compiled successfully.", false);
 		}
 		else
 		{
-			UpdateLog("Fragment shader compiled successfully with message: " + shaderError, false);
+			UpdateLog("Non-Indexed fragment shader compiled successfully with message: " + shaderError, false);
 		}
 	}
 	else if(shaderStatus == GL_FALSE)
@@ -4701,27 +4739,57 @@ int Main::SetFullScreen(bool newFullScreen)
 		}
 		else
 		{
-			UpdateLog("Error compiling fragment shader: " + shaderError, true);
+			UpdateLog("Error compiling non-indexed fragment shader: " + shaderError, true);
+		}
+		return -1;
+	}
+	
+	//compile indexed fragment shader
+	shaderError = "";
+	shaderStatus = GL_FALSE;
+	shaderError = compileShader(shader_fragIndexed);
+	glGetShaderiv(shader_fragIndexed, GL_COMPILE_STATUS, &shaderStatus);
+	if(shaderStatus == GL_TRUE)
+	{
+		if(shaderError.empty())
+		{
+			UpdateLog("Indexed fragment shader compiled successfully.", false);
+		}
+		else
+		{
+			UpdateLog("Indexed fragment shader compiled successfully with message: " + shaderError, false);
+		}
+	}
+	else if(shaderStatus == GL_FALSE)
+	{
+		if(shaderError.empty())
+		{
+			UpdateLog("Graphics device does not support GLSL shaders.", true);
+		}
+		else
+		{
+			UpdateLog("Error compiling indexed fragment shader: " + shaderError, true);
 		}
 		return -1;
 	}
 
-	glAttachObjectARB(shader_prog, shader_vert);
-	glAttachObjectARB(shader_prog, shader_frag);
+	//link non-indexed program
+	glAttachObjectARB(shader_progNonIndexed, shader_vert);
+	glAttachObjectARB(shader_progNonIndexed, shader_fragNonIndexed);
 	
 	shaderError = "";
 	shaderStatus = GL_FALSE;
-	shaderError = linkProgram(shader_prog);
-	glGetProgramiv(shader_prog, GL_LINK_STATUS, &shaderStatus);
+	shaderError = linkProgram(shader_progNonIndexed);
+	glGetProgramiv(shader_progNonIndexed, GL_LINK_STATUS, &shaderStatus);
 	if(shaderStatus == GL_TRUE)
 	{
 		if(shaderError.empty())
 		{
-			UpdateLog("Shaders linked successfully.", false);
+			UpdateLog("Non-Indexed shaders linked successfully.", false);
 		}
 		else
 		{
-			UpdateLog("Shaders linked successfully with message: " + shaderError, false);
+			UpdateLog("Non-Indexed shaders linked successfully with message: " + shaderError, false);
 		}
 	}
 	else if(shaderStatus == GL_FALSE)
@@ -4732,12 +4800,47 @@ int Main::SetFullScreen(bool newFullScreen)
 		}
 		else
 		{
-			UpdateLog("Error linking shaders: " + shaderError, true);
+			UpdateLog("Error linking non-indexed shaders: " + shaderError, true);
 		}
 		return -1;
 	}
 
-	glUseProgramObjectARB(shader_prog);
+	//link indexed program
+	glAttachObjectARB(shader_progIndexed, shader_vert);
+	glAttachObjectARB(shader_progIndexed, shader_fragIndexed);
+	
+	shaderError = "";
+	shaderStatus = GL_FALSE;
+	shaderError = linkProgram(shader_progIndexed);
+	glGetProgramiv(shader_progIndexed, GL_LINK_STATUS, &shaderStatus);
+	if(shaderStatus == GL_TRUE)
+	{
+		if(shaderError.empty())
+		{
+			UpdateLog("Indexed shaders linked successfully.", false);
+		}
+		else
+		{
+			UpdateLog("Indexed shaders linked successfully with message: " + shaderError, false);
+		}
+	}
+	else if(shaderStatus == GL_FALSE)
+	{
+		if(shaderError.empty())
+		{
+			UpdateLog("Graphics device does not support GLSL shaders.", true);
+		}
+		else
+		{
+			UpdateLog("Error linking indexed shaders: " + shaderError, true);
+		}
+		return -1;
+	}
+
+	nonIndexedTexLoc = glGetUniformLocationARB(shader_progNonIndexed, "tex");
+	indexedTexLoc = glGetUniformLocationARB(shader_progIndexed, "tex");
+	paletteLoc = glGetUniformLocationARB(shader_progIndexed, "palette");
+	openGL3Loc = glGetUniformLocationARB(shader_progIndexed, "openGL3");
 
 	//set up some VBO stuff
 	float * texCoord = new float[8];
