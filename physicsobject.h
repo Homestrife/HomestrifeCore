@@ -23,7 +23,7 @@ public:
 	PhysicsObjectHold();
 	~PhysicsObjectHold();
 	
-	virtual int Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec); //initialize this hold based on definition file info
+	virtual int Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec, bool openGL3); //initialize this hold based on definition file info
 
 	virtual bool IsPhysicsObjectHold();
 
@@ -48,7 +48,7 @@ public:
 	PhysicsObject();
 	~PhysicsObject();
 
-	virtual int Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSPalette*> * paletteRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec); //initialize this object based on definition file info
+	virtual int Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSPalette*> * paletteRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec, bool openGL3); //initialize this object based on definition file info
 	
 	virtual int Event(InputStates * inputHistory, int frame); //handle events
 	virtual int Update();

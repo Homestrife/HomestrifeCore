@@ -40,7 +40,7 @@ public:
 
 	int SetCounterValue(int value);
 
-	virtual int Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSPalette*> * paletteRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec);
+	virtual int Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSPalette*> * paletteRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec, bool openGL3);
 
 	virtual int AdvanceHolds();
 	virtual int Update(); //handle updates

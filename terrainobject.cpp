@@ -52,9 +52,9 @@ TerrainObjectHold::~TerrainObjectHold()
 	}
 }
 
-int TerrainObjectHold::Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec)
+int TerrainObjectHold::Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec, bool openGL3)
 {
-	if(int error = HSObjectHold::Define(definition, defFileDirectory, textureRegistry, audioRegistry, obtainedAudioSpec) != 0)
+	if(int error = HSObjectHold::Define(definition, defFileDirectory, textureRegistry, audioRegistry, obtainedAudioSpec, openGL3) != 0)
 	{
 		return error;
 	}
@@ -493,9 +493,9 @@ TerrainObject::~TerrainObject()
 
 }
 
-int TerrainObject::Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSPalette*> * paletteRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec)
+int TerrainObject::Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSPalette*> * paletteRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec, bool openGL3)
 {
-	if(int error = HSObject::Define(definition, defFileDirectory, textureRegistry, paletteRegistry, audioRegistry, obtainedAudioSpec) != 0)
+	if(int error = HSObject::Define(definition, defFileDirectory, textureRegistry, paletteRegistry, audioRegistry, obtainedAudioSpec, openGL3) != 0)
 	{
 		return error;
 	}

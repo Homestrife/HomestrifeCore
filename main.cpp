@@ -19,6 +19,7 @@ Main::Main()
 	audioRegistry.clear();
 	newObjectId = 1;
 
+	openGL3 = false;
 	notDone = true;
 	surf_display = NULL;
 	screenResolutionX = MAX_GAME_RESOLUTION_X;
@@ -372,7 +373,7 @@ int Main::LoadDefinition(string defFilePath, list<HSObject*> * objects, HSObject
 		//string defFileDirectory = CreateAbsolutePath(currentWorkingDirectory, defFilePath);
 		//defFileDirectory = defFileDirectory.substr(0, defFileDirectory.find_last_of("\\"));
 		string defFileDirectory = defFilePath.substr(0, defFilePath.find_last_of("\\"));
-		if(int error = newObject->Define(i, defFileDirectory, &textureRegistry, &paletteRegistry, &audioRegistry, obtainedAudioSpec) != 0)
+		if(int error = newObject->Define(i, defFileDirectory, &textureRegistry, &paletteRegistry, &audioRegistry, obtainedAudioSpec, openGL3) != 0)
 		{
 			return error; //there was an error defining the object
 		}
@@ -685,6 +686,7 @@ int Main::Render()
 	glLoadIdentity();
 
 	int uniformTexLocation = glGetUniformLocationARB(shader_prog, "tex");
+	int uniformOpenGL3Location = glGetUniformLocationARB(shader_prog, "openGL3");
 	int uniformIndexedLocation = glGetUniformLocationARB(shader_prog, "indexed");
 	int uniformIndexTexLocation = glGetUniformLocationARB(shader_prog, "indexTex");
 	int uniformPaletteLocation = glGetUniformLocationARB(shader_prog, "palette");
@@ -702,7 +704,7 @@ int Main::Render()
 		list<TextureInstance>::iterator texIt;
 		for ( texIt=(*objIt)->curHold->textures.begin(); texIt != (*objIt)->curHold->textures.end(); texIt++)
 		{
-			RenderTexture((*objIt), (*texIt), uniformTexLocation, uniformIndexedLocation, uniformIndexTexLocation, uniformPaletteLocation);
+			RenderTexture((*objIt), (*texIt), uniformTexLocation, uniformOpenGL3Location, uniformIndexedLocation, uniformIndexTexLocation, uniformPaletteLocation);
 		}
 	}
 
@@ -726,7 +728,7 @@ int Main::Render()
 		list<TextureInstance>::iterator texIt;
 		for ( texIt=(*objIt)->curHold->textures.begin(); texIt != (*objIt)->curHold->textures.end(); texIt++)
 		{
-			RenderTexture((*objIt), (*texIt), uniformTexLocation, uniformIndexedLocation, uniformIndexTexLocation, uniformPaletteLocation);
+			RenderTexture((*objIt), (*texIt), uniformTexLocation, uniformOpenGL3Location, uniformIndexedLocation, uniformIndexTexLocation, uniformPaletteLocation);
 		}
 	}
 
@@ -742,7 +744,7 @@ int Main::Render()
 	return 0;
 }
 
-int Main::RenderTexture(HSObject * obj, TextureInstance tex, int uTexLoc, int uIndLoc, int uIndTexLoc, int uPalLoc)
+int Main::RenderTexture(HSObject * obj, TextureInstance tex, int uTexLoc, int openGLLoc, int uIndLoc, int uIndTexLoc, int uPalLoc)
 {
 	//get the texture and fragment shader inputs set up
 	glActiveTextureARB(GL_TEXTURE0);
@@ -759,11 +761,19 @@ int Main::RenderTexture(HSObject * obj, TextureInstance tex, int uTexLoc, int uI
 		{
 			glBindTexture(GL_TEXTURE_2D, obj->palette->textureID);
 		}
-		glPixelStorei(GL_PACK_ALIGNMENT, 1);
-		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+		glPixelStorei(GL_PACK_ALIGNMENT, 4);
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 		glActiveTextureARB(GL_TEXTURE0);
 		glUniform1iARB(uPalLoc, 1);
 		glUniform1iARB(uIndLoc, GL_TRUE);
+		if(openGL3)
+		{
+			glUniform1iARB(openGLLoc, GL_TRUE);
+		}
+		else
+		{
+			glUniform1iARB(openGLLoc, GL_FALSE);
+		}
 		glPixelStorei(GL_PACK_ALIGNMENT, 1);
 		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 	}
@@ -4538,6 +4548,16 @@ int Main::SetFullScreen(bool newFullScreen)
 		}
 	}
 
+	//we need to know this for texture loading and storage
+	if(glMajorVersion >= 3)
+	{
+		openGL3 = true;
+	}
+	else
+	{
+		openGL3 = false;
+	}
+
 	stringstream sstm;
 	sstm << "This machine is running OpenGL version " << glMajorVersion << "." << glMinorVersion << ".";
 	UpdateLog(sstm.str(), false);
@@ -4723,7 +4743,7 @@ int Main::SetFullScreen(bool newFullScreen)
 		list<HSTexture*>::iterator trIt;
 		for ( trIt=textureRegistry.begin(); trIt != textureRegistry.end(); trIt++)
 		{
-			if(int error = LoadTGAToTexture((*trIt)) != 0)
+			if(int error = LoadTGAToTexture((*trIt), openGL3) != 0)
 			{
 				return error;
 			}

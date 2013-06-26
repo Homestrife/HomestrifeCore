@@ -148,7 +148,7 @@ HSObjectHold::~HSObjectHold()
 	}
 }
 
-int HSObjectHold::Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec)
+int HSObjectHold::Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec, bool openGL3)
 {
 	//get the hold's settings
 	if(definition->QueryUnsignedAttribute("id", &(id)) != XML_NO_ERROR)
@@ -169,7 +169,7 @@ int HSObjectHold::Define(XMLElement * definition, string defFileDirectory, list<
 			if(strcmp(k->Value(), "Texture") == 0)
 			{
 				//add the texture to the hold
-				if(int error = AddTexture(k, defFileDirectory, textureRegistry) != 0)
+				if(int error = AddTexture(k, defFileDirectory, textureRegistry, openGL3) != 0)
 				{
 					return error; //there was an error adding the texture
 				}
@@ -240,7 +240,7 @@ bool HSObjectHold::IsFighterHold()
 	return false;
 }
 
-int HSObjectHold::AddTexture(XMLElement * texture, string defFileDirectory, list<HSTexture*> * textureRegistry)
+int HSObjectHold::AddTexture(XMLElement * texture, string defFileDirectory, list<HSTexture*> * textureRegistry, bool openGL3)
 {
 	//get the file path
 	string textureFilePath = CreateAbsolutePath(defFileDirectory, texture->Attribute("textureFilePath"));
@@ -269,7 +269,7 @@ int HSObjectHold::AddTexture(XMLElement * texture, string defFileDirectory, list
 		newTex->usingCount = 1;
 		newTex->textureFilePath = textureFilePath;
 
-		if(int error = LoadTGAToTexture(newTex) != 0) //load the texture
+		if(int error = LoadTGAToTexture(newTex, openGL3) != 0) //load the texture
 		{
 			return error;
 		}
@@ -467,7 +467,7 @@ HSObject::~HSObject()
 	}
 }
 
-int HSObject::Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSPalette*> * paletteRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec)
+int HSObject::Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSPalette*> * paletteRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec, bool openGL3)
 {
 	//get the HSObject's settings
 	//get the lifetime
@@ -623,7 +623,7 @@ int HSObject::Define(XMLElement * definition, string defFileDirectory, list<HSTe
 		newHold->nextListHold = NULL;
 
 		//execute the hold's local definition code
-		if(int error = newHold->Define(j, defFileDirectory, textureRegistry, audioRegistry, obtainedAudioSpec) != 0)
+		if(int error = newHold->Define(j, defFileDirectory, textureRegistry, audioRegistry, obtainedAudioSpec, openGL3) != 0)
 		{
 			return error; //there was an error defining the hold
 		}

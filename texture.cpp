@@ -26,7 +26,7 @@ int freadError(FILE * file, string texFilePath)
 	return -1;
 }
 
-int LoadTGAToTexture(HSTexture * hsTex)
+int LoadTGAToTexture(HSTexture * hsTex, bool openGL3)
 {
 	if(hsTex == NULL)
 	{
@@ -120,9 +120,14 @@ int LoadTGAToTexture(HSTexture * hsTex)
 			return -1;
 		}
 
-		GLubyte * paletteData = (GLubyte*)malloc(768 * sizeof(GLubyte));
+		GLubyte * paletteData = (GLubyte*)malloc(1024 * sizeof(GLubyte));
 
-		if(fread(paletteData, bytesPerColorMapEntry, colorMapLength, file) != 256) {return freadError(file, texFilePath);}
+		for(int i = 0; i < 256; i++)
+		{
+			if(fread((void *)(paletteData + i*4), bytesPerColorMapEntry, 1, file) != 1) {return freadError(file, texFilePath);}
+
+			*(paletteData + i*4 + 3) = 0x00;
+		}
 
 		if(StorePaletteData(hsPal, paletteData) != 0)
 		{
@@ -267,10 +272,16 @@ int LoadTGAToTexture(HSTexture * hsTex)
 	GLint format;
 	if(imageType == 9)
 	{
-		format = GL_RED;
-		internalFormat = GL_R8;
-		/*internalFormat = GL_ALPHA8UI_EXT;
-		format = GL_ALPHA_INTEGER_EXT;*/
+		if(openGL3)
+		{
+			internalFormat = GL_R8;
+			format = GL_RED;
+		}
+		else
+		{
+			internalFormat = GL_ALPHA8;
+			format = GL_ALPHA;
+		}
 		glPixelStorei(GL_PACK_ALIGNMENT, 1);
 		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 	}
@@ -326,7 +337,6 @@ int LoadHSPToPalette(HSPalette * hsPal)
 	}
 
 	FILE * file;
-	GLubyte * paletteData = (GLubyte*)malloc(768 * sizeof(GLubyte));
 
 	if(GLuint error = fopen_s(&file, hsPal->paletteFilePath.data(), "rb") != 0)
 	{
@@ -334,7 +344,14 @@ int LoadHSPToPalette(HSPalette * hsPal)
 		return error; //couldn't open the file
 	}
 
-	if(fread((void *)paletteData, 1, 768, file) != 768) {return freadError(file, hsPal->paletteFilePath);}
+	GLubyte * paletteData = (GLubyte*)malloc(1024 * sizeof(GLubyte));
+
+	for(int i = 0; i < 256; i++)
+	{
+		if(fread((void *)(paletteData + i*4), 3, 1, file) != 1) {return freadError(file, hsPal->paletteFilePath);}
+
+		*(paletteData + i*4 + 3) = 0x00;
+	}
 
 	fclose(file);
 
@@ -348,15 +365,15 @@ int StorePaletteData(HSPalette * hsPal, GLubyte * paletteData)
 	glActiveTextureARB(GL_TEXTURE1);
 	glGenTextures(1, &textureID);
 	glBindTexture(GL_TEXTURE_2D, textureID);
-	glPixelStorei(GL_PACK_ALIGNMENT, 1);
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	glPixelStorei(GL_PACK_ALIGNMENT, 4);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 	
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
 	
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, 256, 1, 0, GL_BGR, GL_UNSIGNED_BYTE, paletteData);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 256, 1, 0, GL_BGRA, GL_UNSIGNED_BYTE, paletteData);
 
 	delete(paletteData);
 	glBindTexture(GL_TEXTURE_2D, 0);

@@ -72,9 +72,9 @@ int HUD::SetCounterValue(int value)
 	return 0;
 }
 
-int HUD::Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSPalette*> * paletteRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec)
+int HUD::Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSPalette*> * paletteRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec, bool openGL3)
 {
-	if(int error = HSObject::Define(definition, defFileDirectory, textureRegistry, paletteRegistry, audioRegistry, obtainedAudioSpec) != 0)
+	if(int error = HSObject::Define(definition, defFileDirectory, textureRegistry, paletteRegistry, audioRegistry, obtainedAudioSpec, openGL3) != 0)
 	{
 		return error;
 	}

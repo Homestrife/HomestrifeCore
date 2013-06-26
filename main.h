@@ -204,6 +204,7 @@ protected:
 	list<HSPalette*> paletteRegistry;
 	list<HSAudio*> audioRegistry;
 
+	bool openGL3;
 	bool notDone;
 	SDL_Surface* surf_display;
 	int screenResolutionX;
@@ -234,7 +235,7 @@ protected:
 	int Collide();
 	int SpawnObjects();
 	int Render();
-	int RenderTexture(HSObject * obj, TextureInstance tex, int uTexLoc, int uIndLoc, int uIndTexLoc, int uPalLoc); 
+	int RenderTexture(HSObject * obj, TextureInstance tex, int uTexLoc, int openGLLoc, int uIndLoc, int uIndTexLoc, int uPalLoc); 
 	int PlayAudio();
 	int DeleteObjects();
 	int Cleanup();

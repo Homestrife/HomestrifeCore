@@ -12,9 +12,9 @@ FighterHold::~FighterHold()
 {
 }
 
-int FighterHold::Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec)
+int FighterHold::Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec, bool openGL3)
 {
-	if(int error = PhysicsObjectHold::Define(definition, defFileDirectory, textureRegistry, audioRegistry, obtainedAudioSpec) != 0)
+	if(int error = PhysicsObjectHold::Define(definition, defFileDirectory, textureRegistry, audioRegistry, obtainedAudioSpec, openGL3) != 0)
 	{
 		return error;
 	}
@@ -389,9 +389,9 @@ Fighter::~Fighter()
 	}
 }
 
-int Fighter::Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSPalette*> * paletteRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec)
+int Fighter::Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSPalette*> * paletteRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec, bool openGL3)
 {
-	if(int error = PhysicsObject::Define(definition, defFileDirectory, textureRegistry, paletteRegistry, audioRegistry, obtainedAudioSpec) != 0)
+	if(int error = PhysicsObject::Define(definition, defFileDirectory, textureRegistry, paletteRegistry, audioRegistry, obtainedAudioSpec, openGL3) != 0)
 	{
 		return error;
 	}

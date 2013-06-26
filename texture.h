@@ -46,7 +46,7 @@ struct HSTexture
 
 int fseekError(GLubyte error, string texFilePath);
 int freadError(FILE * file, string texFilePath);
-int LoadTGAToTexture(HSTexture * hsTex);
+int LoadTGAToTexture(HSTexture * hsTex, bool openGL3);
 int LoadHSPToPalette(HSPalette * hsPal);
 int StorePaletteData(HSPalette * hsPal, GLubyte * paletteData);
 
