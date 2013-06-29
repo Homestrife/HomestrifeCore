@@ -649,6 +649,19 @@ int Main::Render()
 			targetFocusPos.y = targetFocusPos.y + f->firstUprightTerrainBox->offset.y + f->firstUprightTerrainBox->height / 2;
 		}
 	}
+	else if(focusObjectTwo != NULL)
+	{
+		targetFocusPos.x = focusObjectTwo->pos.x;
+		targetFocusPos.y = focusObjectTwo->pos.y;
+
+		if(focusObjectTwo->IsFighter())
+		{
+			//get the centerpoint of upright terrain box
+			Fighter * f = (Fighter *)focusObjectTwo;
+			targetFocusPos.x = targetFocusPos.x + f->firstUprightTerrainBox->offset.x + f->firstUprightTerrainBox->width / 2;
+			targetFocusPos.y = targetFocusPos.y + f->firstUprightTerrainBox->offset.y + f->firstUprightTerrainBox->height / 2;
+		}
+	}
 
 	if(focusPos.x != targetFocusPos.x || focusPos.y != targetFocusPos.y)
 	{
@@ -3201,10 +3214,10 @@ string Main::GetHatConfigString(Uint8 hat)
 {
 	switch(hat)
 	{
-	case 0: return "joy1"; break;
-	case 1: return "joy2"; break;
-	case 2: return "joy3"; break;
-	case 3: return "joy4"; break;
+	case 0: return "joy1_hat"; break;
+	case 1: return "joy2_hat"; break;
+	case 2: return "joy3_hat"; break;
+	case 3: return "joy4_hat"; break;
 	}
 
 	return "";
@@ -3214,10 +3227,10 @@ string Main::GetStickConfigString(Uint8 stick)
 {
 	switch(stick)
 	{
-	case 0: return "joy1"; break;
-	case 1: return "joy2"; break;
-	case 2: return "joy3"; break;
-	case 3: return "joy4"; break;
+	case 0: return "joy1_stick"; break;
+	case 1: return "joy2_stick"; break;
+	case 2: return "joy3_stick"; break;
+	case 3: return "joy4_stick"; break;
 	}
 
 	return "";
@@ -3641,6 +3654,10 @@ void Main::KeyDown(SDLKey sym, SDLMod mod, Uint16 unicode)
 		{
 		case 0: //up
 			mappings[playerToSetUp].keyUp = sym;
+			mappings[playerToSetUp].stick = -1;
+			mappings[playerToSetUp].hat = -1;
+			mappings[playerToSetUp].buttonUp.joystick = -1;
+			mappings[playerToSetUp].buttonUp.button = -1;
 			keyToSetUp = -1;
 			menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
@@ -3655,6 +3672,10 @@ void Main::KeyDown(SDLKey sym, SDLMod mod, Uint16 unicode)
 			break;
 		case 1: //down
 			mappings[playerToSetUp].keyDown = sym;
+			mappings[playerToSetUp].stick = -1;
+			mappings[playerToSetUp].hat = -1;
+			mappings[playerToSetUp].buttonDown.joystick = -1;
+			mappings[playerToSetUp].buttonDown.button = -1;
 			keyToSetUp = -1;
 			menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
@@ -3669,6 +3690,10 @@ void Main::KeyDown(SDLKey sym, SDLMod mod, Uint16 unicode)
 			break;
 		case 2: //left
 			mappings[playerToSetUp].keyLeft = sym;
+			mappings[playerToSetUp].stick = -1;
+			mappings[playerToSetUp].hat = -1;
+			mappings[playerToSetUp].buttonLeft.joystick = -1;
+			mappings[playerToSetUp].buttonLeft.button = -1;
 			keyToSetUp = -1;
 			menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
@@ -3683,6 +3708,10 @@ void Main::KeyDown(SDLKey sym, SDLMod mod, Uint16 unicode)
 			break;
 		case 3: //right
 			mappings[playerToSetUp].keyRight = sym;
+			mappings[playerToSetUp].stick = -1;
+			mappings[playerToSetUp].hat = -1;
+			mappings[playerToSetUp].buttonRight.joystick = -1;
+			mappings[playerToSetUp].buttonRight.button = -1;
 			keyToSetUp = -1;
 			menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
@@ -3697,6 +3726,8 @@ void Main::KeyDown(SDLKey sym, SDLMod mod, Uint16 unicode)
 			break;
 		case 4: //light attack
 			mappings[playerToSetUp].keyLight = sym;
+			mappings[playerToSetUp].buttonLight.joystick = -1;
+			mappings[playerToSetUp].buttonLight.button = -1;
 			keyToSetUp = -1;
 			menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
@@ -3711,6 +3742,8 @@ void Main::KeyDown(SDLKey sym, SDLMod mod, Uint16 unicode)
 			break;
 		case 5: //heavy attack
 			mappings[playerToSetUp].keyHeavy = sym;
+			mappings[playerToSetUp].buttonHeavy.joystick = -1;
+			mappings[playerToSetUp].buttonHeavy.button = -1;
 			keyToSetUp = -1;
 			menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
@@ -3725,6 +3758,8 @@ void Main::KeyDown(SDLKey sym, SDLMod mod, Uint16 unicode)
 			break;
 		case 6: //jump
 			mappings[playerToSetUp].keyJump = sym;
+			mappings[playerToSetUp].buttonJump.joystick = -1;
+			mappings[playerToSetUp].buttonJump.button = -1;
 			keyToSetUp = -1;
 			menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
@@ -3739,6 +3774,8 @@ void Main::KeyDown(SDLKey sym, SDLMod mod, Uint16 unicode)
 			break;
 		case 7: //block
 			mappings[playerToSetUp].keyBlock = sym;
+			mappings[playerToSetUp].buttonBlock.joystick = -1;
+			mappings[playerToSetUp].buttonBlock.button = -1;
 			keyToSetUp = -1;
 			menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
@@ -3753,6 +3790,8 @@ void Main::KeyDown(SDLKey sym, SDLMod mod, Uint16 unicode)
 			break;
 		case 8: //pause
 			mappings[playerToSetUp].keyStart = sym;
+			mappings[playerToSetUp].buttonStart.joystick = -1;
+			mappings[playerToSetUp].buttonStart.button = -1;
 			keyToSetUp = -1;
 			menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
@@ -3767,6 +3806,8 @@ void Main::KeyDown(SDLKey sym, SDLMod mod, Uint16 unicode)
 			break;
 		case 9: //menu confirm
 			mappings[playerToSetUp].keyMenuConfirm = sym;
+			mappings[playerToSetUp].buttonMenuConfirm.joystick = -1;
+			mappings[playerToSetUp].buttonMenuConfirm.button = -1;
 			keyToSetUp = -1;
 			menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
@@ -3781,6 +3822,8 @@ void Main::KeyDown(SDLKey sym, SDLMod mod, Uint16 unicode)
 			break;
 		case 10: //menu back
 			mappings[playerToSetUp].keyMenuBack = sym;
+			mappings[playerToSetUp].buttonMenuBack.joystick = -1;
+			mappings[playerToSetUp].buttonMenuBack.button = -1;
 			keyToSetUp = -1;
 			menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
@@ -4011,6 +4054,19 @@ void Main::JoyAxis(Uint8 which,Uint8 axis,Sint16 value)
 			menuManager->CursorNext();
 		case 3: //right
 			mappings[playerToSetUp].stick = which;
+			mappings[playerToSetUp].hat = -1;
+			mappings[playerToSetUp].keyUp = SDLK_UNKNOWN;
+			mappings[playerToSetUp].buttonUp.joystick = -1;
+			mappings[playerToSetUp].buttonUp.button = -1;
+			mappings[playerToSetUp].keyDown = SDLK_UNKNOWN;
+			mappings[playerToSetUp].buttonDown.joystick = -1;
+			mappings[playerToSetUp].buttonDown.button = -1;
+			mappings[playerToSetUp].keyLeft = SDLK_UNKNOWN;
+			mappings[playerToSetUp].buttonLeft.joystick = -1;
+			mappings[playerToSetUp].buttonLeft.button = -1;
+			mappings[playerToSetUp].keyRight = SDLK_UNKNOWN;
+			mappings[playerToSetUp].buttonRight.joystick = -1;
+			mappings[playerToSetUp].buttonRight.button = -1;
 			menuManager->CursorNext();
 			keyToSetUp = -1;
 			if(gameState == MAIN_MENU)
@@ -4136,6 +4192,19 @@ void Main::JoyHat(Uint8 which,Uint8 hat,Uint8 value)
 			menuManager->CursorNext();
 		case 3: //right
 			mappings[playerToSetUp].hat = which;
+			mappings[playerToSetUp].stick = -1;
+			mappings[playerToSetUp].keyUp = SDLK_UNKNOWN;
+			mappings[playerToSetUp].buttonUp.joystick = -1;
+			mappings[playerToSetUp].buttonUp.button = -1;
+			mappings[playerToSetUp].keyDown = SDLK_UNKNOWN;
+			mappings[playerToSetUp].buttonDown.joystick = -1;
+			mappings[playerToSetUp].buttonDown.button = -1;
+			mappings[playerToSetUp].keyLeft = SDLK_UNKNOWN;
+			mappings[playerToSetUp].buttonLeft.joystick = -1;
+			mappings[playerToSetUp].buttonLeft.button = -1;
+			mappings[playerToSetUp].keyRight = SDLK_UNKNOWN;
+			mappings[playerToSetUp].buttonRight.joystick = -1;
+			mappings[playerToSetUp].buttonRight.button = -1;
 			menuManager->CursorNext();
 			keyToSetUp = -1;
 			if(gameState == MAIN_MENU)
@@ -4251,6 +4320,9 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 		{
 		case 0: //up
 			mappings[playerToSetUp].buttonUp.joystick = which; mappings[playerToSetUp].buttonUp.button = button;
+			mappings[playerToSetUp].stick = -1;
+			mappings[playerToSetUp].hat = -1;
+			mappings[playerToSetUp].keyUp = SDLK_UNKNOWN;
 			keyToSetUp = -1;
 			menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
@@ -4265,6 +4337,9 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 			break;
 		case 1: //down
 			mappings[playerToSetUp].buttonDown.joystick = which; mappings[playerToSetUp].buttonDown.button = button;
+			mappings[playerToSetUp].stick = -1;
+			mappings[playerToSetUp].hat = -1;
+			mappings[playerToSetUp].keyDown = SDLK_UNKNOWN;
 			keyToSetUp = -1;
 			menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
@@ -4279,6 +4354,9 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 			break;
 		case 2: //left
 			mappings[playerToSetUp].buttonLeft.joystick = which; mappings[playerToSetUp].buttonLeft.button = button;
+			mappings[playerToSetUp].stick = -1;
+			mappings[playerToSetUp].hat = -1;
+			mappings[playerToSetUp].keyLeft = SDLK_UNKNOWN;
 			keyToSetUp = -1;
 			menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
@@ -4293,6 +4371,9 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 			break;
 		case 3: //right
 			mappings[playerToSetUp].buttonRight.joystick = which; mappings[playerToSetUp].buttonRight.button = button;
+			mappings[playerToSetUp].stick = -1;
+			mappings[playerToSetUp].hat = -1;
+			mappings[playerToSetUp].keyRight = SDLK_UNKNOWN;
 			keyToSetUp = -1;
 			menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
@@ -4307,6 +4388,7 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 			break;
 		case 4: //light attack
 			mappings[playerToSetUp].buttonLight.joystick = which; mappings[playerToSetUp].buttonLight.button = button;
+			mappings[playerToSetUp].keyLight = SDLK_UNKNOWN;
 			keyToSetUp = -1;
 			menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
@@ -4321,6 +4403,7 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 			break;
 		case 5: //heavy attack
 			mappings[playerToSetUp].buttonHeavy.joystick = which; mappings[playerToSetUp].buttonHeavy.button = button;
+			mappings[playerToSetUp].keyHeavy = SDLK_UNKNOWN;
 			keyToSetUp = -1;
 			menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
@@ -4335,6 +4418,7 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 			break;
 		case 6: //jump
 			mappings[playerToSetUp].buttonJump.joystick = which; mappings[playerToSetUp].buttonJump.button = button;
+			mappings[playerToSetUp].keyJump = SDLK_UNKNOWN;
 			keyToSetUp = -1;
 			menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
@@ -4349,6 +4433,7 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 			break;
 		case 7: //block
 			mappings[playerToSetUp].buttonBlock.joystick = which; mappings[playerToSetUp].buttonBlock.button = button;
+			mappings[playerToSetUp].keyBlock = SDLK_UNKNOWN;
 			keyToSetUp = -1;
 			menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
@@ -4363,6 +4448,7 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 			break;
 		case 8: //pause
 			mappings[playerToSetUp].buttonStart.joystick = which; mappings[playerToSetUp].buttonStart.button = button;
+			mappings[playerToSetUp].keyStart = SDLK_UNKNOWN;
 			keyToSetUp = -1;
 			menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
@@ -4377,6 +4463,7 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 			break;
 		case 9: //menu confirm
 			mappings[playerToSetUp].buttonMenuConfirm.joystick = which; mappings[playerToSetUp].buttonMenuConfirm.button = button;
+			mappings[playerToSetUp].keyMenuConfirm = SDLK_UNKNOWN;
 			keyToSetUp = -1;
 			menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
@@ -4391,6 +4478,7 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 			break;
 		case 10: //menu back
 			mappings[playerToSetUp].buttonMenuBack.joystick = which; mappings[playerToSetUp].buttonMenuBack.button = button;
+			mappings[playerToSetUp].keyMenuBack = SDLK_UNKNOWN;
 			keyToSetUp = -1;
 			menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
@@ -4460,12 +4548,12 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 			curInputs[i]->bButtonSelect.pressed = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].buttonSelect.joystick == which && mappings[i].buttonMenuConfirm.button == button)
+		if(mappings[i].buttonMenuConfirm.joystick == which && mappings[i].buttonMenuConfirm.button == button)
 		{
 			curInputs[i]->buttonMenuConfirm.pressed = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].buttonSelect.joystick == which && mappings[i].buttonMenuBack.button == button)
+		if(mappings[i].buttonMenuBack.joystick == which && mappings[i].buttonMenuBack.button == button)
 		{
 			curInputs[i]->buttonMenuBack.pressed = true;
 			inputStateChange[i] = true;

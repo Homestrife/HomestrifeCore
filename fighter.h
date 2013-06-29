@@ -4,7 +4,7 @@
 #include "physicsobject.h"
 
 #define RUN_INPUT_FRAMES 10 //max number of frames between the two left/right taps that activate a ground run/dash
-#define AIR_DASH_INPUT_FRAMES 10 //max number of frames between the two left/right taps that activate an air run/dash
+#define AIR_DASH_INPUT_FRAMES RUN_INPUT_FRAMES //max number of frames between the two left/right taps that activate an air run/dash
 #define MOVING_TURN_THRESHOLD 10 //number of frames after walk/run stop that turning will trigger the walking/running turn animation
 #define COMMAND_INPUT_THRESHOLD 10 //number of frames allowed between individual direction inputs for a command
 #define BUFFERED_ACTION_LIFETIME 10 //number of frames to hold on to buffered inputs
@@ -67,6 +67,7 @@ enum FighterAction
 	NO_ACTION,
 	MOVE,
 	DASH,
+	BACKWARD_DASH,
 	CROUCH,
 	JUMP,
 	NEUTRAL_LIGHT,

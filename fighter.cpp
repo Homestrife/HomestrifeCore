@@ -591,6 +591,18 @@ int Fighter::AdvanceHolds()
 
 int Fighter::Event(InputStates * inputHistory, int frame)
 {
+	//dash
+	if(inputHistory->frame == frame && (ForwardPressed(inputHistory, frame, frame) && ForwardWasTapped(inputHistory, frame, frame - RUN_INPUT_FRAMES)) || ForwardHardPressed(inputHistory, frame, frame))
+	{
+		bufferedAction = DASH;
+		bufferedActionAge = 0;
+	}
+	else if(inputHistory->frame == frame && (BackwardPressed(inputHistory, frame, frame) && BackwardWasTapped(inputHistory, frame, frame - RUN_INPUT_FRAMES)) || BackwardHardPressed(inputHistory, frame, frame))
+	{
+		bufferedAction = BACKWARD_DASH;
+		bufferedActionAge = 0;
+	}
+
 	//jump
 	if(inputHistory->frame == frame && (inputHistory->bKeyJump.pressed || inputHistory->bButtonJump.pressed))
 	{
@@ -714,13 +726,13 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 
 		if(facing == LEFT)
 		{
-			if(state == STANDING && (turning || runStopping) && (ForwardWasTapped(inputHistory, frame, frame - RUN_INPUT_FRAMES) || ForwardHardPressed(inputHistory, frame, frame)))
+			/*if(state == STANDING && (turning || runStopping) && (ForwardWasTapped(inputHistory, frame, frame - RUN_INPUT_FRAMES) || ForwardHardPressed(inputHistory, frame, frame)))
 			{
 				runAfterTurning = true;
 			}
-			else if(!blocking && state == STANDING && !turning && !runStopping)
+			else */if(!blocking && state == STANDING && !turning && !runStopping)
 			{
-				if(CanDashCancel() && (runAfterTurning || ForwardWasTapped(inputHistory, frame, frame - RUN_INPUT_FRAMES) || ForwardHardPressed(inputHistory, frame, frame)))
+				if(runAfterTurning)
 				{
 					ChangeHold(fighterEventHolds.run);
 					if(runAfterTurning)
@@ -745,7 +757,7 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 					state = WALKING;
 				}
 			}
-			else if(!blocking && state == JUMPING && !jumpStartup && !jumpStartupJustEnded)
+			/*else if(!blocking && state == JUMPING && !jumpStartup && !jumpStartupJustEnded)
 			{
 				if(CanDashCancel() && curAirActions > 0 && (ForwardWasTapped(inputHistory, frame, frame - AIR_DASH_INPUT_FRAMES) || ForwardHardPressed(inputHistory, frame, frame)))
 				{
@@ -757,7 +769,7 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 					landingAction = DASH;
 					turnUponLanding = false;
 				}
-			}
+			}*/
 		}
 		else
 		{
@@ -772,8 +784,8 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 				turning = true;
 				walkAfterTurning = false;
 				runAfterTurning = false;
-				if(ForwardHardPressed(inputHistory, frame, frame)) { runAfterTurning = true; }
-				else { walkAfterTurning = true; }
+				/*if(ForwardHardPressed(inputHistory, frame, frame)) { runAfterTurning = true; }
+				else { */walkAfterTurning = true; //}
 				timeSinceWalkStop = MOVING_TURN_THRESHOLD + 1;
 				state = STANDING;
 			}
@@ -784,7 +796,7 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 				turning = true;
 				walkAfterTurning = false;
 				runAfterTurning = false;
-				if(ForwardHardPressed(inputHistory, frame, frame)) { runAfterTurning = true; }
+				//if(ForwardHardPressed(inputHistory, frame, frame)) { runAfterTurning = true; }
 				state = STANDING;
 			}
 			else if(!attacking && !blocking && state == CROUCHING)
@@ -805,7 +817,7 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 				sliding = true;
 				state = STANDING;
 			}
-			else if(!blocking && state == JUMPING && !jumpStartup && !jumpStartupJustEnded)
+			/*else if(!blocking && state == JUMPING && !jumpStartup && !jumpStartupJustEnded)
 			{
 				if(CanDashCancel() && curAirActions > 0 && (BackwardWasTapped(inputHistory, frame, frame - AIR_DASH_INPUT_FRAMES) || BackwardHardPressed(inputHistory, frame, frame)))
 				{
@@ -816,7 +828,7 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 					landingAction = DASH;
 					turnUponLanding = true;
 				}
-			}
+			}*/
 		}
 	}
 	else if(inputHistory->bKeyRight.held || inputHistory->bButtonRight.held || inputHistory->bHatRight.held || inputHistory->bStickRight.held)
@@ -845,8 +857,8 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 				turning = true;
 				walkAfterTurning = false;
 				runAfterTurning = false;
-				if(ForwardHardPressed(inputHistory, frame, frame)) { runAfterTurning = true; }
-				else { walkAfterTurning = true; }
+				/*if(ForwardHardPressed(inputHistory, frame, frame)) { runAfterTurning = true; }
+				else { */walkAfterTurning = true; //}
 				timeSinceWalkStop = MOVING_TURN_THRESHOLD + 1;
 				state = STANDING;
 			}
@@ -857,7 +869,7 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 				turning = true;
 				walkAfterTurning = false;
 				runAfterTurning = false;
-				if(ForwardHardPressed(inputHistory, frame, frame)) { runAfterTurning = true; }
+				//if(ForwardHardPressed(inputHistory, frame, frame)) { runAfterTurning = true; }
 				state = STANDING;
 			}
 			else if(!attacking && !blocking && state == CROUCHING)
@@ -878,7 +890,7 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 				timeSinceRunStop = MOVING_TURN_THRESHOLD + 1;
 				state = STANDING;
 			}
-			else if(!blocking && state == JUMPING && !jumpStartup && !jumpStartupJustEnded)
+			/*else if(!blocking && state == JUMPING && !jumpStartup && !jumpStartupJustEnded)
 			{
 				if(CanDashCancel() && curAirActions > 0 && (BackwardWasTapped(inputHistory, frame, frame - AIR_DASH_INPUT_FRAMES) || BackwardHardPressed(inputHistory, frame, frame)))
 				{
@@ -889,17 +901,17 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 					landingAction = DASH;
 					turnUponLanding = true;
 				}
-			}
+			}*/
 		}
 		else
 		{
-			if(state == STANDING && (turning || runStopping) && (ForwardWasTapped(inputHistory, frame, frame - RUN_INPUT_FRAMES) || ForwardHardPressed(inputHistory, frame, frame)))
+			/*if(state == STANDING && (turning || runStopping) && (ForwardWasTapped(inputHistory, frame, frame - RUN_INPUT_FRAMES) || ForwardHardPressed(inputHistory, frame, frame)))
 			{
 				runAfterTurning = true;
 			}
-			else if(!blocking && state == STANDING && !turning && !runStopping)
+			else */if(!blocking && state == STANDING && !turning && !runStopping)
 			{
-				if(CanDashCancel() && (runAfterTurning || ForwardWasTapped(inputHistory, frame, frame - RUN_INPUT_FRAMES) || ForwardHardPressed(inputHistory, frame, frame)))
+				if(runAfterTurning)
 				{ 
 					ChangeHold(fighterEventHolds.run);
 					if(runAfterTurning)
@@ -911,7 +923,7 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 				}
 				else if(!attacking)
 				{
-					if(runAfterTurning)
+					if(walkAfterTurning)
 					{
 						ChangeHold(fighterEventHolds.walking);
 						walkAfterTurning = false;
@@ -926,7 +938,7 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 			}
 			else if(!blocking && state == JUMPING && !jumpStartup && !jumpStartupJustEnded)
 			{
-				if(CanDashCancel() && curAirActions > 0 && (ForwardWasTapped(inputHistory, frame, frame - AIR_DASH_INPUT_FRAMES) || ForwardHardPressed(inputHistory, frame, frame)))
+				/*if(CanDashCancel() && curAirActions > 0 && (ForwardWasTapped(inputHistory, frame, frame - AIR_DASH_INPUT_FRAMES) || ForwardHardPressed(inputHistory, frame, frame)))
 				{
 					ChangeHold(fighterEventHolds.airDashForward);
 					state = AIR_DASHING;
@@ -935,7 +947,7 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 					curAirActions--;
 					landingAction = DASH;
 					turnUponLanding = false;
-				}
+				}*/
 			}
 		}
 	}
@@ -956,6 +968,46 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 			runStopping = true;
 			sliding = true;
 			state = STANDING;
+		}
+	}
+
+	//dash
+	if(CanDashCancel() && !turning && !runStopping && !blocking)
+	{
+		if(bufferedAction == DASH)
+		{
+			if(state == STANDING || state == WALKING || state == CROUCHING)
+			{
+				bufferedAction = NO_ACTION;
+				ChangeHold(fighterEventHolds.run);
+				walkAfterTurning = false;
+				runAfterTurning = false;
+				attacking = false;
+				state = RUNNING;
+			}
+			else if(state == JUMPING && curAirActions > 0 && !jumpStartup && !jumpStartupJustEnded)
+			{
+				bufferedAction = NO_ACTION;
+				ChangeHold(fighterEventHolds.airDashForward);
+				state = AIR_DASHING;
+				airDash = FORWARD_AIR_DASH;
+				airControl = NO_AIR_CONTROL;
+				curAirActions--;
+				landingAction = DASH;
+				turnUponLanding = false;
+				attacking = false;
+			}
+		}
+		else if(bufferedAction == BACKWARD_DASH && state == JUMPING && curAirActions > 0 && !jumpStartup && !jumpStartupJustEnded)
+		{
+			bufferedAction = NO_ACTION;
+			ChangeHold(fighterEventHolds.airDashBackward);
+			state = AIR_DASHING;
+			airDash = BACKWARD_AIR_DASH;
+			curAirActions--;
+			landingAction = DASH;
+			turnUponLanding = true;
+			attacking = false;
 		}
 	}
 
@@ -1005,9 +1057,9 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 	//jump
 	if(CanJumpCancel() && !jumpStartup && !blocking && curBlockstun <= 0 && bufferedAction == JUMP)
 	{
-		bufferedAction = NO_ACTION;
 		if(state != JUMPING && state != AIRBORN && state != AIR_DASHING)
 		{
+			bufferedAction = NO_ACTION;
 			//ground jump
 			if(state == CROUCHING)
 			{
@@ -1073,6 +1125,7 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 		}
 		else if(state == JUMPING)// && !(inputHistory->bKeyDown.held || inputHistory->bButtonDown.held || inputHistory->bHatDown.held || inputHistory->bStickDown.held))
 		{
+			bufferedAction = NO_ACTION;
 			//air jump
 			if(curAirActions > 0)
 			{
@@ -1240,16 +1293,17 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 				GroundAttackExecuted();
 				state = CROUCHING;
 			}
-			else if(CanLightForwardCancel() && fighterEventHolds.attackLightForwardGround != NULL && (bufferedAction == FORWARD_LIGHT || bufferedAction == BACKWARD_LIGHT))
+			else if(CanLightForwardCancel() && fighterEventHolds.attackLightForwardGround != NULL && (bufferedAction == FORWARD_LIGHT))
 			{
 				ChangeHold(fighterEventHolds.attackLightForwardGround);
 				GroundAttackExecuted();
 			}
-			else if(CanLightNeutralCancel() && fighterEventHolds.attackLightNeutralGround != NULL && bufferedAction == NEUTRAL_LIGHT)
+			else if(CanLightNeutralCancel() && fighterEventHolds.attackLightNeutralGround != NULL && (bufferedAction == NEUTRAL_LIGHT || bufferedAction == BACKWARD_LIGHT))
 			{
 				ChangeHold(fighterEventHolds.attackLightNeutralGround);
 				GroundAttackExecuted();
 			}
+			bufferedAction = NO_ACTION;
 		}
 		else if(state == JUMPING)
 		{
@@ -1291,8 +1345,8 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 				AirAttackExecuted();
 				landingAction = NEUTRAL_LIGHT;
 			}
+			bufferedAction = NO_ACTION;
 		}
-		bufferedAction = NO_ACTION;
 	}
 
 	//heavy attacks
@@ -1316,16 +1370,17 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 				GroundAttackExecuted();
 				state = CROUCHING;
 			}
-			else if(CanHeavyForwardCancel() && fighterEventHolds.attackHeavyForwardGround != NULL && (bufferedAction == FORWARD_HEAVY || bufferedAction == BACKWARD_HEAVY))
+			else if(CanHeavyForwardCancel() && fighterEventHolds.attackHeavyForwardGround != NULL && (bufferedAction == FORWARD_HEAVY))
 			{
 				ChangeHold(fighterEventHolds.attackHeavyForwardGround);
 				GroundAttackExecuted();
 			}
-			else if(CanHeavyNeutralCancel() && fighterEventHolds.attackHeavyNeutralGround != NULL && bufferedAction == NEUTRAL_HEAVY)
+			else if(CanHeavyNeutralCancel() && fighterEventHolds.attackHeavyNeutralGround != NULL && (bufferedAction == NEUTRAL_HEAVY || bufferedAction == BACKWARD_HEAVY))
 			{
 				ChangeHold(fighterEventHolds.attackHeavyNeutralGround);
 				GroundAttackExecuted();
 			}
+			bufferedAction = NO_ACTION;
 		}
 		else if(state == JUMPING)
 		{
@@ -1365,8 +1420,8 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 				AirAttackExecuted();
 				landingAction = NEUTRAL_HEAVY;
 			}
+			bufferedAction = NO_ACTION;
 		}
-		bufferedAction = NO_ACTION;
 	}
 
 	jumpStartupJustEnded = false;
@@ -3611,13 +3666,13 @@ bool Fighter::ForwardHardPressed(InputStates * inputHistory, int untilFrame, int
 	//find the latest point in history the stick was neutral
 	while(curHistory->frame >= hardPressFrame - HARD_PRESS_THRESHOLD)
 	{
+		curHistory = curHistory->prevInputState;
+		if(curHistory == NULL) { return true; }
+
 		if(!curHistory->bStickLeft.held && !curHistory->bStickRight.held && !curHistory->bStickUp.held && !curHistory->bStickDown.held)
 		{
 			return true;
 		}
-
-		curHistory = curHistory->prevInputState;
-		if(curHistory == NULL) { return false; }
 	}
 
 	return false;
@@ -3660,13 +3715,13 @@ bool Fighter::BackwardHardPressed(InputStates * inputHistory, int untilFrame, in
 	//find the latest point in history the stick was neutral
 	while(curHistory->frame >= hardPressFrame - HARD_PRESS_THRESHOLD)
 	{
+		curHistory = curHistory->prevInputState;
+		if(curHistory == NULL) { return true; }
+
 		if(!curHistory->bStickLeft.held && !curHistory->bStickRight.held && !curHistory->bStickUp.held && !curHistory->bStickDown.held)
 		{
 			return true;
 		}
-
-		curHistory = curHistory->prevInputState;
-		if(curHistory == NULL) { return false; }
 	}
 
 	return false;
