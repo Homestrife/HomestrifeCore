@@ -17,9 +17,11 @@ void main()
 
 	vec2 basePos = pixelPos / (resolution / 2);
 
-	vec2 pannedPos = basePos - focusPos;
+	vec2 scaledFocusPosition = focusPos / (resolution / 2);
+
+	vec2 pannedPos = basePos - scaledFocusPosition;
 
 	vec2 zoomedPos = pannedPos / zoomOut;
 	
-	gl_Position = vec4(zoomedPos, position.z, 1.0);
+	gl_Position = vec4(zoomedPos.x, zoomedPos.y * -1, position.z, 1.0);
 }

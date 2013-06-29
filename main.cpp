@@ -743,6 +743,16 @@ int Main::Render()
 	//glOrtho(left, right, bottom, top, 1, -1);
 	//glMatrixMode(GL_MODELVIEW);
 	//glLoadIdentity();
+	
+	glUseProgramObjectARB(shader_progIndexed);
+	glUniform2fARB(indexedFocusPosLoc, 0.0f, 0.0f);
+	glUniform1fARB(indexedZoomOutLoc, 1.0f);
+	
+	glUseProgramObjectARB(shader_progNonIndexed);
+	glUniform2fARB(nonIndexedFocusPosLoc, 0.0f, 0.0f);
+	glUniform1fARB(nonIndexedZoomOutLoc, 1.0f);
+
+	glUseProgramObjectARB(0);
 
 	for ( objIt=HUDObjects.begin(); objIt != HUDObjects.end(); objIt++)
 	{
