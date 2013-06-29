@@ -1,22 +1,14 @@
 #version 110
 
+varying vec2 texCoord;
 uniform sampler2D tex;
-uniform bool openGL3;
 uniform sampler2D palette;
 
 void main()
 {
-	vec4 indexVec = texture2D(tex, gl_TexCoord[0].st);
+	vec4 indexVec = texture2D(tex, texCoord);
 
-	float index;
-	if(openGL3)
-	{
-		index = indexVec.r;
-	}
-	else
-	{
-		index = indexVec.a;
-	}
+	float index = indexVec.a;
 
 	if(index == 0.0)
 	{

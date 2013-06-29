@@ -19,6 +19,14 @@ using namespace std;
 
 typedef float HSVectComp; //a single component (x, y, or z) of a vector
 
+extern GLenum texCoordBufferID;
+extern GLenum elementArrayBufferID;
+
+extern GLenum positionLocNonIndexed;
+extern GLenum positionLocIndexed;
+extern GLenum texCoordInLocNonIndexed;
+extern GLenum texCoordInLocIndexed;
+
 struct HSVect2D //a two-dimensional vector
 {
 	HSVectComp x;
@@ -36,6 +44,7 @@ struct HSTexture
 {
 	GLuint textureID; //OpenGL's internal texture ID
 	GLuint bufferID; //OpenGL's internal vertex buffer ID
+	GLuint vaoID; //OpenGL's internal vertex array object ID
 	bool indexed; //whether or not the texture is indexed
 	bool rightAlign; //whether or not drawing should start from the right
 	bool topAlign; //whether or not drawing should start from the top

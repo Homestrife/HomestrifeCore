@@ -196,7 +196,6 @@ protected:
 	MatchState matchState;
 	MatchPlayerState matchPlayerState[MAX_PLAYERS];
 	PauseMenuState pauseMenuState;
-	GLuint texCoordBufferID;
 	unsigned int newObjectId;
 	list<HSObject*> gameObjects;
 	list<HSObject*> HUDObjects;
@@ -204,10 +203,19 @@ protected:
 	list<HSPalette*> paletteRegistry;
 	list<HSAudio*> audioRegistry;
 
+	int nonIndexedPosOffsetLoc;
+	int indexedPosOffsetLoc;
+	int nonIndexedScaleLoc;
+	int indexedScaleLoc;
+	int nonIndexedResolutionLoc;
+	int indexedResolutionLoc;
+	int nonIndexedFocusPosLoc;
+	int indexedFocusPosLoc;
+	int nonIndexedZoomOutLoc;
+	int indexedZoomOutLoc;
 	int nonIndexedTexLoc;
 	int indexedTexLoc;
 	int paletteLoc;
-	int openGL3Loc;
 	bool openGL3;
 	bool notDone;
 	SDL_Surface* surf_display;

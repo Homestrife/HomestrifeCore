@@ -45,8 +45,12 @@ extern string linkProgram(GLenum program);
 	extern PFNGLUNIFORM1IARBPROC				glUniform1iARB;
 	extern PFNGLUNIFORM1FVARBPROC				glUniform1fvARB;
 	extern PFNGLUNIFORM1IVARBPROC				glUniform1ivARB;
+	extern PFNGLUNIFORM2FARBPROC				glUniform2fARB;
+	extern PFNGLUNIFORM4FARBPROC				glUniform4fARB;
 	extern PFNGLGETSHADERIVPROC					glGetShaderiv;
 	extern PFNGLGETPROGRAMIVPROC				glGetProgramiv;
+	extern PFNGLBINDATTRIBLOCATIONPROC			glBindAttribLocation;
+	extern PFNGLGETATTRIBLOCATIONPROC			glGetAttribLocation;
 
 	/* buffer object prototypes */
 	extern PFNGLBINDBUFFERARBPROC				glBindBuffer;
@@ -60,6 +64,14 @@ extern string linkProgram(GLenum program);
 	extern PFNGLUNMAPBUFFERARBPROC				glUnmapBuffer;
 	extern PFNGLGETBUFFERPARAMETERIVARBPROC		glGetBufferParameteriv;
 	extern PFNGLGETBUFFERPOINTERVARBPROC		glGetBufferPointerv;
+	extern PFNGLENABLEVERTEXATTRIBARRAYARBPROC	glEnableVertexAttribArray;
+	extern PFNGLDISABLEVERTEXATTRIBARRAYARBPROC glDisableVertexAttribArray;
+	extern PFNGLVERTEXATTRIBPOINTERARBPROC		glVertexAttribPointer;
+	extern PFNGLGENVERTEXARRAYSPROC				glGenVertexArrays;
+	extern PFNGLDELETEVERTEXARRAYSPROC			glDeleteVertexArrays;
+	extern PFNGLBINDVERTEXARRAYPROC				glBindVertexArray;
+	extern PFNGLVERTEXATTRIB2FPROC				glVertexAttrib2f;
+	extern PFNGLVERTEXATTRIB3FPROC				glVertexAttrib3f;
 #endif
 
 #endif

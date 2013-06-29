@@ -268,13 +268,15 @@ int HSObjectHold::AddTexture(XMLElement * texture, string defFileDirectory, list
 		HSTexture * newTex = new HSTexture();
 		newTex->usingCount = 1;
 		newTex->textureFilePath = textureFilePath;
+		newTex->ownPalette = NULL;
+		newTex->bufferID = 0;
+		newTex->vaoID = 0;
 
 		if(int error = LoadTGAToTexture(newTex, openGL3, useTGAPalettes) != 0) //load the texture
 		{
 			return error;
 		}
 
-		if(!useTGAPalettes) { newTex->ownPalette = NULL; }
 		newTexInst.hsTex = newTex;
 		textureRegistry->push_back(newTex);
 	}

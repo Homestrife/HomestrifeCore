@@ -46,8 +46,12 @@ PFNGLUNIFORM1FARBPROC               glUniform1fARB = NULL;
 PFNGLUNIFORM1IARBPROC               glUniform1iARB = NULL;
 PFNGLUNIFORM1FVARBPROC              glUniform1fvARB = NULL;
 PFNGLUNIFORM1IVARBPROC              glUniform1ivARB = NULL;
+PFNGLUNIFORM2FARBPROC				glUniform2fARB = NULL;
+PFNGLUNIFORM4FARBPROC				glUniform4fARB = NULL;
 PFNGLGETSHADERIVPROC				glGetShaderiv = NULL;
 PFNGLGETPROGRAMIVPROC				glGetProgramiv = NULL;
+PFNGLBINDATTRIBLOCATIONPROC			glBindAttribLocation = NULL;
+PFNGLGETATTRIBLOCATIONPROC			glGetAttribLocation = NULL;
 
 PFNGLBINDBUFFERARBPROC				glBindBuffer = NULL;
 PFNGLDELETEBUFFERSARBPROC			glDeleteBuffers = NULL;
@@ -60,6 +64,14 @@ PFNGLMAPBUFFERARBPROC				glMapBuffer = NULL;
 PFNGLUNMAPBUFFERARBPROC				glUnmapBuffer = NULL;
 PFNGLGETBUFFERPARAMETERIVARBPROC	glGetBufferParameteriv = NULL;
 PFNGLGETBUFFERPOINTERVARBPROC		glGetBufferPointerv = NULL;
+PFNGLENABLEVERTEXATTRIBARRAYARBPROC	glEnableVertexAttribArray = NULL;
+PFNGLDISABLEVERTEXATTRIBARRAYARBPROC glDisableVertexAttribArray = NULL;
+PFNGLVERTEXATTRIBPOINTERARBPROC		glVertexAttribPointer = NULL;
+PFNGLGENVERTEXARRAYSPROC			glGenVertexArrays = NULL;
+PFNGLDELETEVERTEXARRAYSPROC			glDeleteVertexArrays = NULL;
+PFNGLBINDVERTEXARRAYPROC			glBindVertexArray = NULL;
+PFNGLVERTEXATTRIB2FPROC				glVertexAttrib2f = NULL;
+PFNGLVERTEXATTRIB3FPROC				glVertexAttrib3f = NULL;
 
 #include <cstring>
 
@@ -123,10 +135,18 @@ void setupExtensions()
       SDL_GL_GetProcAddress("glUniform1fvARB");
     glUniform1ivARB = (PFNGLUNIFORM1IVARBPROC)
       SDL_GL_GetProcAddress("glUniform1ivARB");
+    glUniform2fARB = (PFNGLUNIFORM2FARBPROC)
+      SDL_GL_GetProcAddress("glUniform2fARB");
+    glUniform4fARB = (PFNGLUNIFORM4FARBPROC)
+      SDL_GL_GetProcAddress("glUniform4fARB");
     glGetShaderiv = (PFNGLGETSHADERIVPROC)
       SDL_GL_GetProcAddress("glGetShaderiv");
     glGetProgramiv = (PFNGLGETPROGRAMIVPROC)
       SDL_GL_GetProcAddress("glGetProgramiv");
+	glBindAttribLocation = (PFNGLBINDATTRIBLOCATIONPROC)
+	  SDL_GL_GetProcAddress("glBindAttribLocation");
+	glGetAttribLocation = (PFNGLGETATTRIBLOCATIONPROC)
+	  SDL_GL_GetProcAddress("glGetAttribLocation");
 
     if( false
      || glActiveTextureARB == NULL
@@ -146,7 +166,11 @@ void setupExtensions()
      || glUniform1iARB == NULL
      || glUniform1fvARB == NULL
      || glUniform1ivARB == NULL
-	 || glGetShaderiv == NULL)
+	 || glUniform2fARB == NULL
+	 || glUniform4fARB == NULL
+	 || glGetShaderiv == NULL
+	 || glBindAttribLocation == NULL
+	 || glGetAttribLocation == NULL)
 	{
       shading_enabled = false;
 	}
@@ -185,6 +209,22 @@ void setupExtensions()
       SDL_GL_GetProcAddress("glGetBufferParameterivARB");
     glGetBufferPointerv = (PFNGLGETBUFFERPOINTERVARBPROC)
       SDL_GL_GetProcAddress("glGetBufferPointervARB");
+	glEnableVertexAttribArray = (PFNGLENABLEVERTEXATTRIBARRAYARBPROC)
+	  SDL_GL_GetProcAddress("glEnableVertexAttribArrayARB");
+	glDisableVertexAttribArray = (PFNGLDISABLEVERTEXATTRIBARRAYARBPROC)
+	  SDL_GL_GetProcAddress("glDisableVertexAttribArrayARB");
+	glVertexAttribPointer = (PFNGLVERTEXATTRIBPOINTERARBPROC)
+	  SDL_GL_GetProcAddress("glVertexAttribPointerARB");
+	glGenVertexArrays = (PFNGLGENVERTEXARRAYSPROC)
+	  SDL_GL_GetProcAddress("glGenVertexArrays");
+	glDeleteVertexArrays = (PFNGLDELETEVERTEXARRAYSPROC)
+	  SDL_GL_GetProcAddress("glDeleteVertexArrays");
+	glBindVertexArray = (PFNGLBINDVERTEXARRAYPROC)
+	  SDL_GL_GetProcAddress("glBindVertexArray");
+	glVertexAttrib2f = (PFNGLVERTEXATTRIB2FPROC)
+	  SDL_GL_GetProcAddress("glVertexAttrib2f");
+	glVertexAttrib3f = (PFNGLVERTEXATTRIB3FPROC)
+	  SDL_GL_GetProcAddress("glVertexAttrib3f");
 
     if( false
      || glBindBuffer == NULL
@@ -197,7 +237,14 @@ void setupExtensions()
      || glMapBuffer == NULL
      || glUnmapBuffer == NULL
      || glGetBufferParameteriv == NULL
-     || glGetBufferPointerv == NULL)
+     || glGetBufferPointerv == NULL
+	 || glEnableVertexAttribArray == NULL
+	 || glDisableVertexAttribArray == NULL
+	 || glVertexAttribPointer == NULL
+	 || glGenVertexArrays == NULL
+	 || glBindVertexArray == NULL
+	 || glVertexAttrib2f == NULL
+	 || glVertexAttrib3f == NULL)
 	{
       buffer_objects_enabled = false;
 	}

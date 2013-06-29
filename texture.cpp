@@ -1,5 +1,13 @@
 #include "texture.h"
 
+GLenum texCoordBufferID = 0;
+GLenum elementArrayBufferID = 0;
+
+GLenum positionLocNonIndexed = 0;
+GLenum positionLocIndexed = 0;
+GLenum texCoordInLocNonIndexed = 0;
+GLenum texCoordInLocIndexed = 0;
+
 int fseekError(GLubyte error, string texFilePath)
 {
 	stringstream sstm;
@@ -112,7 +120,10 @@ int LoadTGAToTexture(HSTexture * hsTex, bool openGL3, bool useTGAPalette)
 	if(useTGAPalette && colorMapType != 0)
 	{
 		//save the palette data
-		HSPalette * hsPal = new HSPalette();
+		if(hsTex->ownPalette == NULL)
+		{
+			hsTex->ownPalette = new HSPalette();
+		}
 
 		if(bytesPerColorMapEntry != 3 || colorMapLength != 256)
 		{
@@ -129,13 +140,11 @@ int LoadTGAToTexture(HSTexture * hsTex, bool openGL3, bool useTGAPalette)
 			*(paletteData + i*4 + 3) = 0x00;
 		}
 
-		if(StorePaletteData(hsPal, paletteData) != 0)
+		if(StorePaletteData(hsTex->ownPalette, paletteData) != 0)
 		{
 			UpdateLog("Error reading palette data from indexed TGA file: " + texFilePath, true);
 			return -1;
 		}
-
-		hsTex->ownPalette = hsPal;
 	}
 	else
 	{
@@ -301,31 +310,80 @@ int LoadTGAToTexture(HSTexture * hsTex, bool openGL3, bool useTGAPalette)
 	delete(imageData);
 	glBindTexture(GL_TEXTURE_2D, 0);
 
-	//make an array of coordinates based on the texture dimensions
-	GLshort * dim = new GLshort[12];
-
-	dim[0] = 0;				dim[1]  = 0;			dim[2]  = 0;
-	dim[3] = imageWidth;	dim[4]  = 0;			dim[5]  = 0;
-	dim[6] = imageWidth;	dim[7]  = imageHeight;	dim[8]  = 0;
-	dim[9] = 0;				dim[10] = imageHeight;	dim[11] = 0;
-
-	//make a buffer object
-	glGenBuffers(1, &bufferID);
-	glBindBuffer(GL_ARRAY_BUFFER, bufferID);
-	glBufferData(GL_ARRAY_BUFFER, 12*sizeof(GLushort), dim, GL_STATIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-	//get the fuck outta here
-	delete[] dim;
-
-	//now, put all the results in the texture struct
-	//hsTex->defined = true;
-	hsTex->textureID = textureID;
-	hsTex->bufferID = bufferID;
-	hsTex->rightAlign = rightAlign;
-	hsTex->topAlign = topAlign;
+	//save whether or not this is indexed
 	if(imageType == 9) { hsTex->indexed = true; }
 	else if(imageType == 10) { hsTex->indexed = false; }
+
+	//make a buffer object
+	if(hsTex->bufferID == 0)
+	{
+		//make an array of coordinates based on the texture dimensions
+		GLfloat * dim = new GLfloat[12];
+
+		dim[0] = 0.0f;					dim[1]  = 0.0f;					dim[2]  = 0.0f;
+		dim[3] = (GLfloat)imageWidth;	dim[4]  = 0.0f;					dim[5]  = 0.0f;
+		dim[6] = (GLfloat)imageWidth;	dim[7]  = (GLfloat)imageHeight;	dim[8]  = 0.0f;
+		dim[9] = 0.0f;					dim[10] = (GLfloat)imageHeight;	dim[11] = 0.0f;
+
+		//make and save the coordinates to a buffer
+		glGenBuffers(1, &bufferID);
+		glBindBuffer(GL_ARRAY_BUFFER, bufferID);
+		glBufferData(GL_ARRAY_BUFFER, 12*sizeof(GLfloat), dim, GL_STATIC_DRAW);
+
+		delete[] dim;
+
+		if(openGL3)
+		{
+			//get the position and texCoordIn positions
+			GLenum positionLoc;
+			GLenum texCoordInLoc;
+
+			if(hsTex->indexed)
+			{
+				positionLoc = positionLocIndexed;
+				texCoordInLoc = texCoordInLocIndexed;
+			}
+			else
+			{
+				positionLoc = positionLocNonIndexed;
+				texCoordInLoc = texCoordInLocNonIndexed;
+			}
+
+			//make a vertex array object, and put stuff in it
+			GLuint vaoID;
+			glGenVertexArrays(1, &vaoID);
+
+			glBindVertexArray(vaoID);
+			glEnableVertexAttribArray(positionLoc);
+			glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, 0, (void*)0); //the buffer object we just made goes here, representing the actual coordinates/dimensions
+
+			glBindBuffer(GL_ARRAY_BUFFER, texCoordBufferID);
+			glEnableVertexAttribArray(texCoordInLoc);
+			glVertexAttribPointer(texCoordInLoc, 2, GL_FLOAT, GL_FALSE, 0, (void*)0); //put the texture coordinates here
+
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementArrayBufferID); //put in the element array
+
+			//unbind and save the array object
+			glBindVertexArray(0);
+			hsTex->vaoID = vaoID;
+		}
+
+		//unbind and save the buffer
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		hsTex->bufferID = bufferID;
+	}
+
+	//now, put all the results in the texture struct
+	hsTex->textureID = textureID;
+	hsTex->rightAlign = rightAlign;
+	hsTex->topAlign = topAlign;
+	
+	GLenum glError = glGetError();
+	if(glError != GL_NO_ERROR)
+	{
+		string glErrorString = "OpenGL error in LoadTGAToTexture().";
+		UpdateLog(glErrorString, true);
+	}
 
 	return 0;
 }
@@ -362,6 +420,7 @@ int LoadHSPToPalette(HSPalette * hsPal)
 
 int StorePaletteData(HSPalette * hsPal, GLubyte * paletteData)
 {
+
 	GLuint textureID;
 
 	glActiveTextureARB(GL_TEXTURE1);
@@ -397,6 +456,13 @@ int StorePaletteData(HSPalette * hsPal, GLubyte * paletteData)
 	//save the palette data
 	//hsPal->paletteData = paletteData;
 	hsPal->textureID = textureID;
+
+	GLenum glError = glGetError();
+	if(glError != GL_NO_ERROR)
+	{
+		string glErrorString = "OpenGL error in StorePaletteData().";
+		UpdateLog(glErrorString, true);
+	}
 
 	return 0;
 }

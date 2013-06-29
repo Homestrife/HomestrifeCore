@@ -1,0 +1,25 @@
+#version 130
+
+in vec3 position;
+in vec2 texCoordIn;
+uniform vec2 posOffset;
+uniform vec2 scale;
+uniform vec2 resolution;
+uniform vec2 focusPos;
+uniform float zoomOut;
+out vec2 texCoord;
+
+void main()
+{
+	texCoord = texCoordIn;
+
+	vec2 pixelPos = (vec2(position.x, position.y) * scale) + posOffset;
+
+	vec2 basePos = pixelPos / (resolution / 2);
+
+	vec2 pannedPos = basePos - focusPos;
+
+	vec2 zoomedPos = pannedPos / zoomOut;
+	
+	gl_Position = vec4(zoomedPos, position.z, 1.0);
+}

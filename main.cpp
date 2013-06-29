@@ -14,13 +14,27 @@ Main::Main()
 	mainMenuState = TOP;
 	gameType = FREE_FOR_ALL;
 	texCoordBufferID = 0;
+	elementArrayBufferID = 0;
 	gameObjects.clear();
 	HUDObjects.clear();
 	textureRegistry.clear();
 	paletteRegistry.clear();
 	audioRegistry.clear();
 	newObjectId = 1;
-
+	
+	nonIndexedScaleLoc = 0;
+	indexedScaleLoc = 0;
+	nonIndexedPosOffsetLoc = 0;
+	indexedPosOffsetLoc = 0;
+	nonIndexedResolutionLoc = 0;
+	indexedResolutionLoc = 0;
+	nonIndexedFocusPosLoc = 0;
+	indexedFocusPosLoc = 0;
+	nonIndexedZoomOutLoc = 0;
+	indexedZoomOutLoc = 0;
+	nonIndexedTexLoc = 0;
+	indexedTexLoc = 0;
+	paletteLoc = 0;
 	openGL3 = false;
 	notDone = true;
 	surf_display = NULL;
@@ -675,22 +689,35 @@ int Main::Render()
 		zoomOut = targetZoomOut;
 	}
 
-	double left = focusPos.x - ((MAX_GAME_RESOLUTION_X * zoomOut) / 2);
-	double right = focusPos.x + ((MAX_GAME_RESOLUTION_X * zoomOut) / 2);
-	double bottom = focusPos.y + ((MAX_GAME_RESOLUTION_Y * zoomOut) / 2);
-	double top = focusPos.y - ((MAX_GAME_RESOLUTION_Y * zoomOut) / 2);
+	//float left = focusPos.x - ((MAX_GAME_RESOLUTION_X * zoomOut) / 2);
+	//float right = focusPos.x + ((MAX_GAME_RESOLUTION_X * zoomOut) / 2);
+	//float bottom = focusPos.y + ((MAX_GAME_RESOLUTION_Y * zoomOut) / 2);
+	//float top = focusPos.y - ((MAX_GAME_RESOLUTION_Y * zoomOut) / 2);
 
+	//glMatrixMode(GL_PROJECTION);
+	//glLoadIdentity();
+	//glOrtho(left, right, bottom, top, 1, -1);
+	//glMatrixMode(GL_MODELVIEW);
+	//glLoadIdentity();
+	
+	glUseProgramObjectARB(shader_progIndexed);
+	glUniform2fARB(indexedResolutionLoc, (float)gameResolutionX, (float)gameResolutionY);
+	glUniform2fARB(indexedFocusPosLoc, focusPos.x, focusPos.y);
+	glUniform1fARB(indexedZoomOutLoc, zoomOut);
+	
+	glUseProgramObjectARB(shader_progNonIndexed);
+	glUniform2fARB(nonIndexedResolutionLoc, (float)gameResolutionX, (float)gameResolutionY);
+	glUniform2fARB(nonIndexedFocusPosLoc, focusPos.x, focusPos.y);
+	glUniform1fARB(nonIndexedZoomOutLoc, zoomOut);
+
+	glUseProgramObjectARB(0);
+	
 	//render objects
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glOrtho(left, right, bottom, top, 1, -1);
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+	//glEnableClientState(GL_VERTEX_ARRAY);
+	//glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+	//glEnableClientState(GL_INDEX_ARRAY);
 
 	list<HSObject*>::iterator objIt;
 	for ( objIt=gameObjects.begin(); objIt != gameObjects.end(); objIt++)
@@ -704,18 +731,18 @@ int Main::Render()
 		}
 	}
 
-	left = MAX_GAME_RESOLUTION_X / -2;
-	right = MAX_GAME_RESOLUTION_X / 2;
-	bottom = MAX_GAME_RESOLUTION_Y / 2;
-	top = MAX_GAME_RESOLUTION_Y / -2;
+	//left = MAX_GAME_RESOLUTION_X / -2;
+	//right = MAX_GAME_RESOLUTION_X / 2;
+	//bottom = MAX_GAME_RESOLUTION_Y / 2;
+	//top = MAX_GAME_RESOLUTION_Y / -2;
 
 	//render HUD
-	glPushMatrix();
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glOrtho(left, right, bottom, top, 1, -1);
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
+	//glPushMatrix();
+	//glMatrixMode(GL_PROJECTION);
+	//glLoadIdentity();
+	//glOrtho(left, right, bottom, top, 1, -1);
+	//glMatrixMode(GL_MODELVIEW);
+	//glLoadIdentity();
 
 	for ( objIt=HUDObjects.begin(); objIt != HUDObjects.end(); objIt++)
 	{
@@ -728,35 +755,55 @@ int Main::Render()
 		}
 	}
 
-	glPopMatrix();
+	//glPopMatrix();
 
-	glBindTexture(GL_TEXTURE_2D, 0);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glDisableClientState(GL_VERTEX_ARRAY);
-	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	//glDisableClientState(GL_VERTEX_ARRAY);
+	//glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	//glDisableClientState(GL_INDEX_ARRAY);
 
 	SDL_GL_SwapBuffers();
+
+	GLenum glError = glGetError();
+	if(glError != GL_NO_ERROR)
+	{
+		string glErrorString = "OpenGL error in Render().";
+		UpdateLog(glErrorString, true);
+	}
 
 	return 0;
 }
 
 int Main::RenderTexture(HSObject * obj, TextureInstance tex)
 {
+	//get the actual texture offset, based on the object's current hFlip
+	float hScale = tex.hScale;
+	float vScale = tex.vScale;
+	if(obj->hFlip)
+	{
+		hScale *= -1;
+	}
+
+	//get the offset
+	float offsetX = obj->pos.x;
+	if(obj->hFlip)
+	{
+		offsetX += tex.offset.x * -1;
+	}
+	else
+	{
+		offsetX += tex.offset.x;
+	}
+	float offsetY = obj->pos.y + tex.offset.y;
+
 	//set up the texture
 	if(tex.hsTex->indexed)
 	{
 		glUseProgramObjectARB(shader_progIndexed);
+		glUniform2fARB(indexedPosOffsetLoc, offsetX, offsetY);
+		glUniform2fARB(indexedScaleLoc, hScale, vScale);
 		glActiveTextureARB(GL_TEXTURE0);
 		glUniform1iARB(indexedTexLoc, 0);
 		glBindTexture(GL_TEXTURE_2D, tex.hsTex->textureID);
-		if(openGL3)
-		{
-			glUniform1iARB(openGL3Loc, GL_TRUE);
-		}
-		else
-		{
-			glUniform1iARB(openGL3Loc, GL_FALSE);
-		}
 		glPixelStorei(GL_PACK_ALIGNMENT, 1);
 		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
@@ -777,36 +824,68 @@ int Main::RenderTexture(HSObject * obj, TextureInstance tex)
 	else
 	{
 		glUseProgramObjectARB(shader_progNonIndexed);
+		glUniform2fARB(nonIndexedPosOffsetLoc, offsetX, offsetY);
+		glUniform2fARB(nonIndexedScaleLoc, hScale, vScale);
 		glActiveTextureARB(GL_TEXTURE0);
 		glUniform1iARB(nonIndexedTexLoc, 0);
 		glBindTexture(GL_TEXTURE_2D, tex.hsTex->textureID);
 		glPixelStorei(GL_PACK_ALIGNMENT, 4);
 		glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 	}
-
-	//get the actual texture offset, based on the object's current hFlip
-	float hScale = tex.hScale;
-	float vScale = tex.vScale;
-	if(obj->hFlip)
+	
+	//glLoadIdentity();
+	//glTranslatef(offsetX, offsetY, 0.0);
+	//glScalef(hScale, vScale, 1.0);
+	
+	if(openGL3)
 	{
-		hScale *= -1;
+		//let's just try some cheap old shit again
+		//glBindBuffer(GL_ARRAY_BUFFER, tex.hsTex->bufferID);
+		//glVertexPointer(3, GL_FLOAT, 0, (void*)0);
+
+		//get the vertex array set up
+		glBindVertexArray(tex.hsTex->vaoID);
+		
+		//glBindBuffer(GL_ARRAY_BUFFER, texCoordBufferID);
+		//glTexCoordPointer(2, GL_FLOAT, 0, (void*)0);
+
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		
+		//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementArrayBufferID);
+	}
+	else
+	{
+		GLenum positionLoc;
+
+		if(tex.hsTex->indexed)
+		{
+			positionLoc = positionLocIndexed;
+		}
+		else
+		{
+			positionLoc = positionLocNonIndexed;
+		}
+
+		glBindBuffer(GL_ARRAY_BUFFER, tex.hsTex->bufferID);
+		glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
 
-	//load the identity matrix and do translations
-	glLoadIdentity();
-	glTranslatef(obj->pos.x + tex.offset.x * hScale, obj->pos.y + tex.offset.y * vScale, 0);
-	glScalef(hScale, vScale, 1);
-
-	//get the vertex array set up
-	glBindBuffer(GL_ARRAY_BUFFER, tex.hsTex->bufferID);
-	glVertexPointer(3, GL_SHORT, 0, (char*) NULL);
-
-	//get the texture coordinate array set up
-	glBindBuffer(GL_ARRAY_BUFFER, texCoordBufferID);
-	glTexCoordPointer(2, GL_FLOAT, 0, (char*) NULL);
-
 	//draw stuff
-	glDrawArrays(GL_QUADS, 0, 4);
+	//glDrawArrays(GL_QUADS, 0, 4);
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, (void*)0);
+
+	//unbind stuff
+	if(openGL3)
+	{
+		glBindVertexArray(0);
+	}
+
+	glUseProgramObjectARB(0);
+	glActiveTextureARB(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glActiveTextureARB(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, 0);
 
 	return 0;
 }
@@ -883,11 +962,31 @@ int Main::Cleanup()
 {
 	ClearAllObjects();
 
-	glDeleteObjectARB(shader_vert);
-	glDeleteObjectARB(shader_fragNonIndexed);
-	glDeleteObjectARB(shader_fragIndexed);
-	glDeleteObjectARB(shader_progNonIndexed);
-	glDeleteObjectARB(shader_progIndexed);
+	if(shader_vert != 0)
+	{
+		glDeleteObjectARB(shader_vert);
+		shader_vert = 0;
+	}
+	if(shader_fragNonIndexed != 0)
+	{
+		glDeleteObjectARB(shader_fragNonIndexed);
+		shader_fragNonIndexed = 0;
+	}
+	if(shader_fragIndexed != 0)
+	{
+		glDeleteObjectARB(shader_fragIndexed);
+		shader_fragIndexed = 0;
+	}
+	if(shader_progNonIndexed != 0)
+	{
+		glDeleteObjectARB(shader_progNonIndexed);
+		shader_progNonIndexed = 0;
+	}
+	if(shader_progIndexed != 0)
+	{
+		glDeleteObjectARB(shader_progIndexed);
+		shader_progIndexed = 0;
+	}
 
 	list<SDL_Joystick*>::iterator it2;
 	for ( it2=sticks.begin(); it2 != sticks.end(); it2++)
@@ -923,8 +1022,21 @@ int Main::ClearAllObjects()
 	list<HSTexture*>::iterator texIt;
 	for ( texIt=textureRegistry.begin(); texIt != textureRegistry.end(); texIt++)
 	{
-		glDeleteBuffers(1, &(*texIt)->bufferID);
-		glDeleteTextures(1, &(*texIt)->textureID);
+		if((*texIt)->bufferID != 0)
+		{
+			glDeleteBuffers(1, &(*texIt)->bufferID);
+			(*texIt)->bufferID = 0;
+		}
+		if((*texIt)->vaoID != 0)
+		{
+			glDeleteVertexArrays(1, &(*texIt)->vaoID);
+			(*texIt)->vaoID = 0;
+		}
+		if((*texIt)->textureID != 0)
+		{
+			glDeleteTextures(1, &(*texIt)->textureID);
+			(*texIt)->textureID = 0;
+		}
 		delete (*texIt);
 	}
 
@@ -933,7 +1045,11 @@ int Main::ClearAllObjects()
 	list<HSPalette*>::iterator palIt;
 	for ( palIt=paletteRegistry.begin(); palIt != paletteRegistry.end(); palIt++)
 	{
-		glDeleteTextures(1, &(*palIt)->textureID);
+		if((*palIt)->textureID != 0)
+		{
+			glDeleteTextures(1, &(*palIt)->textureID);
+			(*palIt)->textureID = 0;
+		}
 		delete (*palIt);
 	}
 
@@ -4478,12 +4594,6 @@ int Main::SetFullScreen(bool newFullScreen)
 		options = options | SDL_FULLSCREEN;
 	}
 
-	if(texCoordBufferID != 0)
-	{
-		glDeleteBuffers(1, &texCoordBufferID);
-		texCoordBufferID = 0;
-	}
-
 	if(textureRegistry.size() > 0)
 	{
 		list<HSTexture*>::iterator trIt;
@@ -4527,16 +4637,20 @@ int Main::SetFullScreen(bool newFullScreen)
 
 	glViewport((screenResolutionX - gameResolutionX) / 2, (screenResolutionY - gameResolutionY) / 2, gameResolutionX, gameResolutionY);
  
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
+	//glMatrixMode(GL_PROJECTION);
+	//glLoadIdentity();
  
-	glOrtho(0, MAX_GAME_RESOLUTION_X, MAX_GAME_RESOLUTION_Y, 0, 1, -1);
+	//glOrtho(0, MAX_GAME_RESOLUTION_X, MAX_GAME_RESOLUTION_Y, 0, 1, -1);
  
-	glMatrixMode(GL_MODELVIEW);
+	//glMatrixMode(GL_MODELVIEW);
  
 	glEnable(GL_TEXTURE_2D);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glDisable(GL_CULL_FACE);
+	//glEnable(GL_CULL_FACE);
+	//glFrontFace(GL_CCW);
+	//glCullFace(GL_BACK);
  
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glLoadIdentity();
@@ -4596,17 +4710,31 @@ int Main::SetFullScreen(bool newFullScreen)
 	UpdateLog("OpenGL shaders and buffer objects enabled.", false);
 
 	//set up all the shader stuff
-	glDeleteObjectARB(shader_vert);
-	glDeleteObjectARB(shader_fragNonIndexed);
-	glDeleteObjectARB(shader_fragIndexed);
-	glDeleteObjectARB(shader_progNonIndexed);
-	glDeleteObjectARB(shader_progIndexed);
-
-	shader_vert = 0;
-	shader_fragNonIndexed = 0;
-	shader_fragIndexed = 0;
-	shader_progNonIndexed = 0;
-	shader_progIndexed = 0;
+	if(shader_vert != 0)
+	{
+		glDeleteObjectARB(shader_vert);
+		shader_vert = 0;
+	}
+	if(shader_fragNonIndexed != 0)
+	{
+		glDeleteObjectARB(shader_fragNonIndexed);
+		shader_fragNonIndexed = 0;
+	}
+	if(shader_fragIndexed != 0)
+	{
+		glDeleteObjectARB(shader_fragIndexed);
+		shader_fragIndexed = 0;
+	}
+	if(shader_progNonIndexed != 0)
+	{
+		glDeleteObjectARB(shader_progNonIndexed);
+		shader_progNonIndexed = 0;
+	}
+	if(shader_progIndexed != 0)
+	{
+		glDeleteObjectARB(shader_progIndexed);
+		shader_progIndexed = 0;
+	}
 	
 	shader_progNonIndexed = glCreateProgramObjectARB();
 	shader_progIndexed = glCreateProgramObjectARB();
@@ -4614,43 +4742,56 @@ int Main::SetFullScreen(bool newFullScreen)
 	shader_fragNonIndexed = glCreateShaderObjectARB(GL_FRAGMENT_SHADER_ARB);
 	shader_fragIndexed = glCreateShaderObjectARB(GL_FRAGMENT_SHADER_ARB);
 
-	string shader_vert_source_string = loadSource("vertexShader1.glsl.txt");
+	string vertShaderFileName;
+	string fragNonIndexedShaderFileName;
+	string fragIndexedShaderFileName;
+
+	if(openGL3)
+	{
+		vertShaderFileName = "vertexShader3.glsl.txt";
+		fragNonIndexedShaderFileName = "fragmentShaderNonIndexed3.glsl.txt";
+		fragIndexedShaderFileName = "fragmentShaderIndexed3.glsl.txt";
+	}
+	else
+	{
+		vertShaderFileName = "vertexShader2.glsl.txt";
+		fragNonIndexedShaderFileName = "fragmentShaderNonIndexed2.glsl.txt";
+		fragIndexedShaderFileName = "fragmentShaderIndexed2.glsl.txt";
+	}
+
+	string shader_vert_source_string = loadSource(vertShaderFileName);
 
 	if(shader_vert_source_string.compare("READ ERROR") == 0)
 	{
-		UpdateLog("Could not read shader source file: vertexShader1.glsl.txt", true);
+		UpdateLog("Could not read vertex shader source file: " + vertShaderFileName, true);
 		return -1;
 	}
 
-	string shader_fragNonIndexed_source_string = loadSource("fragmentShaderNonIndexed1.glsl.txt");
+	string shader_fragNonIndexed_source_string = loadSource(fragNonIndexedShaderFileName);
 
 	if(shader_fragNonIndexed_source_string.compare("READ ERROR") == 0)
 	{
-		UpdateLog("Could not read shader source file: fragmentShaderNonIndexed1.glsl.txt", true);
+		UpdateLog("Could not read non-indexed fragment shader source file: " + fragNonIndexedShaderFileName, true);
 		return -1;
 	}
 
-	string shader_fragIndexed_source_string = loadSource("fragmentShaderIndexed1.glsl.txt");
+	string shader_fragIndexed_source_string = loadSource(fragIndexedShaderFileName);
 
 	if(shader_fragIndexed_source_string.compare("READ ERROR") == 0)
 	{
-		UpdateLog("Could not read shader source file: fragmentShaderIndexed1.glsl.txt", true);
+		UpdateLog("Could not read indexed fragment shader source file: " + fragIndexedShaderFileName, true);
 		return -1;
 	}
 
 	//add some newlines so it compiles correctly
-	unsigned int verPos = shader_vert_source_string.find("#version 110", 0);
+	unsigned int verPos = shader_vert_source_string.find("#version ", 0);
 	if(verPos != string::npos) { shader_vert_source_string.insert(verPos + 12, "\n"); }
 
-	verPos = shader_fragNonIndexed_source_string.find("#version 110", 0);
+	verPos = shader_fragNonIndexed_source_string.find("#version ", 0);
 	if(verPos != string::npos) { shader_fragNonIndexed_source_string.insert(verPos + 12, "\n"); }
-	unsigned int extPos = shader_fragNonIndexed_source_string.find("#extension GL_EXT_gpu_shader4 : enable", 0);
-	if(extPos != string::npos) { shader_fragNonIndexed_source_string.insert(extPos + 38, "\n"); }
 
-	verPos = shader_fragIndexed_source_string.find("#version 110", 0);
+	verPos = shader_fragIndexed_source_string.find("#version ", 0);
 	if(verPos != string::npos) { shader_fragIndexed_source_string.insert(verPos + 12, "\n"); }
-	extPos = shader_fragIndexed_source_string.find("#extension GL_EXT_gpu_shader4 : enable", 0);
-	if(extPos != string::npos) { shader_fragIndexed_source_string.insert(extPos + 38, "\n"); }
 
 	//add more newlines after semicolons so warning/error positions are meaningful
 	unsigned int scPos = shader_vert_source_string.find(";", 0);
@@ -4837,24 +4978,85 @@ int Main::SetFullScreen(bool newFullScreen)
 		return -1;
 	}
 
+	positionLocNonIndexed = glGetAttribLocation(shader_progNonIndexed, "position");
+	positionLocIndexed = glGetAttribLocation(shader_progIndexed, "position");
+	texCoordInLocNonIndexed = glGetAttribLocation(shader_progNonIndexed, "texCoordIn");
+	texCoordInLocIndexed = glGetAttribLocation(shader_progIndexed, "texCoordIn");
+
+	/*glBindAttribLocation(shader_progNonIndexed, 16, "position");
+	glBindAttribLocation(shader_progIndexed, 16, "position");
+	glBindAttribLocation(shader_progNonIndexed, 17, "texCoordIn");
+	glBindAttribLocation(shader_progIndexed, 17, "texCoordIn");*/
+
+	nonIndexedPosOffsetLoc = glGetUniformLocationARB(shader_progNonIndexed, "posOffset");
+	indexedPosOffsetLoc = glGetUniformLocationARB(shader_progIndexed, "posOffset");
+	nonIndexedScaleLoc = glGetUniformLocationARB(shader_progNonIndexed, "scale");
+	indexedScaleLoc = glGetUniformLocationARB(shader_progIndexed, "scale");
+	nonIndexedResolutionLoc = glGetUniformLocationARB(shader_progNonIndexed, "resolution");
+	indexedResolutionLoc = glGetUniformLocationARB(shader_progIndexed, "resolution");
+	nonIndexedFocusPosLoc = glGetUniformLocationARB(shader_progNonIndexed, "focusPos");
+	indexedFocusPosLoc = glGetUniformLocationARB(shader_progIndexed, "focusPos");
+	nonIndexedZoomOutLoc = glGetUniformLocationARB(shader_progNonIndexed, "zoomOut");
+	indexedZoomOutLoc = glGetUniformLocationARB(shader_progIndexed, "zoomOut");
 	nonIndexedTexLoc = glGetUniformLocationARB(shader_progNonIndexed, "tex");
 	indexedTexLoc = glGetUniformLocationARB(shader_progIndexed, "tex");
 	paletteLoc = glGetUniformLocationARB(shader_progIndexed, "palette");
-	openGL3Loc = glGetUniformLocationARB(shader_progIndexed, "openGL3");
 
 	//set up some VBO stuff
-	float * texCoord = new float[8];
-	texCoord[0] = 0.0f;	texCoord[1] = 1.0f;
-	texCoord[2] = 1.0f;	texCoord[3] = 1.0f;
-	texCoord[4] = 1.0f;	texCoord[5] = 0.0f;
-	texCoord[6] = 0.0f;	texCoord[7] = 0.0f;
+	if(texCoordBufferID == 0)
+	{
+		GLfloat * texCoord = new GLfloat[8];
+		texCoord[0] = 0.0f;	texCoord[1] = 1.0f;
+		texCoord[2] = 1.0f;	texCoord[3] = 1.0f;
+		texCoord[4] = 1.0f;	texCoord[5] = 0.0f;
+		texCoord[6] = 0.0f;	texCoord[7] = 0.0f;
 
-	glGenBuffers(1, &texCoordBufferID);
-	glBindBuffer(GL_ARRAY_BUFFER, texCoordBufferID);
-	glBufferData(GL_ARRAY_BUFFER, 8*sizeof(float), texCoord, GL_STATIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
+		glGenBuffers(1, &texCoordBufferID);
+		glBindBuffer(GL_ARRAY_BUFFER, texCoordBufferID);
+		glBufferData(GL_ARRAY_BUFFER, 8*sizeof(GLfloat), texCoord, GL_STATIC_DRAW);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-	delete[] texCoord;
+		delete[] texCoord;
+	}
+
+	if(elementArrayBufferID == 0)
+	{
+		GLubyte * eArray = new GLubyte[6];
+		eArray[0] = 0; eArray[1] = 1; eArray[2] = 3;
+		eArray[3] = 1; eArray[4] = 2; eArray[5] = 3;
+
+		glGenBuffers(1, &elementArrayBufferID);
+		glBindBuffer(GL_ARRAY_BUFFER, elementArrayBufferID);
+		glBufferData(GL_ARRAY_BUFFER, 6*sizeof(GLubyte), eArray, GL_STATIC_DRAW);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+		delete[] eArray;
+	}
+
+	if(!openGL3)
+	{
+		//bind universal things to the default vertex array object
+		glEnableVertexAttribArray(positionLocNonIndexed);
+		if(positionLocNonIndexed != positionLocIndexed)
+		{
+			glEnableVertexAttribArray(positionLocIndexed);
+		}
+		glEnableVertexAttribArray(texCoordInLocNonIndexed);
+		if(texCoordInLocNonIndexed != texCoordInLocIndexed)
+		{
+			glEnableVertexAttribArray(texCoordInLocIndexed);
+		}
+
+		glBindBuffer(GL_ARRAY_BUFFER, texCoordBufferID);
+		glVertexAttribPointer(texCoordInLocNonIndexed, 2, GL_FLOAT, GL_FALSE, 0, (void*)0);
+		if(texCoordInLocNonIndexed != texCoordInLocIndexed)
+		{
+			glVertexAttribPointer(texCoordInLocIndexed, 2, GL_FLOAT, GL_FALSE, 0, (void*)0);
+		}
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementArrayBufferID);
+	}
 
 	if(textureRegistry.size() > 0)
 	{
@@ -4880,6 +5082,13 @@ int Main::SetFullScreen(bool newFullScreen)
 				return error;
 			}
 		}
+	}
+
+	GLenum glError = glGetError();
+	if(glError != GL_NO_ERROR)
+	{
+		string glErrorString = "OpenGL error in SetFullScreen().";
+		UpdateLog(glErrorString, true);
 	}
 
 	return 0;
