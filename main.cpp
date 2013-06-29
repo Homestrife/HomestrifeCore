@@ -28,6 +28,8 @@ Main::Main()
 	indexedPosOffsetLoc = 0;
 	nonIndexedResolutionLoc = 0;
 	indexedResolutionLoc = 0;
+	nonIndexedResScaleLoc = 0;
+	indexedResScaleLoc = 0;
 	nonIndexedFocusPosLoc = 0;
 	indexedFocusPosLoc = 0;
 	nonIndexedZoomOutLoc = 0;
@@ -714,12 +716,10 @@ int Main::Render()
 	//glLoadIdentity();
 	
 	glUseProgramObjectARB(shader_progIndexed);
-	glUniform2fARB(indexedResolutionLoc, (float)gameResolutionX, (float)gameResolutionY);
 	glUniform2fARB(indexedFocusPosLoc, focusPos.x, focusPos.y);
 	glUniform1fARB(indexedZoomOutLoc, zoomOut);
 	
 	glUseProgramObjectARB(shader_progNonIndexed);
-	glUniform2fARB(nonIndexedResolutionLoc, (float)gameResolutionX, (float)gameResolutionY);
 	glUniform2fARB(nonIndexedFocusPosLoc, focusPos.x, focusPos.y);
 	glUniform1fARB(nonIndexedZoomOutLoc, zoomOut);
 
@@ -4673,25 +4673,6 @@ int Main::SetFullScreen(bool newFullScreen)
 {
 	fullScreen = newFullScreen;
 
-	if(int error = SetBestGameResolution() != 0)
-	{
-		return error;
-	}
-
-	UpdateLog("Resolution set.", false);
-
-	int options = SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_OPENGL;
-
-	if(!fullScreen)
-	{
-		screenResolutionX = gameResolutionX;
-		screenResolutionY = gameResolutionY;
-	}
-	else
-	{
-		options = options | SDL_FULLSCREEN;
-	}
-
 	if(textureRegistry.size() > 0)
 	{
 		list<HSTexture*>::iterator trIt;
@@ -4760,6 +4741,25 @@ int Main::SetFullScreen(bool newFullScreen)
 		elementArrayBufferID = 0;
 	}
 
+	if(int error = SetBestGameResolution() != 0)
+	{
+		return error;
+	}
+
+	UpdateLog("Resolution set.", false);
+
+	int options = SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_OPENGL;
+
+	if(!fullScreen)
+	{
+		screenResolutionX = gameResolutionX;
+		screenResolutionY = gameResolutionY;
+	}
+	else
+	{
+		options = options | SDL_FULLSCREEN;
+	}
+
 	if((surf_display = SDL_SetVideoMode(screenResolutionX, screenResolutionY, 32, options)) == NULL)
 	{
 		UpdateLog("Error setting SDL video mode.", true);
@@ -4772,6 +4772,8 @@ int Main::SetFullScreen(bool newFullScreen)
 	glClearDepth(1.0f);
 
 	glViewport((screenResolutionX - gameResolutionX) / 2, (screenResolutionY - gameResolutionY) / 2, gameResolutionX, gameResolutionY);
+
+	resolutionScale = (float)gameResolutionX / (float)MAX_GAME_RESOLUTION_X;
  
 	//glMatrixMode(GL_PROJECTION);
 	//glLoadIdentity();
@@ -5099,6 +5101,8 @@ int Main::SetFullScreen(bool newFullScreen)
 	indexedScaleLoc = glGetUniformLocationARB(shader_progIndexed, "scale");
 	nonIndexedResolutionLoc = glGetUniformLocationARB(shader_progNonIndexed, "resolution");
 	indexedResolutionLoc = glGetUniformLocationARB(shader_progIndexed, "resolution");
+	nonIndexedResScaleLoc = glGetUniformLocationARB(shader_progNonIndexed, "resScale");
+	indexedResScaleLoc = glGetUniformLocationARB(shader_progIndexed, "resScale");
 	nonIndexedFocusPosLoc = glGetUniformLocationARB(shader_progNonIndexed, "focusPos");
 	indexedFocusPosLoc = glGetUniformLocationARB(shader_progIndexed, "focusPos");
 	nonIndexedZoomOutLoc = glGetUniformLocationARB(shader_progNonIndexed, "zoomOut");
@@ -5106,6 +5110,16 @@ int Main::SetFullScreen(bool newFullScreen)
 	nonIndexedTexLoc = glGetUniformLocationARB(shader_progNonIndexed, "tex");
 	indexedTexLoc = glGetUniformLocationARB(shader_progIndexed, "tex");
 	paletteLoc = glGetUniformLocationARB(shader_progIndexed, "palette");
+
+	glUseProgramObjectARB(shader_progNonIndexed);
+	glUniform2fARB(nonIndexedResolutionLoc, (float)gameResolutionX, (float)gameResolutionY);
+	glUniform1fARB(nonIndexedResScaleLoc, resolutionScale);
+	
+	glUseProgramObjectARB(shader_progIndexed);
+	glUniform2fARB(indexedResolutionLoc, (float)gameResolutionX, (float)gameResolutionY);
+	glUniform1fARB(indexedResScaleLoc, resolutionScale);
+
+	glUseProgramObjectARB(0);
 
 	//set up some VBO stuff
 	if(texCoordBufferID == 0)

@@ -209,6 +209,8 @@ protected:
 	int indexedScaleLoc;
 	int nonIndexedResolutionLoc;
 	int indexedResolutionLoc;
+	int nonIndexedResScaleLoc;
+	int indexedResScaleLoc;
 	int nonIndexedFocusPosLoc;
 	int indexedFocusPosLoc;
 	int nonIndexedZoomOutLoc;
@@ -223,6 +225,7 @@ protected:
 	int screenResolutionY;
 	int gameResolutionX;
 	int gameResolutionY;
+	float resolutionScale;
 	bool fullScreen;
 
 	SDL_AudioSpec * obtainedAudioSpec;
