@@ -420,7 +420,6 @@ int LoadHSPToPalette(HSPalette * hsPal)
 
 int StorePaletteData(HSPalette * hsPal, GLubyte * paletteData)
 {
-
 	GLuint textureID;
 
 	glActiveTextureARB(GL_TEXTURE1);

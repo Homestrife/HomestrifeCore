@@ -240,6 +240,7 @@ protected:
 	int SetBestGameResolution();
 
 	int Initialize();
+	int InitializeGraphics();
 	int LoadDefinition(string defFilePath, list<HSObject*> * gameObjects, HSObject ** returnValue = NULL);
 	int AdvanceHolds();
 	int Event(SDL_Event* events);

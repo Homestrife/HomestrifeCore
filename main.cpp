@@ -4634,6 +4634,44 @@ int Main::SetFullScreen(bool newFullScreen)
 		}
 	}
 
+	if(shader_vert != 0)
+	{
+		glDeleteObjectARB(shader_vert);
+		shader_vert = 0;
+	}
+	if(shader_fragNonIndexed != 0)
+	{
+		glDeleteObjectARB(shader_fragNonIndexed);
+		shader_fragNonIndexed = 0;
+	}
+	if(shader_fragIndexed != 0)
+	{
+		glDeleteObjectARB(shader_fragIndexed);
+		shader_fragIndexed = 0;
+	}
+	if(shader_progNonIndexed != 0)
+	{
+		glDeleteObjectARB(shader_progNonIndexed);
+		shader_progNonIndexed = 0;
+	}
+	if(shader_progIndexed != 0)
+	{
+		glDeleteObjectARB(shader_progIndexed);
+		shader_progIndexed = 0;
+	}
+
+	if(texCoordBufferID != 0)
+	{
+		glDeleteBuffers(1, &texCoordBufferID);
+		texCoordBufferID = 0;
+	}
+
+	if(elementArrayBufferID != 0)
+	{
+		glDeleteBuffers(1, &elementArrayBufferID);
+		elementArrayBufferID = 0;
+	}
+
 	if((surf_display = SDL_SetVideoMode(screenResolutionX, screenResolutionY, 32, options)) == NULL)
 	{
 		UpdateLog("Error setting SDL video mode.", true);
@@ -4720,32 +4758,6 @@ int Main::SetFullScreen(bool newFullScreen)
 	UpdateLog("OpenGL shaders and buffer objects enabled.", false);
 
 	//set up all the shader stuff
-	if(shader_vert != 0)
-	{
-		glDeleteObjectARB(shader_vert);
-		shader_vert = 0;
-	}
-	if(shader_fragNonIndexed != 0)
-	{
-		glDeleteObjectARB(shader_fragNonIndexed);
-		shader_fragNonIndexed = 0;
-	}
-	if(shader_fragIndexed != 0)
-	{
-		glDeleteObjectARB(shader_fragIndexed);
-		shader_fragIndexed = 0;
-	}
-	if(shader_progNonIndexed != 0)
-	{
-		glDeleteObjectARB(shader_progNonIndexed);
-		shader_progNonIndexed = 0;
-	}
-	if(shader_progIndexed != 0)
-	{
-		glDeleteObjectARB(shader_progIndexed);
-		shader_progIndexed = 0;
-	}
-	
 	shader_progNonIndexed = glCreateProgramObjectARB();
 	shader_progIndexed = glCreateProgramObjectARB();
 	shader_vert = glCreateShaderObjectARB(GL_VERTEX_SHADER_ARB);
@@ -4992,11 +5004,6 @@ int Main::SetFullScreen(bool newFullScreen)
 	positionLocIndexed = glGetAttribLocation(shader_progIndexed, "position");
 	texCoordInLocNonIndexed = glGetAttribLocation(shader_progNonIndexed, "texCoordIn");
 	texCoordInLocIndexed = glGetAttribLocation(shader_progIndexed, "texCoordIn");
-
-	/*glBindAttribLocation(shader_progNonIndexed, 16, "position");
-	glBindAttribLocation(shader_progIndexed, 16, "position");
-	glBindAttribLocation(shader_progNonIndexed, 17, "texCoordIn");
-	glBindAttribLocation(shader_progIndexed, 17, "texCoordIn");*/
 
 	nonIndexedPosOffsetLoc = glGetUniformLocationARB(shader_progNonIndexed, "posOffset");
 	indexedPosOffsetLoc = glGetUniformLocationARB(shader_progIndexed, "posOffset");
