@@ -218,6 +218,12 @@ int Main::SetBestGameResolution()
 	return 0;
 }
 
+void Main::ChangeShaderProgram(GLuint programID)
+{
+	glUseProgram(programID);
+	currentShaderProgramID = programID;
+}
+
 void AudioCallback(void *unused, Uint8 *stream, int len)
 {
     Uint32 amount;
@@ -715,15 +721,15 @@ int Main::Render()
 	//glMatrixMode(GL_MODELVIEW);
 	//glLoadIdentity();
 	
-	glUseProgram(shader_progIndexed);
+	ChangeShaderProgram(shader_progIndexed);
 	glUniform2f(indexedFocusPosLoc, focusPos.x, focusPos.y);
 	glUniform1f(indexedZoomOutLoc, zoomOut);
 	
-	glUseProgram(shader_progNonIndexed);
+	ChangeShaderProgram(shader_progNonIndexed);
 	glUniform2f(nonIndexedFocusPosLoc, focusPos.x, focusPos.y);
 	glUniform1f(nonIndexedZoomOutLoc, zoomOut);
 
-	glUseProgram(0);
+	//ChangeShaderProgram(0);
 	
 	//render objects
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -757,15 +763,15 @@ int Main::Render()
 	//glMatrixMode(GL_MODELVIEW);
 	//glLoadIdentity();
 	
-	glUseProgram(shader_progIndexed);
+	ChangeShaderProgram(shader_progIndexed);
 	glUniform2f(indexedFocusPosLoc, 0.0f, 0.0f);
 	glUniform1f(indexedZoomOutLoc, 1.0f);
 	
-	glUseProgram(shader_progNonIndexed);
+	ChangeShaderProgram(shader_progNonIndexed);
 	glUniform2f(nonIndexedFocusPosLoc, 0.0f, 0.0f);
 	glUniform1f(nonIndexedZoomOutLoc, 1.0f);
 
-	glUseProgram(0);
+	//ChangeShaderProgram(0);
 
 	for ( objIt=HUDObjects.begin(); objIt != HUDObjects.end(); objIt++)
 	{
@@ -821,7 +827,10 @@ int Main::RenderTexture(HSObject * obj, TextureInstance tex)
 	//set up the texture
 	if(tex.hsTex->indexed)
 	{
-		glUseProgram(shader_progIndexed);
+		if(currentShaderProgramID != shader_progIndexed)
+		{
+			ChangeShaderProgram(shader_progIndexed);
+		}
 		glUniform2f(indexedPosOffsetLoc, offsetX, offsetY);
 		glUniform2f(indexedScaleLoc, hScale, vScale);
 		glActiveTexture(GL_TEXTURE0);
@@ -846,7 +855,10 @@ int Main::RenderTexture(HSObject * obj, TextureInstance tex)
 	}
 	else
 	{
-		glUseProgram(shader_progNonIndexed);
+		if(currentShaderProgramID != shader_progNonIndexed)
+		{
+			ChangeShaderProgram(shader_progNonIndexed);
+		}
 		glUniform2f(nonIndexedPosOffsetLoc, offsetX, offsetY);
 		glUniform2f(nonIndexedScaleLoc, hScale, vScale);
 		glActiveTexture(GL_TEXTURE0);
@@ -862,19 +874,8 @@ int Main::RenderTexture(HSObject * obj, TextureInstance tex)
 	
 	if(openGL3)
 	{
-		//let's just try some cheap old shit again
-		//glBindBuffer(GL_ARRAY_BUFFER, tex.hsTex->bufferID);
-		//glVertexPointer(3, GL_FLOAT, 0, (void*)0);
-
 		//get the vertex array set up
 		glBindVertexArray(tex.hsTex->vaoID);
-		
-		//glBindBuffer(GL_ARRAY_BUFFER, texCoordBufferID);
-		//glTexCoordPointer(2, GL_FLOAT, 0, (void*)0);
-
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-		
-		//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementArrayBufferID);
 	}
 	else
 	{
@@ -904,7 +905,7 @@ int Main::RenderTexture(HSObject * obj, TextureInstance tex)
 		glBindVertexArray(0);
 	}
 
-	glUseProgram(0);
+	//ChangeShaderProgram(0);
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, 0);
 	glActiveTexture(GL_TEXTURE0);
@@ -5190,15 +5191,15 @@ int Main::SetFullScreen(bool newFullScreen)
 	indexedTexLoc = glGetUniformLocation(shader_progIndexed, "tex");
 	paletteLoc = glGetUniformLocation(shader_progIndexed, "palette");
 
-	glUseProgram(shader_progNonIndexed);
+	ChangeShaderProgram(shader_progNonIndexed);
 	glUniform2f(nonIndexedResolutionLoc, (float)gameResolutionX, (float)gameResolutionY);
 	glUniform1f(nonIndexedResScaleLoc, resolutionScale);
 	
-	glUseProgram(shader_progIndexed);
+	ChangeShaderProgram(shader_progIndexed);
 	glUniform2f(indexedResolutionLoc, (float)gameResolutionX, (float)gameResolutionY);
 	glUniform1f(indexedResScaleLoc, resolutionScale);
 
-	glUseProgram(0);
+	ChangeShaderProgram(0);
 
 	//set up some VBO stuff
 	if(texCoordBufferID == 0)

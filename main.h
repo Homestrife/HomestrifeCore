@@ -203,6 +203,7 @@ protected:
 	list<HSPalette*> paletteRegistry;
 	list<HSAudio*> audioRegistry;
 
+	GLuint currentShaderProgramID;
 	int nonIndexedPosOffsetLoc;
 	int indexedPosOffsetLoc;
 	int nonIndexedScaleLoc;
@@ -241,6 +242,7 @@ protected:
 	unsigned int frame;
 
 	int SetBestGameResolution();
+	void ChangeShaderProgram(GLuint programID);
 
 	int Initialize();
 	int InitializeGraphics();
