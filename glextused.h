@@ -15,6 +15,8 @@ extern GLenum shader_progIndexed;
 
 extern bool shading_enabled;
 extern bool buffer_objects_enabled;
+extern bool default_array_objects_enabled;
+extern bool custom_array_objects_enabled;
 
 extern void setupExtensions();
 extern string loadSource(string file);
@@ -28,50 +30,57 @@ extern string linkProgram(GLenum program);
 	#include "glext.h"
 
 	/* Shading language prototypes. */
-	extern PFNGLACTIVETEXTUREARBPROC			glActiveTextureARB;
-	extern PFNGLMULTITEXCOORD2FARBPROC			glMultiTexCoord2fARB;
-	extern PFNGLCREATEPROGRAMOBJECTARBPROC		glCreateProgramObjectARB;
-	extern PFNGLDELETEOBJECTARBPROC				glDeleteObjectARB;
-	extern PFNGLCREATESHADEROBJECTARBPROC		glCreateShaderObjectARB;
-	extern PFNGLSHADERSOURCEARBPROC				glShaderSourceARB;
-	extern PFNGLCOMPILESHADERARBPROC			glCompileShaderARB;
-	extern PFNGLGETOBJECTPARAMETERIVARBPROC		glGetObjectParameterivARB;
-	extern PFNGLATTACHOBJECTARBPROC				glAttachObjectARB;
-	extern PFNGLGETINFOLOGARBPROC				glGetInfoLogARB;
-	extern PFNGLLINKPROGRAMARBPROC				glLinkProgramARB;
-	extern PFNGLUSEPROGRAMOBJECTARBPROC			glUseProgramObjectARB;
-	extern PFNGLGETUNIFORMLOCATIONARBPROC		glGetUniformLocationARB;
-	extern PFNGLUNIFORM1FARBPROC				glUniform1fARB;
-	extern PFNGLUNIFORM1IARBPROC				glUniform1iARB;
-	extern PFNGLUNIFORM1FVARBPROC				glUniform1fvARB;
-	extern PFNGLUNIFORM1IVARBPROC				glUniform1ivARB;
-	extern PFNGLUNIFORM2FARBPROC				glUniform2fARB;
-	extern PFNGLUNIFORM4FARBPROC				glUniform4fARB;
+	extern PFNGLACTIVETEXTUREPROC				glActiveTexture;
+	//extern PFNGLMULTITEXCOORD2FARBPROC		glMultiTexCoord2fARB;
+	extern PFNGLCREATEPROGRAMPROC				glCreateProgram;
+	//extern PFNGLDELETEOBJECTARBPROC			glDeleteObjectARB;
+	extern PFNGLDELETESHADERPROC				glDeleteShader;
+	extern PFNGLDELETEPROGRAMPROC				glDeleteProgram;
+	extern PFNGLCREATESHADERPROC				glCreateShader;
+	extern PFNGLSHADERSOURCEPROC				glShaderSource;
+	extern PFNGLCOMPILESHADERPROC				glCompileShader;
+	//extern PFNGLGETOBJECTPARAMETERIVARBPROC	glGetObjectParameterivARB;
+	extern PFNGLATTACHSHADERPROC				glAttachShader;
+	extern PFNGLGETSHADERINFOLOGPROC			glGetShaderInfoLog;
+	extern PFNGLGETPROGRAMINFOLOGPROC			glGetProgramInfoLog;
+	extern PFNGLLINKPROGRAMPROC					glLinkProgram;
+	extern PFNGLUSEPROGRAMPROC					glUseProgram;
+	extern PFNGLGETUNIFORMLOCATIONPROC			glGetUniformLocation;
+	extern PFNGLUNIFORM1FPROC					glUniform1f;
+	extern PFNGLUNIFORM1IPROC					glUniform1i;
+	//extern PFNGLUNIFORM1FVARBPROC				glUniform1fvARB;
+	//extern PFNGLUNIFORM1IVARBPROC				glUniform1ivARB;
+	extern PFNGLUNIFORM2FPROC					glUniform2f;
+	//extern PFNGLUNIFORM4FARBPROC				glUniform4fARB;
 	extern PFNGLGETSHADERIVPROC					glGetShaderiv;
 	extern PFNGLGETPROGRAMIVPROC				glGetProgramiv;
-	extern PFNGLBINDATTRIBLOCATIONPROC			glBindAttribLocation;
+	//extern PFNGLBINDATTRIBLOCATIONARBPROC		glBindAttribLocation;
 	extern PFNGLGETATTRIBLOCATIONPROC			glGetAttribLocation;
 
 	/* buffer object prototypes */
-	extern PFNGLBINDBUFFERARBPROC				glBindBuffer;
-	extern PFNGLDELETEBUFFERSARBPROC			glDeleteBuffers;
-	extern PFNGLGENBUFFERSARBPROC				glGenBuffers;
-	extern PFNGLISBUFFERARBPROC					glIsBuffer;
-	extern PFNGLBUFFERDATAARBPROC				glBufferData;
-	extern PFNGLBUFFERSUBDATAARBPROC			glBufferSubData;
-	extern PFNGLGETBUFFERSUBDATAARBPROC			glGetBufferSubData;
-	extern PFNGLMAPBUFFERARBPROC				glMapBuffer;
-	extern PFNGLUNMAPBUFFERARBPROC				glUnmapBuffer;
-	extern PFNGLGETBUFFERPARAMETERIVARBPROC		glGetBufferParameteriv;
-	extern PFNGLGETBUFFERPOINTERVARBPROC		glGetBufferPointerv;
-	extern PFNGLENABLEVERTEXATTRIBARRAYARBPROC	glEnableVertexAttribArray;
-	extern PFNGLDISABLEVERTEXATTRIBARRAYARBPROC glDisableVertexAttribArray;
-	extern PFNGLVERTEXATTRIBPOINTERARBPROC		glVertexAttribPointer;
+	extern PFNGLBINDBUFFERPROC					glBindBuffer;
+	extern PFNGLDELETEBUFFERSPROC				glDeleteBuffers;
+	extern PFNGLGENBUFFERSPROC					glGenBuffers;
+	//extern PFNGLISBUFFERARBPROC				glIsBuffer;
+	extern PFNGLBUFFERDATAPROC					glBufferData;
+	//extern PFNGLBUFFERSUBDATAARBPROC			glBufferSubData;
+	//extern PFNGLGETBUFFERSUBDATAARBPROC		glGetBufferSubData;
+	//extern PFNGLMAPBUFFERARBPROC				glMapBuffer;
+	//extern PFNGLUNMAPBUFFERARBPROC			glUnmapBuffer;
+	//extern PFNGLGETBUFFERPARAMETERIVARBPROC	glGetBufferParameteriv;
+	//extern PFNGLGETBUFFERPOINTERVARBPROC		glGetBufferPointerv;
+	//extern PFNGLVERTEXATTRIB2FARBPROC			glVertexAttrib2f;
+	//extern PFNGLVERTEXATTRIB3FARBPROC			glVertexAttrib3f;
+
+	/* default array object prototypes */
+	extern PFNGLENABLEVERTEXATTRIBARRAYPROC		glEnableVertexAttribArray;
+	extern PFNGLDISABLEVERTEXATTRIBARRAYPROC	glDisableVertexAttribArray;
+	extern PFNGLVERTEXATTRIBPOINTERPROC			glVertexAttribPointer;
+
+	/* custom array object prototypes */
 	extern PFNGLGENVERTEXARRAYSPROC				glGenVertexArrays;
 	extern PFNGLDELETEVERTEXARRAYSPROC			glDeleteVertexArrays;
 	extern PFNGLBINDVERTEXARRAYPROC				glBindVertexArray;
-	extern PFNGLVERTEXATTRIB2FPROC				glVertexAttrib2f;
-	extern PFNGLVERTEXATTRIB3FPROC				glVertexAttrib3f;
 #endif
 
 #endif

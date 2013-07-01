@@ -715,15 +715,15 @@ int Main::Render()
 	//glMatrixMode(GL_MODELVIEW);
 	//glLoadIdentity();
 	
-	glUseProgramObjectARB(shader_progIndexed);
-	glUniform2fARB(indexedFocusPosLoc, focusPos.x, focusPos.y);
-	glUniform1fARB(indexedZoomOutLoc, zoomOut);
+	glUseProgram(shader_progIndexed);
+	glUniform2f(indexedFocusPosLoc, focusPos.x, focusPos.y);
+	glUniform1f(indexedZoomOutLoc, zoomOut);
 	
-	glUseProgramObjectARB(shader_progNonIndexed);
-	glUniform2fARB(nonIndexedFocusPosLoc, focusPos.x, focusPos.y);
-	glUniform1fARB(nonIndexedZoomOutLoc, zoomOut);
+	glUseProgram(shader_progNonIndexed);
+	glUniform2f(nonIndexedFocusPosLoc, focusPos.x, focusPos.y);
+	glUniform1f(nonIndexedZoomOutLoc, zoomOut);
 
-	glUseProgramObjectARB(0);
+	glUseProgram(0);
 	
 	//render objects
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -757,15 +757,15 @@ int Main::Render()
 	//glMatrixMode(GL_MODELVIEW);
 	//glLoadIdentity();
 	
-	glUseProgramObjectARB(shader_progIndexed);
-	glUniform2fARB(indexedFocusPosLoc, 0.0f, 0.0f);
-	glUniform1fARB(indexedZoomOutLoc, 1.0f);
+	glUseProgram(shader_progIndexed);
+	glUniform2f(indexedFocusPosLoc, 0.0f, 0.0f);
+	glUniform1f(indexedZoomOutLoc, 1.0f);
 	
-	glUseProgramObjectARB(shader_progNonIndexed);
-	glUniform2fARB(nonIndexedFocusPosLoc, 0.0f, 0.0f);
-	glUniform1fARB(nonIndexedZoomOutLoc, 1.0f);
+	glUseProgram(shader_progNonIndexed);
+	glUniform2f(nonIndexedFocusPosLoc, 0.0f, 0.0f);
+	glUniform1f(nonIndexedZoomOutLoc, 1.0f);
 
-	glUseProgramObjectARB(0);
+	glUseProgram(0);
 
 	for ( objIt=HUDObjects.begin(); objIt != HUDObjects.end(); objIt++)
 	{
@@ -821,18 +821,18 @@ int Main::RenderTexture(HSObject * obj, TextureInstance tex)
 	//set up the texture
 	if(tex.hsTex->indexed)
 	{
-		glUseProgramObjectARB(shader_progIndexed);
-		glUniform2fARB(indexedPosOffsetLoc, offsetX, offsetY);
-		glUniform2fARB(indexedScaleLoc, hScale, vScale);
-		glActiveTextureARB(GL_TEXTURE0);
-		glUniform1iARB(indexedTexLoc, 0);
+		glUseProgram(shader_progIndexed);
+		glUniform2f(indexedPosOffsetLoc, offsetX, offsetY);
+		glUniform2f(indexedScaleLoc, hScale, vScale);
+		glActiveTexture(GL_TEXTURE0);
+		glUniform1i(indexedTexLoc, 0);
 		glBindTexture(GL_TEXTURE_2D, tex.hsTex->textureID);
 		glPixelStorei(GL_PACK_ALIGNMENT, 1);
 		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
 		//set up the palette
-		glActiveTextureARB(GL_TEXTURE1);
-		glUniform1iARB(paletteLoc, 1);
+		glActiveTexture(GL_TEXTURE1);
+		glUniform1i(paletteLoc, 1);
 		if(obj->palette == NULL || obj->useTGAPalettes)
 		{
 			glBindTexture(GL_TEXTURE_2D, tex.hsTex->ownPalette->textureID);
@@ -846,11 +846,11 @@ int Main::RenderTexture(HSObject * obj, TextureInstance tex)
 	}
 	else
 	{
-		glUseProgramObjectARB(shader_progNonIndexed);
-		glUniform2fARB(nonIndexedPosOffsetLoc, offsetX, offsetY);
-		glUniform2fARB(nonIndexedScaleLoc, hScale, vScale);
-		glActiveTextureARB(GL_TEXTURE0);
-		glUniform1iARB(nonIndexedTexLoc, 0);
+		glUseProgram(shader_progNonIndexed);
+		glUniform2f(nonIndexedPosOffsetLoc, offsetX, offsetY);
+		glUniform2f(nonIndexedScaleLoc, hScale, vScale);
+		glActiveTexture(GL_TEXTURE0);
+		glUniform1i(nonIndexedTexLoc, 0);
 		glBindTexture(GL_TEXTURE_2D, tex.hsTex->textureID);
 		glPixelStorei(GL_PACK_ALIGNMENT, 4);
 		glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
@@ -904,10 +904,10 @@ int Main::RenderTexture(HSObject * obj, TextureInstance tex)
 		glBindVertexArray(0);
 	}
 
-	glUseProgramObjectARB(0);
-	glActiveTextureARB(GL_TEXTURE1);
+	glUseProgram(0);
+	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, 0);
-	glActiveTextureARB(GL_TEXTURE0);
+	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, 0);
 
 	return 0;
@@ -987,27 +987,27 @@ int Main::Cleanup()
 
 	if(shader_vert != 0)
 	{
-		glDeleteObjectARB(shader_vert);
+		glDeleteShader(shader_vert);
 		shader_vert = 0;
 	}
 	if(shader_fragNonIndexed != 0)
 	{
-		glDeleteObjectARB(shader_fragNonIndexed);
+		glDeleteShader(shader_fragNonIndexed);
 		shader_fragNonIndexed = 0;
 	}
 	if(shader_fragIndexed != 0)
 	{
-		glDeleteObjectARB(shader_fragIndexed);
+		glDeleteShader(shader_fragIndexed);
 		shader_fragIndexed = 0;
 	}
 	if(shader_progNonIndexed != 0)
 	{
-		glDeleteObjectARB(shader_progNonIndexed);
+		glDeleteProgram(shader_progNonIndexed);
 		shader_progNonIndexed = 0;
 	}
 	if(shader_progIndexed != 0)
 	{
-		glDeleteObjectARB(shader_progIndexed);
+		glDeleteProgram(shader_progIndexed);
 		shader_progIndexed = 0;
 	}
 
@@ -2774,74 +2774,106 @@ bool Main::LoadToKeyConfig(string config, SDLKey * key)
 
 bool Main::LoadToJoyButtonConfig(string config, JoystickMapping * joyButton)
 {
-	if(config == "joy1_1") { (*joyButton).joystick = 0; (*joyButton).button = 0; return true; }
-	else if(config == "joy1_2") { (*joyButton).joystick = 0; (*joyButton).button = 1; return true; }
-	else if(config == "joy1_3") { (*joyButton).joystick = 0; (*joyButton).button = 2; return true; }
-	else if(config == "joy1_4") { (*joyButton).joystick = 0; (*joyButton).button = 3; return true; }
-	else if(config == "joy1_5") { (*joyButton).joystick = 0; (*joyButton).button = 4; return true; }
-	else if(config == "joy1_6") { (*joyButton).joystick = 0; (*joyButton).button = 5; return true; }
-	else if(config == "joy1_7") { (*joyButton).joystick = 0; (*joyButton).button = 6; return true; }
-	else if(config == "joy1_8") { (*joyButton).joystick = 0; (*joyButton).button = 7; return true; }
-	else if(config == "joy1_9") { (*joyButton).joystick = 0; (*joyButton).button = 8; return true; }
-	else if(config == "joy1_10") { (*joyButton).joystick = 0; (*joyButton).button = 9; return true; }
-	else if(config == "joy1_11") { (*joyButton).joystick = 0; (*joyButton).button = 10; return true; }
-	else if(config == "joy1_12") { (*joyButton).joystick = 0; (*joyButton).button = 11; return true; }
-	else if(config == "joy2_1") { (*joyButton).joystick = 1; (*joyButton).button = 0; return true; }
-	else if(config == "joy2_2") { (*joyButton).joystick = 1; (*joyButton).button = 1; return true; }
-	else if(config == "joy2_3") { (*joyButton).joystick = 1; (*joyButton).button = 2; return true; }
-	else if(config == "joy2_4") { (*joyButton).joystick = 1; (*joyButton).button = 3; return true; }
-	else if(config == "joy2_5") { (*joyButton).joystick = 1; (*joyButton).button = 4; return true; }
-	else if(config == "joy2_6") { (*joyButton).joystick = 1; (*joyButton).button = 5; return true; }
-	else if(config == "joy2_7") { (*joyButton).joystick = 1; (*joyButton).button = 6; return true; }
-	else if(config == "joy2_8") { (*joyButton).joystick = 1; (*joyButton).button = 7; return true; }
-	else if(config == "joy2_9") { (*joyButton).joystick = 1; (*joyButton).button = 8; return true; }
-	else if(config == "joy2_10") { (*joyButton).joystick = 1; (*joyButton).button = 9; return true; }
-	else if(config == "joy2_11") { (*joyButton).joystick = 1; (*joyButton).button = 10; return true; }
-	else if(config == "joy2_12") { (*joyButton).joystick = 1; (*joyButton).button = 11; return true; }
-	else if(config == "joy3_1") { (*joyButton).joystick = 2; (*joyButton).button = 0; return true; }
-	else if(config == "joy3_2") { (*joyButton).joystick = 2; (*joyButton).button = 1; return true; }
-	else if(config == "joy3_3") { (*joyButton).joystick = 2; (*joyButton).button = 2; return true; }
-	else if(config == "joy3_4") { (*joyButton).joystick = 2; (*joyButton).button = 3; return true; }
-	else if(config == "joy3_5") { (*joyButton).joystick = 2; (*joyButton).button = 4; return true; }
-	else if(config == "joy3_6") { (*joyButton).joystick = 2; (*joyButton).button = 5; return true; }
-	else if(config == "joy3_7") { (*joyButton).joystick = 2; (*joyButton).button = 6; return true; }
-	else if(config == "joy3_8") { (*joyButton).joystick = 2; (*joyButton).button = 7; return true; }
-	else if(config == "joy3_9") { (*joyButton).joystick = 2; (*joyButton).button = 8; return true; }
-	else if(config == "joy3_10") { (*joyButton).joystick = 2; (*joyButton).button = 9; return true; }
-	else if(config == "joy3_11") { (*joyButton).joystick = 2; (*joyButton).button = 10; return true; }
-	else if(config == "joy3_12") { (*joyButton).joystick = 2; (*joyButton).button = 11; return true; }
-	else if(config == "joy4_1") { (*joyButton).joystick = 3; (*joyButton).button = 0; return true; }
-	else if(config == "joy4_2") { (*joyButton).joystick = 3; (*joyButton).button = 1; return true; }
-	else if(config == "joy4_3") { (*joyButton).joystick = 3; (*joyButton).button = 2; return true; }
-	else if(config == "joy4_4") { (*joyButton).joystick = 3; (*joyButton).button = 3; return true; }
-	else if(config == "joy4_5") { (*joyButton).joystick = 3; (*joyButton).button = 4; return true; }
-	else if(config == "joy4_6") { (*joyButton).joystick = 3; (*joyButton).button = 5; return true; }
-	else if(config == "joy4_7") { (*joyButton).joystick = 3; (*joyButton).button = 6; return true; }
-	else if(config == "joy4_8") { (*joyButton).joystick = 3; (*joyButton).button = 7; return true; }
-	else if(config == "joy4_9") { (*joyButton).joystick = 3; (*joyButton).button = 8; return true; }
-	else if(config == "joy4_10") { (*joyButton).joystick = 3; (*joyButton).button = 9; return true; }
-	else if(config == "joy4_11") { (*joyButton).joystick = 3; (*joyButton).button = 10; return true; }
-	else if(config == "joy4_12") { (*joyButton).joystick = 3; (*joyButton).button = 11; return true; }
+	if(config == "joy0_0") { (*joyButton).joystick = 0; (*joyButton).button = 0; return true; }
+	else if(config == "joy0_1") { (*joyButton).joystick = 0; (*joyButton).button = 1; return true; }
+	else if(config == "joy0_2") { (*joyButton).joystick = 0; (*joyButton).button = 2; return true; }
+	else if(config == "joy0_3") { (*joyButton).joystick = 0; (*joyButton).button = 3; return true; }
+	else if(config == "joy0_4") { (*joyButton).joystick = 0; (*joyButton).button = 4; return true; }
+	else if(config == "joy0_5") { (*joyButton).joystick = 0; (*joyButton).button = 5; return true; }
+	else if(config == "joy0_6") { (*joyButton).joystick = 0; (*joyButton).button = 6; return true; }
+	else if(config == "joy0_7") { (*joyButton).joystick = 0; (*joyButton).button = 7; return true; }
+	else if(config == "joy0_8") { (*joyButton).joystick = 0; (*joyButton).button = 8; return true; }
+	else if(config == "joy0_9") { (*joyButton).joystick = 0; (*joyButton).button = 9; return true; }
+	else if(config == "joy0_10") { (*joyButton).joystick = 0; (*joyButton).button = 10; return true; }
+	else if(config == "joy0_11") { (*joyButton).joystick = 0; (*joyButton).button = 11; return true; }
+	else if(config == "joy0_12") { (*joyButton).joystick = 0; (*joyButton).button = 12; return true; }
+	else if(config == "joy0_13") { (*joyButton).joystick = 0; (*joyButton).button = 13; return true; }
+	else if(config == "joy0_14") { (*joyButton).joystick = 0; (*joyButton).button = 14; return true; }
+	else if(config == "joy0_15") { (*joyButton).joystick = 0; (*joyButton).button = 15; return true; }
+	else if(config == "joy0_16") { (*joyButton).joystick = 0; (*joyButton).button = 16; return true; }
+	else if(config == "joy0_17") { (*joyButton).joystick = 0; (*joyButton).button = 17; return true; }
+	else if(config == "joy0_18") { (*joyButton).joystick = 0; (*joyButton).button = 18; return true; }
+	else if(config == "joy0_19") { (*joyButton).joystick = 0; (*joyButton).button = 19; return true; }
+	else if(config == "joy1_0") { (*joyButton).joystick = 1; (*joyButton).button = 0; return true; }
+	else if(config == "joy1_1") { (*joyButton).joystick = 1; (*joyButton).button = 1; return true; }
+	else if(config == "joy1_2") { (*joyButton).joystick = 1; (*joyButton).button = 2; return true; }
+	else if(config == "joy1_3") { (*joyButton).joystick = 1; (*joyButton).button = 3; return true; }
+	else if(config == "joy1_4") { (*joyButton).joystick = 1; (*joyButton).button = 4; return true; }
+	else if(config == "joy1_5") { (*joyButton).joystick = 1; (*joyButton).button = 5; return true; }
+	else if(config == "joy1_6") { (*joyButton).joystick = 1; (*joyButton).button = 6; return true; }
+	else if(config == "joy1_7") { (*joyButton).joystick = 1; (*joyButton).button = 7; return true; }
+	else if(config == "joy1_8") { (*joyButton).joystick = 1; (*joyButton).button = 8; return true; }
+	else if(config == "joy1_9") { (*joyButton).joystick = 1; (*joyButton).button = 9; return true; }
+	else if(config == "joy1_10") { (*joyButton).joystick = 1; (*joyButton).button = 10; return true; }
+	else if(config == "joy1_11") { (*joyButton).joystick = 1; (*joyButton).button = 11; return true; }
+	else if(config == "joy1_12") { (*joyButton).joystick = 1; (*joyButton).button = 12; return true; }
+	else if(config == "joy1_13") { (*joyButton).joystick = 1; (*joyButton).button = 13; return true; }
+	else if(config == "joy1_14") { (*joyButton).joystick = 1; (*joyButton).button = 14; return true; }
+	else if(config == "joy1_15") { (*joyButton).joystick = 1; (*joyButton).button = 15; return true; }
+	else if(config == "joy1_16") { (*joyButton).joystick = 1; (*joyButton).button = 16; return true; }
+	else if(config == "joy1_17") { (*joyButton).joystick = 1; (*joyButton).button = 17; return true; }
+	else if(config == "joy1_18") { (*joyButton).joystick = 1; (*joyButton).button = 18; return true; }
+	else if(config == "joy1_19") { (*joyButton).joystick = 1; (*joyButton).button = 19; return true; }
+	else if(config == "joy2_0") { (*joyButton).joystick = 2; (*joyButton).button = 0; return true; }
+	else if(config == "joy2_1") { (*joyButton).joystick = 2; (*joyButton).button = 1; return true; }
+	else if(config == "joy2_2") { (*joyButton).joystick = 2; (*joyButton).button = 2; return true; }
+	else if(config == "joy2_3") { (*joyButton).joystick = 2; (*joyButton).button = 3; return true; }
+	else if(config == "joy2_4") { (*joyButton).joystick = 2; (*joyButton).button = 4; return true; }
+	else if(config == "joy2_5") { (*joyButton).joystick = 2; (*joyButton).button = 5; return true; }
+	else if(config == "joy2_6") { (*joyButton).joystick = 2; (*joyButton).button = 6; return true; }
+	else if(config == "joy2_7") { (*joyButton).joystick = 2; (*joyButton).button = 7; return true; }
+	else if(config == "joy2_8") { (*joyButton).joystick = 2; (*joyButton).button = 8; return true; }
+	else if(config == "joy2_9") { (*joyButton).joystick = 2; (*joyButton).button = 9; return true; }
+	else if(config == "joy2_10") { (*joyButton).joystick = 2; (*joyButton).button = 10; return true; }
+	else if(config == "joy2_11") { (*joyButton).joystick = 2; (*joyButton).button = 11; return true; }
+	else if(config == "joy2_12") { (*joyButton).joystick = 2; (*joyButton).button = 12; return true; }
+	else if(config == "joy2_13") { (*joyButton).joystick = 2; (*joyButton).button = 13; return true; }
+	else if(config == "joy2_14") { (*joyButton).joystick = 2; (*joyButton).button = 14; return true; }
+	else if(config == "joy2_15") { (*joyButton).joystick = 2; (*joyButton).button = 15; return true; }
+	else if(config == "joy2_16") { (*joyButton).joystick = 2; (*joyButton).button = 16; return true; }
+	else if(config == "joy2_17") { (*joyButton).joystick = 2; (*joyButton).button = 17; return true; }
+	else if(config == "joy2_18") { (*joyButton).joystick = 2; (*joyButton).button = 18; return true; }
+	else if(config == "joy2_19") { (*joyButton).joystick = 2; (*joyButton).button = 19; return true; }
+	else if(config == "joy3_0") { (*joyButton).joystick = 3; (*joyButton).button = 0; return true; }
+	else if(config == "joy3_1") { (*joyButton).joystick = 3; (*joyButton).button = 1; return true; }
+	else if(config == "joy3_2") { (*joyButton).joystick = 3; (*joyButton).button = 2; return true; }
+	else if(config == "joy3_3") { (*joyButton).joystick = 3; (*joyButton).button = 3; return true; }
+	else if(config == "joy3_4") { (*joyButton).joystick = 3; (*joyButton).button = 4; return true; }
+	else if(config == "joy3_5") { (*joyButton).joystick = 3; (*joyButton).button = 5; return true; }
+	else if(config == "joy3_6") { (*joyButton).joystick = 3; (*joyButton).button = 6; return true; }
+	else if(config == "joy3_7") { (*joyButton).joystick = 3; (*joyButton).button = 7; return true; }
+	else if(config == "joy3_8") { (*joyButton).joystick = 3; (*joyButton).button = 8; return true; }
+	else if(config == "joy3_9") { (*joyButton).joystick = 3; (*joyButton).button = 9; return true; }
+	else if(config == "joy3_10") { (*joyButton).joystick = 3; (*joyButton).button = 10; return true; }
+	else if(config == "joy3_11") { (*joyButton).joystick = 3; (*joyButton).button = 11; return true; }
+	else if(config == "joy3_12") { (*joyButton).joystick = 3; (*joyButton).button = 12; return true; }
+	else if(config == "joy3_13") { (*joyButton).joystick = 3; (*joyButton).button = 13; return true; }
+	else if(config == "joy3_14") { (*joyButton).joystick = 3; (*joyButton).button = 14; return true; }
+	else if(config == "joy3_15") { (*joyButton).joystick = 3; (*joyButton).button = 15; return true; }
+	else if(config == "joy3_16") { (*joyButton).joystick = 3; (*joyButton).button = 16; return true; }
+	else if(config == "joy3_17") { (*joyButton).joystick = 3; (*joyButton).button = 17; return true; }
+	else if(config == "joy3_18") { (*joyButton).joystick = 3; (*joyButton).button = 18; return true; }
+	else if(config == "joy3_19") { (*joyButton).joystick = 3; (*joyButton).button = 19; return true; }
 
 	return false;
 }
 
 bool Main::LoadToHatConfig(string config, Uint8 * hat)
 {
-	if(config == "joy1_hat") { *hat = 0; return true; }
-	else if(config == "joy2_hat") { *hat = 1; return true; }
-	else if(config == "joy3_hat") { *hat = 2; return true; }
-	else if(config == "joy4_hat") { *hat = 3; return true; }
+	if(config == "joy0_hat") { *hat = 0; return true; }
+	else if(config == "joy1_hat") { *hat = 1; return true; }
+	else if(config == "joy2_hat") { *hat = 2; return true; }
+	else if(config == "joy3_hat") { *hat = 3; return true; }
 
 	return false;
 }
 
 bool Main::LoadToStickConfig(string config, Uint8 * stick)
 {
-	if(config == "joy1_stick") { *stick = 0; return true; }
-	else if(config == "joy2_stick") { *stick = 1; return true; }
-	else if(config == "joy3_stick") { *stick = 2; return true; }
-	else if(config == "joy4_stick") { *stick = 3; return true; }
+	if(config == "joy0_stick") { *stick = 0; return true; }
+	else if(config == "joy1_stick") { *stick = 1; return true; }
+	else if(config == "joy2_stick") { *stick = 2; return true; }
+	else if(config == "joy3_stick") { *stick = 3; return true; }
 
 	return false;
 }
@@ -3140,69 +3172,101 @@ string Main::GetJoyButtonConfigString(JoystickMapping joyButton)
 	case 0:
 		switch(joyButton.button)
 		{
-		case 0: return "joy1_1"; break;
-		case 1: return "joy1_2"; break;
-		case 2: return "joy1_3"; break;
-		case 3: return "joy1_4"; break;
-		case 4: return "joy1_5"; break;
-		case 5: return "joy1_6"; break;
-		case 6: return "joy1_7"; break;
-		case 7: return "joy1_8"; break;
-		case 8: return "joy1_9"; break;
-		case 9: return "joy1_10"; break;
-		case 10: return "joy1_11"; break;
-		case 11: return "joy1_12"; break;
+		case 0: return "joy0_0"; break;
+		case 1: return "joy0_1"; break;
+		case 2: return "joy0_2"; break;
+		case 3: return "joy0_3"; break;
+		case 4: return "joy0_4"; break;
+		case 5: return "joy0_5"; break;
+		case 6: return "joy0_6"; break;
+		case 7: return "joy0_7"; break;
+		case 8: return "joy0_8"; break;
+		case 9: return "joy0_9"; break;
+		case 10: return "joy0_10"; break;
+		case 11: return "joy0_11"; break;
+		case 12: return "joy0_12"; break;
+		case 13: return "joy0_13"; break;
+		case 14: return "joy0_14"; break;
+		case 15: return "joy0_15"; break;
+		case 16: return "joy0_16"; break;
+		case 17: return "joy0_17"; break;
+		case 18: return "joy0_18"; break;
+		case 19: return "joy0_19"; break;
 		}
 		break;
 	case 1:
 		switch(joyButton.button)
 		{
-		case 0: return "joy2_1"; break;
-		case 1: return "joy2_2"; break;
-		case 2: return "joy2_3"; break;
-		case 3: return "joy2_4"; break;
-		case 4: return "joy2_5"; break;
-		case 5: return "joy2_6"; break;
-		case 6: return "joy2_7"; break;
-		case 7: return "joy2_8"; break;
-		case 8: return "joy2_9"; break;
-		case 9: return "joy2_10"; break;
-		case 10: return "joy2_11"; break;
-		case 11: return "joy2_12"; break;
+		case 0: return "joy1_0"; break;
+		case 1: return "joy1_1"; break;
+		case 2: return "joy1_2"; break;
+		case 3: return "joy1_3"; break;
+		case 4: return "joy1_4"; break;
+		case 5: return "joy1_5"; break;
+		case 6: return "joy1_6"; break;
+		case 7: return "joy1_7"; break;
+		case 8: return "joy1_8"; break;
+		case 9: return "joy1_9"; break;
+		case 10: return "joy1_10"; break;
+		case 11: return "joy1_11"; break;
+		case 12: return "joy1_12"; break;
+		case 13: return "joy1_13"; break;
+		case 14: return "joy1_14"; break;
+		case 15: return "joy1_15"; break;
+		case 16: return "joy1_16"; break;
+		case 17: return "joy1_17"; break;
+		case 18: return "joy1_18"; break;
+		case 19: return "joy1_19"; break;
 		}
 		break;
 	case 2:
 		switch(joyButton.button)
 		{
-		case 0: return "joy3_1"; break;
-		case 1: return "joy3_2"; break;
-		case 2: return "joy3_3"; break;
-		case 3: return "joy3_4"; break;
-		case 4: return "joy3_5"; break;
-		case 5: return "joy3_6"; break;
-		case 6: return "joy3_7"; break;
-		case 7: return "joy3_8"; break;
-		case 8: return "joy3_9"; break;
-		case 9: return "joy3_10"; break;
-		case 10: return "joy3_11"; break;
-		case 11: return "joy3_12"; break;
+		case 0: return "joy2_0"; break;
+		case 1: return "joy2_1"; break;
+		case 2: return "joy2_2"; break;
+		case 3: return "joy2_3"; break;
+		case 4: return "joy2_4"; break;
+		case 5: return "joy2_5"; break;
+		case 6: return "joy2_6"; break;
+		case 7: return "joy2_7"; break;
+		case 8: return "joy2_8"; break;
+		case 9: return "joy2_9"; break;
+		case 10: return "joy2_10"; break;
+		case 11: return "joy2_11"; break;
+		case 12: return "joy2_12"; break;
+		case 13: return "joy2_13"; break;
+		case 14: return "joy2_14"; break;
+		case 15: return "joy2_15"; break;
+		case 16: return "joy2_16"; break;
+		case 17: return "joy2_17"; break;
+		case 18: return "joy2_18"; break;
+		case 19: return "joy2_19"; break;
 		}
 		break;
 	case 3:
 		switch(joyButton.button)
 		{
-		case 0: return "joy4_1"; break;
-		case 1: return "joy4_2"; break;
-		case 2: return "joy4_3"; break;
-		case 3: return "joy4_4"; break;
-		case 4: return "joy4_5"; break;
-		case 5: return "joy4_6"; break;
-		case 6: return "joy4_7"; break;
-		case 7: return "joy4_8"; break;
-		case 8: return "joy4_9"; break;
-		case 9: return "joy4_10"; break;
-		case 10: return "joy4_11"; break;
-		case 11: return "joy4_12"; break;
+		case 0: return "joy3_0"; break;
+		case 1: return "joy3_1"; break;
+		case 2: return "joy3_2"; break;
+		case 3: return "joy3_3"; break;
+		case 4: return "joy3_4"; break;
+		case 5: return "joy3_5"; break;
+		case 6: return "joy3_6"; break;
+		case 7: return "joy3_7"; break;
+		case 8: return "joy3_8"; break;
+		case 9: return "joy3_9"; break;
+		case 10: return "joy3_10"; break;
+		case 11: return "joy3_11"; break;
+		case 12: return "joy3_12"; break;
+		case 13: return "joy3_13"; break;
+		case 14: return "joy3_14"; break;
+		case 15: return "joy3_15"; break;
+		case 16: return "joy3_16"; break;
+		case 17: return "joy3_17"; break;
+		case 18: return "joy3_18"; break;
+		case 19: return "joy3_19"; break;
 		}
 		break;
 	}
@@ -3214,10 +3278,10 @@ string Main::GetHatConfigString(Uint8 hat)
 {
 	switch(hat)
 	{
-	case 0: return "joy1_hat"; break;
-	case 1: return "joy2_hat"; break;
-	case 2: return "joy3_hat"; break;
-	case 3: return "joy4_hat"; break;
+	case 0: return "joy0_hat"; break;
+	case 1: return "joy1_hat"; break;
+	case 2: return "joy2_hat"; break;
+	case 3: return "joy3_hat"; break;
 	}
 
 	return "";
@@ -3227,10 +3291,10 @@ string Main::GetStickConfigString(Uint8 stick)
 {
 	switch(stick)
 	{
-	case 0: return "joy1_stick"; break;
-	case 1: return "joy2_stick"; break;
-	case 2: return "joy3_stick"; break;
-	case 3: return "joy4_stick"; break;
+	case 0: return "joy0_stick"; break;
+	case 1: return "joy1_stick"; break;
+	case 2: return "joy2_stick"; break;
+	case 3: return "joy3_stick"; break;
 	}
 
 	return "";
@@ -4705,27 +4769,27 @@ int Main::SetFullScreen(bool newFullScreen)
 
 	if(shader_vert != 0)
 	{
-		glDeleteObjectARB(shader_vert);
+		glDeleteShader(shader_vert);
 		shader_vert = 0;
 	}
 	if(shader_fragNonIndexed != 0)
 	{
-		glDeleteObjectARB(shader_fragNonIndexed);
+		glDeleteShader(shader_fragNonIndexed);
 		shader_fragNonIndexed = 0;
 	}
 	if(shader_fragIndexed != 0)
 	{
-		glDeleteObjectARB(shader_fragIndexed);
+		glDeleteShader(shader_fragIndexed);
 		shader_fragIndexed = 0;
 	}
 	if(shader_progNonIndexed != 0)
 	{
-		glDeleteObjectARB(shader_progNonIndexed);
+		glDeleteProgram(shader_progNonIndexed);
 		shader_progNonIndexed = 0;
 	}
 	if(shader_progIndexed != 0)
 	{
-		glDeleteObjectARB(shader_progIndexed);
+		glDeleteProgram(shader_progIndexed);
 		shader_progIndexed = 0;
 	}
 
@@ -4839,20 +4903,35 @@ int Main::SetFullScreen(bool newFullScreen)
 	}
 
 	setupExtensions();
-	if(shading_enabled == false || buffer_objects_enabled == false)
+	if(shading_enabled == false)
 	{
-		UpdateLog("OpenGL shaders and/or buffer objects are not enabled.", true);
+		UpdateLog("OpenGL shaders are not enabled.", true);
+		return -1;
+	}
+	if(buffer_objects_enabled == false)
+	{
+		UpdateLog("OpenGL buffer objects are not enabled.", true);
+		return -1;
+	}
+	if(default_array_objects_enabled == false)
+	{
+		UpdateLog("OpenGL default array object is not enabled.", true);
+		return -1;
+	}
+	if(custom_array_objects_enabled == false && openGL3)
+	{
+		UpdateLog("OpenGL custom array objects are not enabled.", true);
 		return -1;
 	}
 
-	UpdateLog("OpenGL shaders and buffer objects enabled.", false);
+	UpdateLog("OpenGL shaders, buffer objects, and vertex array objects enabled.", false);
 
 	//set up all the shader stuff
-	shader_progNonIndexed = glCreateProgramObjectARB();
-	shader_progIndexed = glCreateProgramObjectARB();
-	shader_vert = glCreateShaderObjectARB(GL_VERTEX_SHADER_ARB);
-	shader_fragNonIndexed = glCreateShaderObjectARB(GL_FRAGMENT_SHADER_ARB);
-	shader_fragIndexed = glCreateShaderObjectARB(GL_FRAGMENT_SHADER_ARB);
+	shader_progNonIndexed = glCreateProgram();
+	shader_progIndexed = glCreateProgram();
+	shader_vert = glCreateShader(GL_VERTEX_SHADER);
+	shader_fragNonIndexed = glCreateShader(GL_FRAGMENT_SHADER);
+	shader_fragIndexed = glCreateShader(GL_FRAGMENT_SHADER);
 
 	string vertShaderFileName;
 	string fragNonIndexedShaderFileName;
@@ -4933,11 +5012,11 @@ int Main::SetFullScreen(bool newFullScreen)
 
 	int len = 0;
 	len = shader_vert_source_string.length();
-	glShaderSourceARB(shader_vert, 1, (const GLcharARB**)&shader_vert_source, &len);
+	glShaderSource(shader_vert, 1, (const GLcharARB**)&shader_vert_source, &len);
 	len = shader_fragNonIndexed_source_string.length();
-	glShaderSourceARB(shader_fragNonIndexed, 1, (const GLcharARB**)&shader_fragNonIndexed_source, &len);
+	glShaderSource(shader_fragNonIndexed, 1, (const GLcharARB**)&shader_fragNonIndexed_source, &len);
 	len = shader_fragIndexed_source_string.length();
-	glShaderSourceARB(shader_fragIndexed, 1, (const GLcharARB**)&shader_fragIndexed_source, &len);
+	glShaderSource(shader_fragIndexed, 1, (const GLcharARB**)&shader_fragIndexed_source, &len);
 
 	//compile vertex shader
 	string shaderError = "";
@@ -5027,8 +5106,8 @@ int Main::SetFullScreen(bool newFullScreen)
 	}
 
 	//link non-indexed program
-	glAttachObjectARB(shader_progNonIndexed, shader_vert);
-	glAttachObjectARB(shader_progNonIndexed, shader_fragNonIndexed);
+	glAttachShader(shader_progNonIndexed, shader_vert);
+	glAttachShader(shader_progNonIndexed, shader_fragNonIndexed);
 	
 	shaderError = "";
 	shaderStatus = GL_FALSE;
@@ -5059,8 +5138,8 @@ int Main::SetFullScreen(bool newFullScreen)
 	}
 
 	//link indexed program
-	glAttachObjectARB(shader_progIndexed, shader_vert);
-	glAttachObjectARB(shader_progIndexed, shader_fragIndexed);
+	glAttachShader(shader_progIndexed, shader_vert);
+	glAttachShader(shader_progIndexed, shader_fragIndexed);
 	
 	shaderError = "";
 	shaderStatus = GL_FALSE;
@@ -5095,31 +5174,31 @@ int Main::SetFullScreen(bool newFullScreen)
 	texCoordInLocNonIndexed = glGetAttribLocation(shader_progNonIndexed, "texCoordIn");
 	texCoordInLocIndexed = glGetAttribLocation(shader_progIndexed, "texCoordIn");
 
-	nonIndexedPosOffsetLoc = glGetUniformLocationARB(shader_progNonIndexed, "posOffset");
-	indexedPosOffsetLoc = glGetUniformLocationARB(shader_progIndexed, "posOffset");
-	nonIndexedScaleLoc = glGetUniformLocationARB(shader_progNonIndexed, "scale");
-	indexedScaleLoc = glGetUniformLocationARB(shader_progIndexed, "scale");
-	nonIndexedResolutionLoc = glGetUniformLocationARB(shader_progNonIndexed, "resolution");
-	indexedResolutionLoc = glGetUniformLocationARB(shader_progIndexed, "resolution");
-	nonIndexedResScaleLoc = glGetUniformLocationARB(shader_progNonIndexed, "resScale");
-	indexedResScaleLoc = glGetUniformLocationARB(shader_progIndexed, "resScale");
-	nonIndexedFocusPosLoc = glGetUniformLocationARB(shader_progNonIndexed, "focusPos");
-	indexedFocusPosLoc = glGetUniformLocationARB(shader_progIndexed, "focusPos");
-	nonIndexedZoomOutLoc = glGetUniformLocationARB(shader_progNonIndexed, "zoomOut");
-	indexedZoomOutLoc = glGetUniformLocationARB(shader_progIndexed, "zoomOut");
-	nonIndexedTexLoc = glGetUniformLocationARB(shader_progNonIndexed, "tex");
-	indexedTexLoc = glGetUniformLocationARB(shader_progIndexed, "tex");
-	paletteLoc = glGetUniformLocationARB(shader_progIndexed, "palette");
+	nonIndexedPosOffsetLoc = glGetUniformLocation(shader_progNonIndexed, "posOffset");
+	indexedPosOffsetLoc = glGetUniformLocation(shader_progIndexed, "posOffset");
+	nonIndexedScaleLoc = glGetUniformLocation(shader_progNonIndexed, "scale");
+	indexedScaleLoc = glGetUniformLocation(shader_progIndexed, "scale");
+	nonIndexedResolutionLoc = glGetUniformLocation(shader_progNonIndexed, "resolution");
+	indexedResolutionLoc = glGetUniformLocation(shader_progIndexed, "resolution");
+	nonIndexedResScaleLoc = glGetUniformLocation(shader_progNonIndexed, "resScale");
+	indexedResScaleLoc = glGetUniformLocation(shader_progIndexed, "resScale");
+	nonIndexedFocusPosLoc = glGetUniformLocation(shader_progNonIndexed, "focusPos");
+	indexedFocusPosLoc = glGetUniformLocation(shader_progIndexed, "focusPos");
+	nonIndexedZoomOutLoc = glGetUniformLocation(shader_progNonIndexed, "zoomOut");
+	indexedZoomOutLoc = glGetUniformLocation(shader_progIndexed, "zoomOut");
+	nonIndexedTexLoc = glGetUniformLocation(shader_progNonIndexed, "tex");
+	indexedTexLoc = glGetUniformLocation(shader_progIndexed, "tex");
+	paletteLoc = glGetUniformLocation(shader_progIndexed, "palette");
 
-	glUseProgramObjectARB(shader_progNonIndexed);
-	glUniform2fARB(nonIndexedResolutionLoc, (float)gameResolutionX, (float)gameResolutionY);
-	glUniform1fARB(nonIndexedResScaleLoc, resolutionScale);
+	glUseProgram(shader_progNonIndexed);
+	glUniform2f(nonIndexedResolutionLoc, (float)gameResolutionX, (float)gameResolutionY);
+	glUniform1f(nonIndexedResScaleLoc, resolutionScale);
 	
-	glUseProgramObjectARB(shader_progIndexed);
-	glUniform2fARB(indexedResolutionLoc, (float)gameResolutionX, (float)gameResolutionY);
-	glUniform1fARB(indexedResScaleLoc, resolutionScale);
+	glUseProgram(shader_progIndexed);
+	glUniform2f(indexedResolutionLoc, (float)gameResolutionX, (float)gameResolutionY);
+	glUniform1f(indexedResScaleLoc, resolutionScale);
 
-	glUseProgramObjectARB(0);
+	glUseProgram(0);
 
 	//set up some VBO stuff
 	if(texCoordBufferID == 0)

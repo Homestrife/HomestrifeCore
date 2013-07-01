@@ -11,6 +11,8 @@ using namespace std;
 
 bool shading_enabled = false;
 bool buffer_objects_enabled = false;
+bool default_array_objects_enabled = false;
+bool custom_array_objects_enabled = false;
 
 #ifdef __WIN32__
 	#define WIN32_OR_X11
@@ -18,60 +20,64 @@ bool buffer_objects_enabled = false;
 	#include <OpenGL/glu.h>
 	#include <OpenGL/glext.h>
 	void setupExtensions()
-	{ shading_enabled = true; buffer_objects_enabled = true; }; // OS X already has these extensions
+	{ shading_enabled = true; buffer_objects_enabled = true; default_array_objects_enabled = true; custom_array_objects_enabled = true; }; // OS X already has these extensions
 #elif __X11__
 	#include <GL/glx.h>
 	#include <GL/glxext.h>
 	#define WIN32_OR_X11
 #else
 	void setupExtensions()
-	{ shading_enabled = false; buffer_objects_enabled = false; }; // just fail otherwise?
+	{ shading_enabled = false; buffer_objects_enabled = false; default_array_objects_enabled = false; custom_array_objects_enabled = false; }; // just fail otherwise?
 #endif
 
 #ifdef WIN32_OR_X11
-PFNGLACTIVETEXTUREARBPROC			glActiveTextureARB = NULL;
-PFNGLMULTITEXCOORD2FARBPROC			glMultiTexCoord2fARB = NULL;
-PFNGLCREATEPROGRAMOBJECTARBPROC     glCreateProgramObjectARB = NULL;
-PFNGLDELETEOBJECTARBPROC            glDeleteObjectARB = NULL;
-PFNGLCREATESHADEROBJECTARBPROC      glCreateShaderObjectARB = NULL;
-PFNGLSHADERSOURCEARBPROC            glShaderSourceARB = NULL;
-PFNGLCOMPILESHADERARBPROC           glCompileShaderARB = NULL;
-PFNGLGETOBJECTPARAMETERIVARBPROC    glGetObjectParameterivARB = NULL;
-PFNGLATTACHOBJECTARBPROC            glAttachObjectARB = NULL;
-PFNGLGETINFOLOGARBPROC              glGetInfoLogARB = NULL;
-PFNGLLINKPROGRAMARBPROC             glLinkProgramARB = NULL;
-PFNGLUSEPROGRAMOBJECTARBPROC        glUseProgramObjectARB = NULL;
-PFNGLGETUNIFORMLOCATIONARBPROC      glGetUniformLocationARB = NULL;
-PFNGLUNIFORM1FARBPROC               glUniform1fARB = NULL;
-PFNGLUNIFORM1IARBPROC               glUniform1iARB = NULL;
-PFNGLUNIFORM1FVARBPROC              glUniform1fvARB = NULL;
-PFNGLUNIFORM1IVARBPROC              glUniform1ivARB = NULL;
-PFNGLUNIFORM2FARBPROC				glUniform2fARB = NULL;
-PFNGLUNIFORM4FARBPROC				glUniform4fARB = NULL;
+PFNGLACTIVETEXTUREPROC				glActiveTexture = NULL;
+//PFNGLMULTITEXCOORD2FARBPROC			glMultiTexCoord2fARB = NULL;
+PFNGLCREATEPROGRAMPROC				glCreateProgram = NULL;
+PFNGLDELETESHADERPROC				glDeleteShader = NULL;
+PFNGLDELETEPROGRAMPROC				glDeleteProgram = NULL;
+PFNGLCREATESHADERPROC				glCreateShader = NULL;
+PFNGLSHADERSOURCEPROC				glShaderSource = NULL;
+PFNGLCOMPILESHADERPROC				glCompileShader = NULL;
+//PFNGLGETOBJECTPARAMETERIVARBPROC    glGetObjectParameterivARB = NULL;
+PFNGLATTACHSHADERPROC				glAttachShader = NULL;
+PFNGLGETSHADERINFOLOGPROC           glGetShaderInfoLog = NULL;
+PFNGLGETPROGRAMINFOLOGPROC          glGetProgramInfoLog = NULL;
+PFNGLLINKPROGRAMPROC				glLinkProgram = NULL;
+PFNGLUSEPROGRAMPROC					glUseProgram = NULL;
+PFNGLGETUNIFORMLOCATIONPROC			glGetUniformLocation = NULL;
+PFNGLUNIFORM1FPROC					glUniform1f = NULL;
+PFNGLUNIFORM1IPROC					glUniform1i = NULL;
+//PFNGLUNIFORM1FVARBPROC              glUniform1fvARB = NULL;
+//PFNGLUNIFORM1IVARBPROC              glUniform1ivARB = NULL;
+PFNGLUNIFORM2FPROC					glUniform2f = NULL;
+//PFNGLUNIFORM4FARBPROC				glUniform4fARB = NULL;
 PFNGLGETSHADERIVPROC				glGetShaderiv = NULL;
 PFNGLGETPROGRAMIVPROC				glGetProgramiv = NULL;
-PFNGLBINDATTRIBLOCATIONPROC			glBindAttribLocation = NULL;
+//PFNGLBINDATTRIBLOCATIONARBPROC		glBindAttribLocation = NULL;
 PFNGLGETATTRIBLOCATIONPROC			glGetAttribLocation = NULL;
 
-PFNGLBINDBUFFERARBPROC				glBindBuffer = NULL;
-PFNGLDELETEBUFFERSARBPROC			glDeleteBuffers = NULL;
+PFNGLBINDBUFFERPROC					glBindBuffer = NULL;
+PFNGLDELETEBUFFERSPROC				glDeleteBuffers = NULL;
 PFNGLGENBUFFERSARBPROC				glGenBuffers = NULL;
-PFNGLISBUFFERARBPROC				glIsBuffer = NULL;
-PFNGLBUFFERDATAARBPROC				glBufferData = NULL;
-PFNGLBUFFERSUBDATAARBPROC			glBufferSubData = NULL;
-PFNGLGETBUFFERSUBDATAARBPROC		glGetBufferSubData = NULL;
-PFNGLMAPBUFFERARBPROC				glMapBuffer = NULL;
-PFNGLUNMAPBUFFERARBPROC				glUnmapBuffer = NULL;
-PFNGLGETBUFFERPARAMETERIVARBPROC	glGetBufferParameteriv = NULL;
-PFNGLGETBUFFERPOINTERVARBPROC		glGetBufferPointerv = NULL;
-PFNGLENABLEVERTEXATTRIBARRAYARBPROC	glEnableVertexAttribArray = NULL;
-PFNGLDISABLEVERTEXATTRIBARRAYARBPROC glDisableVertexAttribArray = NULL;
-PFNGLVERTEXATTRIBPOINTERARBPROC		glVertexAttribPointer = NULL;
+//PFNGLISBUFFERARBPROC				glIsBuffer = NULL;
+PFNGLBUFFERDATAPROC					glBufferData = NULL;
+//PFNGLBUFFERSUBDATAARBPROC			glBufferSubData = NULL;
+//PFNGLGETBUFFERSUBDATAARBPROC		glGetBufferSubData = NULL;
+//PFNGLMAPBUFFERARBPROC				glMapBuffer = NULL;
+//PFNGLUNMAPBUFFERARBPROC				glUnmapBuffer = NULL;
+//PFNGLGETBUFFERPARAMETERIVARBPROC	glGetBufferParameteriv = NULL;
+//PFNGLGETBUFFERPOINTERVARBPROC		glGetBufferPointerv = NULL;
+//PFNGLVERTEXATTRIB2FARBPROC		glVertexAttrib2f = NULL;
+//PFNGLVERTEXATTRIB3FARBPROC		glVertexAttrib3f = NULL;
+
+PFNGLENABLEVERTEXATTRIBARRAYPROC	glEnableVertexAttribArray = NULL;
+PFNGLDISABLEVERTEXATTRIBARRAYPROC	glDisableVertexAttribArray = NULL;
+PFNGLVERTEXATTRIBPOINTERPROC		glVertexAttribPointer = NULL;
+
 PFNGLGENVERTEXARRAYSPROC			glGenVertexArrays = NULL;
 PFNGLDELETEVERTEXARRAYSPROC			glDeleteVertexArrays = NULL;
 PFNGLBINDVERTEXARRAYPROC			glBindVertexArray = NULL;
-PFNGLVERTEXATTRIB2FPROC				glVertexAttrib2f = NULL;
-PFNGLVERTEXATTRIB3FPROC				glVertexAttrib3f = NULL;
 
 #include <cstring>
 
@@ -96,80 +102,86 @@ void setupExtensions()
   char* extensionList = (char*)glGetString(GL_EXTENSIONS);
 
   //get the shader extension functions
-  if( findString("GL_ARB_shader_objects",extensionList) &&
+  /*if( findString("GL_ARB_shader_objects",extensionList) &&
       findString("GL_ARB_shading_language_100",extensionList) &&
       findString("GL_ARB_vertex_shader",extensionList) &&
       findString("GL_ARB_fragment_shader",extensionList) )
-  {
-    glActiveTextureARB = (PFNGLACTIVETEXTUREARBPROC)
-      SDL_GL_GetProcAddress("glActiveTextureARB");
-    glMultiTexCoord2fARB = (PFNGLMULTITEXCOORD2FARBPROC)
-      SDL_GL_GetProcAddress("glMultiTexCoord2fARB");
-    glCreateProgramObjectARB = (PFNGLCREATEPROGRAMOBJECTARBPROC)
-      SDL_GL_GetProcAddress("glCreateProgramObjectARB");
-    glDeleteObjectARB = (PFNGLDELETEOBJECTARBPROC)
-      SDL_GL_GetProcAddress("glDeleteObjectARB");
-    glCreateShaderObjectARB = (PFNGLCREATESHADEROBJECTARBPROC)
-     SDL_GL_GetProcAddress("glCreateShaderObjectARB");
-    glShaderSourceARB = (PFNGLSHADERSOURCEARBPROC)
-      SDL_GL_GetProcAddress("glShaderSourceARB");
-    glCompileShaderARB = (PFNGLCOMPILESHADERARBPROC)
-      SDL_GL_GetProcAddress("glCompileShaderARB");
-    glGetObjectParameterivARB = (PFNGLGETOBJECTPARAMETERIVARBPROC)
-      SDL_GL_GetProcAddress("glGetObjectParameterivARB");
-    glAttachObjectARB = (PFNGLATTACHOBJECTARBPROC)
-      SDL_GL_GetProcAddress("glAttachObjectARB");
-    glGetInfoLogARB = (PFNGLGETINFOLOGARBPROC)
-      SDL_GL_GetProcAddress("glGetInfoLogARB");
-    glLinkProgramARB = (PFNGLLINKPROGRAMARBPROC)
-      SDL_GL_GetProcAddress("glLinkProgramARB");
-    glUseProgramObjectARB = (PFNGLUSEPROGRAMOBJECTARBPROC)
-      SDL_GL_GetProcAddress("glUseProgramObjectARB");
-    glGetUniformLocationARB = (PFNGLGETUNIFORMLOCATIONARBPROC)
-      SDL_GL_GetProcAddress("glGetUniformLocationARB");
-    glUniform1fARB = (PFNGLUNIFORM1FARBPROC)
-      SDL_GL_GetProcAddress("glUniform1fARB");
-    glUniform1iARB = (PFNGLUNIFORM1IARBPROC)
-      SDL_GL_GetProcAddress("glUniform1iARB");
-    glUniform1fvARB = (PFNGLUNIFORM1FVARBPROC)
-      SDL_GL_GetProcAddress("glUniform1fvARB");
-    glUniform1ivARB = (PFNGLUNIFORM1IVARBPROC)
-      SDL_GL_GetProcAddress("glUniform1ivARB");
-    glUniform2fARB = (PFNGLUNIFORM2FARBPROC)
-      SDL_GL_GetProcAddress("glUniform2fARB");
-    glUniform4fARB = (PFNGLUNIFORM4FARBPROC)
-      SDL_GL_GetProcAddress("glUniform4fARB");
+  {*/
+    glActiveTexture = (PFNGLACTIVETEXTUREPROC)
+      SDL_GL_GetProcAddress("glActiveTexture");
+    //glMultiTexCoord2fARB = (PFNGLMULTITEXCOORD2FARBPROC)
+    //  SDL_GL_GetProcAddress("glMultiTexCoord2fARB");
+    glCreateProgram = (PFNGLCREATEPROGRAMPROC)
+      SDL_GL_GetProcAddress("glCreateProgram");
+    glDeleteShader = (PFNGLDELETESHADERPROC)
+      SDL_GL_GetProcAddress("glDeleteShader");
+    glDeleteProgram = (PFNGLDELETEPROGRAMPROC)
+      SDL_GL_GetProcAddress("glDeleteProgram");
+    glCreateShader = (PFNGLCREATESHADERPROC)
+     SDL_GL_GetProcAddress("glCreateShader");
+    glShaderSource = (PFNGLSHADERSOURCEPROC)
+      SDL_GL_GetProcAddress("glShaderSource");
+    glCompileShader = (PFNGLCOMPILESHADERPROC)
+      SDL_GL_GetProcAddress("glCompileShader");
+    //glGetObjectParameterivARB = (PFNGLGETOBJECTPARAMETERIVARBPROC)
+    //  SDL_GL_GetProcAddress("glGetObjectParameterivARB");
+    glAttachShader = (PFNGLATTACHSHADERPROC)
+      SDL_GL_GetProcAddress("glAttachShader");
+    glGetShaderInfoLog = (PFNGLGETSHADERINFOLOGPROC)
+      SDL_GL_GetProcAddress("glGetShaderInfoLog");
+    glGetProgramInfoLog = (PFNGLGETPROGRAMINFOLOGPROC)
+      SDL_GL_GetProcAddress("glGetProgramInfoLog");
+    glLinkProgram = (PFNGLLINKPROGRAMPROC)
+      SDL_GL_GetProcAddress("glLinkProgram");
+    glUseProgram = (PFNGLUSEPROGRAMPROC)
+      SDL_GL_GetProcAddress("glUseProgram");
+    glGetUniformLocation = (PFNGLGETUNIFORMLOCATIONPROC)
+      SDL_GL_GetProcAddress("glGetUniformLocation");
+    glUniform1f = (PFNGLUNIFORM1FPROC)
+      SDL_GL_GetProcAddress("glUniform1f");
+    glUniform1i = (PFNGLUNIFORM1IPROC)
+      SDL_GL_GetProcAddress("glUniform1i");
+    //glUniform1fvARB = (PFNGLUNIFORM1FVARBPROC)
+    //  SDL_GL_GetProcAddress("glUniform1fvARB");
+    //glUniform1ivARB = (PFNGLUNIFORM1IVARBPROC)
+    //  SDL_GL_GetProcAddress("glUniform1ivARB");
+    glUniform2f = (PFNGLUNIFORM2FPROC)
+      SDL_GL_GetProcAddress("glUniform2f");
+    //glUniform4fARB = (PFNGLUNIFORM4FARBPROC)
+    //  SDL_GL_GetProcAddress("glUniform4fARB");
     glGetShaderiv = (PFNGLGETSHADERIVPROC)
       SDL_GL_GetProcAddress("glGetShaderiv");
     glGetProgramiv = (PFNGLGETPROGRAMIVPROC)
       SDL_GL_GetProcAddress("glGetProgramiv");
-	glBindAttribLocation = (PFNGLBINDATTRIBLOCATIONPROC)
-	  SDL_GL_GetProcAddress("glBindAttribLocation");
+	//glBindAttribLocation = (PFNGLBINDATTRIBLOCATIONARBPROC)
+	//  SDL_GL_GetProcAddress("glBindAttribLocationARB");
 	glGetAttribLocation = (PFNGLGETATTRIBLOCATIONPROC)
 	  SDL_GL_GetProcAddress("glGetAttribLocation");
 
     if( false
-     || glActiveTextureARB == NULL
-     || glMultiTexCoord2fARB == NULL
-     || glCreateProgramObjectARB == NULL
-     || glDeleteObjectARB == NULL
-     || glCreateShaderObjectARB == NULL
-     || glShaderSourceARB == NULL
-     || glCompileShaderARB == NULL
-     || glGetObjectParameterivARB == NULL
-     || glAttachObjectARB == NULL
-     || glGetInfoLogARB == NULL
-     || glLinkProgramARB == NULL
-     || glUseProgramObjectARB == NULL
-     || glGetUniformLocationARB == NULL
-     || glUniform1fARB == NULL
-     || glUniform1iARB == NULL
-     || glUniform1fvARB == NULL
-     || glUniform1ivARB == NULL
-	 || glUniform2fARB == NULL
-	 || glUniform4fARB == NULL
+     || glActiveTexture == NULL
+     //|| glMultiTexCoord2fARB == NULL
+     || glCreateProgram == NULL
+     || glDeleteShader == NULL
+     || glDeleteProgram == NULL
+     || glCreateShader == NULL
+     || glShaderSource == NULL
+     || glCompileShader == NULL
+     //|| glGetObjectParameterivARB == NULL
+     || glAttachShader == NULL
+     || glGetShaderInfoLog == NULL
+     || glGetProgramInfoLog == NULL
+     || glLinkProgram == NULL
+     || glUseProgram == NULL
+     || glGetUniformLocation == NULL
+     || glUniform1f == NULL
+     || glUniform1i == NULL
+     //|| glUniform1fvARB == NULL
+     //|| glUniform1ivARB == NULL
+	 || glUniform2f == NULL
+	 //|| glUniform4fARB == NULL
 	 || glGetShaderiv == NULL
-	 || glBindAttribLocation == NULL
+	 //|| glBindAttribLocation == NULL
 	 || glGetAttribLocation == NULL)
 	{
       shading_enabled = false;
@@ -178,73 +190,56 @@ void setupExtensions()
 	{
 		shading_enabled = true;
 	}
-  }
+  /*}
   else
   {
     shading_enabled = false;
-  }
+  }*/
 
   //get the vertex buffer object extension functions
-  if( findString("GL_ARB_vertex_buffer_object",extensionList) )
-  {
-    glBindBuffer = (PFNGLBINDBUFFERARBPROC)
-      SDL_GL_GetProcAddress("glBindBufferARB");
-    glDeleteBuffers = (PFNGLDELETEBUFFERSARBPROC)
-      SDL_GL_GetProcAddress("glDeleteBuffersARB");
-    glGenBuffers = (PFNGLGENBUFFERSARBPROC)
-      SDL_GL_GetProcAddress("glGenBuffersARB");
-    glIsBuffer = (PFNGLISBUFFERARBPROC)
-      SDL_GL_GetProcAddress("glIsBufferARB");
-    glBufferData = (PFNGLBUFFERDATAARBPROC)
-      SDL_GL_GetProcAddress("glBufferDataARB");
-    glBufferSubData = (PFNGLBUFFERSUBDATAARBPROC)
-      SDL_GL_GetProcAddress("glBufferSubDataARB");
-    glGetBufferSubData = (PFNGLGETBUFFERSUBDATAARBPROC)
-      SDL_GL_GetProcAddress("glGetBufferSubDataARB");
-    glMapBuffer = (PFNGLMAPBUFFERARBPROC)
-      SDL_GL_GetProcAddress("glMapBufferARB");
-    glUnmapBuffer = (PFNGLUNMAPBUFFERARBPROC)
-      SDL_GL_GetProcAddress("glUnmapBufferARB");
-    glGetBufferParameteriv = (PFNGLGETBUFFERPARAMETERIVARBPROC)
-      SDL_GL_GetProcAddress("glGetBufferParameterivARB");
-    glGetBufferPointerv = (PFNGLGETBUFFERPOINTERVARBPROC)
-      SDL_GL_GetProcAddress("glGetBufferPointervARB");
-	glEnableVertexAttribArray = (PFNGLENABLEVERTEXATTRIBARRAYARBPROC)
-	  SDL_GL_GetProcAddress("glEnableVertexAttribArrayARB");
-	glDisableVertexAttribArray = (PFNGLDISABLEVERTEXATTRIBARRAYARBPROC)
-	  SDL_GL_GetProcAddress("glDisableVertexAttribArrayARB");
-	glVertexAttribPointer = (PFNGLVERTEXATTRIBPOINTERARBPROC)
-	  SDL_GL_GetProcAddress("glVertexAttribPointerARB");
-	glGenVertexArrays = (PFNGLGENVERTEXARRAYSPROC)
-	  SDL_GL_GetProcAddress("glGenVertexArrays");
-	glDeleteVertexArrays = (PFNGLDELETEVERTEXARRAYSPROC)
-	  SDL_GL_GetProcAddress("glDeleteVertexArrays");
-	glBindVertexArray = (PFNGLBINDVERTEXARRAYPROC)
-	  SDL_GL_GetProcAddress("glBindVertexArray");
-	glVertexAttrib2f = (PFNGLVERTEXATTRIB2FPROC)
-	  SDL_GL_GetProcAddress("glVertexAttrib2f");
-	glVertexAttrib3f = (PFNGLVERTEXATTRIB3FPROC)
-	  SDL_GL_GetProcAddress("glVertexAttrib3f");
+  /*if( findString("GL_ARB_vertex_buffer_object",extensionList) )
+  {*/
+    glBindBuffer = (PFNGLBINDBUFFERPROC)
+      SDL_GL_GetProcAddress("glBindBuffer");
+    glDeleteBuffers = (PFNGLDELETEBUFFERSPROC)
+      SDL_GL_GetProcAddress("glDeleteBuffers");
+    glGenBuffers = (PFNGLGENBUFFERSPROC)
+      SDL_GL_GetProcAddress("glGenBuffers");
+    //glIsBuffer = (PFNGLISBUFFERARBPROC)
+    //  SDL_GL_GetProcAddress("glIsBufferARB");
+    glBufferData = (PFNGLBUFFERDATAPROC)
+      SDL_GL_GetProcAddress("glBufferData");
+    //glBufferSubData = (PFNGLBUFFERSUBDATAARBPROC)
+    //  SDL_GL_GetProcAddress("glBufferSubDataARB");
+    //glGetBufferSubData = (PFNGLGETBUFFERSUBDATAARBPROC)
+    //  SDL_GL_GetProcAddress("glGetBufferSubDataARB");
+    //glMapBuffer = (PFNGLMAPBUFFERARBPROC)
+    //  SDL_GL_GetProcAddress("glMapBufferARB");
+    //glUnmapBuffer = (PFNGLUNMAPBUFFERARBPROC)
+    //  SDL_GL_GetProcAddress("glUnmapBufferARB");
+    //glGetBufferParameteriv = (PFNGLGETBUFFERPARAMETERIVARBPROC)
+    //  SDL_GL_GetProcAddress("glGetBufferParameterivARB");
+    //glGetBufferPointerv = (PFNGLGETBUFFERPOINTERVARBPROC)
+    //  SDL_GL_GetProcAddress("glGetBufferPointervARB");
+	//glVertexAttrib2f = (PFNGLVERTEXATTRIB2FARBPROC)
+	//  SDL_GL_GetProcAddress("glVertexAttrib2fARB");
+	//glVertexAttrib3f = (PFNGLVERTEXATTRIB3FARBPROC)
+	//  SDL_GL_GetProcAddress("glVertexAttrib3fARB");
 
     if( false
      || glBindBuffer == NULL
      || glDeleteBuffers == NULL
      || glGenBuffers == NULL
-     || glIsBuffer == NULL
-     || glBufferData == NULL
-     || glBufferSubData == NULL
-     || glGetBufferSubData == NULL
-     || glMapBuffer == NULL
-     || glUnmapBuffer == NULL
-     || glGetBufferParameteriv == NULL
-     || glGetBufferPointerv == NULL
-	 || glEnableVertexAttribArray == NULL
-	 || glDisableVertexAttribArray == NULL
-	 || glVertexAttribPointer == NULL
-	 || glGenVertexArrays == NULL
-	 || glBindVertexArray == NULL
-	 || glVertexAttrib2f == NULL
-	 || glVertexAttrib3f == NULL)
+     //|| glIsBuffer == NULL
+     || glBufferData == NULL)
+     //|| glBufferSubData == NULL
+     //|| glGetBufferSubData == NULL
+     //|| glMapBuffer == NULL
+     //|| glUnmapBuffer == NULL
+     //|| glGetBufferParameteriv == NULL
+     //|| glGetBufferPointerv == NULL
+	 //|| glVertexAttrib2f == NULL
+	 //|| glVertexAttrib3f == NULL
 	{
       buffer_objects_enabled = false;
 	}
@@ -252,10 +247,64 @@ void setupExtensions()
 	{
 	  buffer_objects_enabled = true;
 	}
-  }
+  /*}
   else
   {
     buffer_objects_enabled = false;
+  }*/
+
+  //get the default vertex array object extension functions
+  /*if( findString("GL_ARB_vertex_program",extensionList) )
+  {*/
+	glEnableVertexAttribArray = (PFNGLENABLEVERTEXATTRIBARRAYPROC)
+	  SDL_GL_GetProcAddress("glEnableVertexAttribArray");
+	glDisableVertexAttribArray = (PFNGLDISABLEVERTEXATTRIBARRAYPROC)
+	  SDL_GL_GetProcAddress("glDisableVertexAttribArray");
+	glVertexAttribPointer = (PFNGLVERTEXATTRIBPOINTERPROC)
+	  SDL_GL_GetProcAddress("glVertexAttribPointer");
+
+	  if( false
+		 || glEnableVertexAttribArray == NULL
+		 || glDisableVertexAttribArray == NULL
+		 || glVertexAttribPointer == NULL)
+	  {
+		  default_array_objects_enabled = false;
+	  }
+	  else
+	  {
+		  default_array_objects_enabled = true;
+	  }
+  /*}
+  else
+  {
+	  default_array_objects_enabled = false;
+  }*/
+
+  //get the custom vertex array object extension functions
+  if( findString("GL_ARB_vertex_array_object",extensionList) )
+  {
+	glGenVertexArrays = (PFNGLGENVERTEXARRAYSPROC)
+	  SDL_GL_GetProcAddress("glGenVertexArrays");
+	glDeleteVertexArrays = (PFNGLDELETEVERTEXARRAYSPROC)
+	  SDL_GL_GetProcAddress("glDeleteVertexArrays");
+	glBindVertexArray = (PFNGLBINDVERTEXARRAYPROC)
+	  SDL_GL_GetProcAddress("glBindVertexArray");
+
+	if( false
+	 || glGenVertexArrays == NULL
+	 || glBindVertexArray == NULL
+	 || glDeleteVertexArrays == NULL)
+	{
+		custom_array_objects_enabled = false;
+	}
+	else
+	{
+		custom_array_objects_enabled = true;
+	}
+  }
+  else
+  {
+	  custom_array_objects_enabled = false;
   }
 }
 #endif
@@ -285,11 +334,11 @@ string loadSource(string filePath)
 
 string compileShader(GLenum shader)
 {
-	glCompileShaderARB(shader);
+	glCompileShader(shader);
 
 	char infobuffer[1000];
 	int infobufferlen = 0;
-	glGetInfoLogARB(shader, 999, &infobufferlen, infobuffer);
+	glGetShaderInfoLog(shader, 999, &infobufferlen, infobuffer);
 	infobuffer[infobufferlen] = 0;
 
 	string info = infobuffer;
@@ -299,11 +348,11 @@ string compileShader(GLenum shader)
 
 string linkProgram(GLenum program)
 {
-	glLinkProgramARB(program);
+	glLinkProgram(program);
 
 	char infobuffer[1000];
 	int infobufferlen = 0;
-	glGetInfoLogARB(program, 999, &infobufferlen, infobuffer);
+	glGetProgramInfoLog(program, 999, &infobufferlen, infobuffer);
 	infobuffer[infobufferlen] = 0;
 
 	string info = infobuffer;

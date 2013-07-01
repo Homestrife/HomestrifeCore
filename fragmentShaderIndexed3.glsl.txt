@@ -7,7 +7,7 @@ uniform sampler2D palette;
 
 void main()
 {
-	vec4 indexVec = texture2D(tex, texCoord);
+	vec4 indexVec = texture(tex, texCoord);
 
 	float index = indexVec.r;
 
@@ -17,7 +17,7 @@ void main()
 	}
 	else
 	{
-		vec4 texel = texture2D(palette, vec2(index, 0.0));
+		vec4 texel = texture(palette, vec2(index, 0.0));
 		fragColor = vec4(texel.r, texel.g, texel.b, 1.0);
 	}
 }

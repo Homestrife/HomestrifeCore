@@ -268,7 +268,7 @@ int LoadTGAToTexture(HSTexture * hsTex, bool openGL3, bool useTGAPalette)
 	delete(color);
 
 	//create and bind the texture
-	glActiveTextureARB(GL_TEXTURE0);
+	glActiveTexture(GL_TEXTURE0);
 	glGenTextures(1, &textureID);
 	glBindTexture(GL_TEXTURE_2D, textureID);
 	
@@ -422,7 +422,7 @@ int StorePaletteData(HSPalette * hsPal, GLubyte * paletteData)
 {
 	GLuint textureID;
 
-	glActiveTextureARB(GL_TEXTURE1);
+	glActiveTexture(GL_TEXTURE1);
 	glGenTextures(1, &textureID);
 	glBindTexture(GL_TEXTURE_2D, textureID);
 	glPixelStorei(GL_PACK_ALIGNMENT, 4);
