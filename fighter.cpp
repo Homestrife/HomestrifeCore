@@ -519,7 +519,10 @@ int Fighter::AdvanceHolds()
 		{
 			falls = true;
 			state = JUMPING;
-			ChangeHold(fighterEventHolds.jumpNeutralFall);
+			if(!attacking && !blocking && curBlockstun <= 0)
+			{
+				ChangeHold(fighterEventHolds.jumpNeutralFall);
+			}
 			curAirDashDuration = 0;
 			airDash = NO_AIR_DASH;
 		}
@@ -527,7 +530,10 @@ int Fighter::AdvanceHolds()
 		{
 			falls = true;
 			state = JUMPING;
-			ChangeHold(fighterEventHolds.jumpBackwardFall);
+			if(!attacking && !blocking && curBlockstun <= 0)
+			{
+				ChangeHold(fighterEventHolds.jumpBackwardFall);
+			}
 			curAirDashDuration = 0;
 			airDash = NO_AIR_DASH;
 		}
@@ -1231,7 +1237,7 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 			jumpStartup = false;
 			shortHop = false;
 		}
-		else if(state == JUMPING)
+		else if(state == JUMPING || state == AIR_DASHING)
 		{
 			ChangeHold(fighterEventHolds.blockAir);
 			blocking = true;
@@ -1263,6 +1269,17 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 			else
 			{
 				ChangeHold(fighterEventHolds.jumpNeutralFalling);
+			}
+		}
+		else if(state == AIR_DASHING)
+		{
+			if(airDash == FORWARD_AIR_DASH)
+			{
+				ChangeHold(fighterEventHolds.airDashForward);
+			}
+			else if(airDash == BACKWARD_AIR_DASH)
+			{
+				ChangeHold(fighterEventHolds.airDashBackward);
 			}
 		}
 		turning = false;
@@ -1305,7 +1322,7 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 			}
 			bufferedAction = NO_ACTION;
 		}
-		else if(state == JUMPING)
+		else if(state == JUMPING || state == AIR_DASHING)
 		{
 			if(CanLightQCFCancel() && fighterEventHolds.attackLightQCFAir != NULL && bufferedAction == QCF_LIGHT)
 			{
@@ -1382,7 +1399,7 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 			}
 			bufferedAction = NO_ACTION;
 		}
-		else if(state == JUMPING)
+		else if(state == JUMPING || state == AIR_DASHING)
 		{
 			if(CanHeavyQCFCancel() && fighterEventHolds.attackHeavyQCFAir != NULL && bufferedAction == QCF_HEAVY)
 			{
@@ -3187,7 +3204,7 @@ HSObjectHold * Fighter::GetDefaultHold()
 		{
 			return fighterEventHolds.blockLow;
 		}
-		else if(state == JUMPING)
+		else if(state == JUMPING || state == AIR_DASHING)
 		{
 			return fighterEventHolds.blockAir;
 		}
