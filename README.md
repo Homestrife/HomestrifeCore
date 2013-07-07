@@ -1,0 +1,4 @@
+Homestrife
+==========
+
+Homestrife game code
