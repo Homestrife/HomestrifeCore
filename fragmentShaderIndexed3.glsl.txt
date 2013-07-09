@@ -1,0 +1,23 @@
+#version 130
+
+in vec2 texCoord;
+out vec4 fragColor;
+uniform sampler2D tex;
+uniform sampler2D palette;
+
+void main()
+{
+	vec4 indexVec = texture(tex, texCoord);
+
+	float index = indexVec.r;
+
+	if(index == 0.0)
+	{
+		fragColor = vec4(0.0, 0.0, 0.0, 0.0);
+	}
+	else
+	{
+		vec4 texel = texture(palette, vec2(index, 0.0));
+		fragColor = vec4(texel.r, texel.g, texel.b, 1.0);
+	}
+}
