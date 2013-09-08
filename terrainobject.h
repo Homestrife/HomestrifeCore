@@ -67,20 +67,10 @@ public:
 
 	TerrainObjectHold();
 	~TerrainObjectHold();
-	
-	virtual int Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec, bool openGL3, bool useTGAPalettes); //initialize this hold based on definition file info
 
 	virtual bool IsTerrainObjectHold();
 
 protected:
-	int DefineAttackBox(HSBox * newAttackBox, XMLElement * definition);
-	void AddAttackBox(HSBox * newAttackBox);
-	int DefineHurtBox(HSBox * newHurtBox, XMLElement * definition);
-	void AddHurtBox(HSBox * newHurtBox);
-	int AddHitAudio(XMLElement * audio, string defFileDirectory, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec);
-	int AddBlockedAudio(XMLElement * audio, string defFileDirectory, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec);
-	virtual TerrainObjectHold * CreateHoldOfSameType();
-	virtual void CopyAttributes(HSObjectHold * target);
 };
 
 struct AttackResults
@@ -159,8 +149,6 @@ public:
 
 	TerrainObject();
 	~TerrainObject();
-
-	virtual int Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSPalette*> * paletteRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec, bool openGL3); //initialize this object based on definition file info
 	
 	virtual int Event(InputStates * inputHistory, int frame); //handle events
 	virtual int Update();
@@ -175,13 +163,6 @@ public:
 	virtual bool ChangeHold(HSObjectHold * hold);
 
 protected:
-	virtual TerrainObjectHold * CreateNewHold();
-	virtual TerrainObject * CreateObjectOfSameType();
-	virtual void CopyAttributes(HSObject * target);
-	virtual void CopyEventHold(HSObject * target, HSObjectHold * targetHold);
-	virtual int SaveEventHolds(HSObjectHold * hold, XMLElement * eventHolds);
-	int DefineTerrainBox(HSBox * newTerrainBox, XMLElement * definition);
-	void AddTerrainBox(HSBox * newTerrainBox);
 	virtual void ResetAttackResults();
 	virtual HSObjectHold * GetDefaultHold();
 

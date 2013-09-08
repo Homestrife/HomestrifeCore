@@ -7,6 +7,7 @@
 #include "HUD.h"
 #include "menu.h"
 #include "menuManager.h"
+#include "objectManager.h"
 
 #define TARGET_FPS 60
 #define MAX_GAME_RESOLUTION_X 1920
@@ -16,7 +17,6 @@
 #define GAME_ASPECT_RATIO_X 16
 #define GAME_ASPECT_RATIO_Y 9
 #define MAX_INPUT_HISTORY 60
-#define MAX_PLAYERS 4
 #define STICK_THRESHOLD 18000 //how far a stick must be tilted before it actually registers as a direction being "pressed"
 #define STICK_HARD_THRESHOLD 32000 //how far a stick must be tilted before it actually registers as a direction being pressed hard
 #define PAN_SPEED 200
@@ -169,16 +169,6 @@ enum CurrentSettingMapping
 	SETTING_BLOCK
 };
 
-struct CurrentAudioEntry
-{
-	HSAudio* aud; //audio object
-	Uint32 curPosition; //current position in the audio playthrough
-	HSObject * sourceObj; //object that triggered the audio
-	bool exclusive; //whether or not the object can be cut off by other exclusive sounds from the same object
-};
-
-list<CurrentAudioEntry*> currentAudio;
-
 class Main
 {
 public:
@@ -188,6 +178,8 @@ public:
 protected:
 	string currentWorkingDirectory;
 
+	ObjectManager * objectManager;
+
 	GameState gameState;
 	MainMenuState mainMenuState;
 	GameType gameType;
@@ -196,12 +188,6 @@ protected:
 	MatchState matchState;
 	MatchPlayerState matchPlayerState[MAX_PLAYERS];
 	PauseMenuState pauseMenuState;
-	unsigned int newObjectId;
-	list<HSObject*> gameObjects;
-	list<HSObject*> HUDObjects;
-	list<HSTexture*> textureRegistry;
-	list<HSPalette*> paletteRegistry;
-	list<HSAudio*> audioRegistry;
 
 	GLuint currentShaderProgramID;
 	int nonIndexedPosOffsetLoc;
@@ -216,10 +202,11 @@ protected:
 	int indexedFocusPosLoc;
 	int nonIndexedZoomOutLoc;
 	int indexedZoomOutLoc;
+	int nonIndexedDepthLoc;
+	int indexedDepthLoc;
 	int nonIndexedTexLoc;
 	int indexedTexLoc;
 	int paletteLoc;
-	bool openGL3;
 	bool notDone;
 	SDL_Surface* surf_display;
 	int screenResolutionX;
@@ -229,14 +216,10 @@ protected:
 	float resolutionScale;
 	bool fullScreen;
 
-	SDL_AudioSpec * obtainedAudioSpec;
-
 	list<SDL_Joystick*> sticks;
 
 	float zoomOut;
 	HSVect2D focusPos;
-	HSObject * focusObjectOne;
-	HSObject * focusObjectTwo;
 
 	unsigned int lastFrameTicks;
 	unsigned int frame;
@@ -246,7 +229,6 @@ protected:
 
 	int Initialize();
 	int InitializeGraphics();
-	int LoadDefinition(string defFilePath, list<HSObject*> * gameObjects, HSObject ** returnValue = NULL);
 	int AdvanceHolds();
 	int Event(SDL_Event* events);
 	int Update();
@@ -259,8 +241,6 @@ protected:
 	int Cleanup();
 
 	//state handling
-	int ClearAllObjects();
-	int ClearSpecificObject(HSObject* object);
 	int ChangeGameState(GameState newState);
 	int StartLoading();
 	int EndLoading();
@@ -288,11 +268,8 @@ protected:
 	int CollideMatch();
 
 	int playerLives[MAX_PLAYERS];
-	HSVect2D spawnPoints[MAX_PLAYERS];
-	HUD * playerHUDs[MAX_PLAYERS];
 
 	//event/input crap
-	HSObject * players[MAX_PLAYERS];
 	InputMappings mappings[MAX_PLAYERS];
 	InputStates * inputHistory[MAX_PLAYERS];
 	InputStates * curInputs[MAX_PLAYERS];
@@ -318,24 +295,6 @@ protected:
 	string GetJoyButtonConfigString(JoystickMapping joyButton);
 	string GetHatConfigString(Uint8 hat);
 	string GetStickConfigString(Uint8 stick);
-
-	MenuManager * menuManager;
-
-	HSObject * loading;
-	HSObject * playerOne;
-	HSObject * playerTwo;
-	HSObject * playerThree;
-	HSObject * playerFour;
-	HSObject * wins;
-	HSObject * pressDesiredButton;
-	HSObject * readyOne;
-	HSObject * readyTwo;
-	HSObject * selectPaletteOne;
-	HSObject * selectPaletteTwo;
-	HSObject * selectPaletteLeftOne;
-	HSObject * selectPaletteLeftTwo;
-	HSObject * selectPaletteRightOne;
-	HSObject * selectPaletteRightTwo;
 
 	void ClearControls(int player);
 

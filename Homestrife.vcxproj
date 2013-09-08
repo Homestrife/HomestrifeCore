@@ -94,6 +94,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="menu.cpp" />
     <ClCompile Include="menuManager.cpp" />
+    <ClCompile Include="objectManager.cpp" />
     <ClCompile Include="physicsobject.cpp" />
     <ClCompile Include="terrainobject.cpp" />
     <ClCompile Include="texture.cpp" />
@@ -110,6 +111,7 @@
     <ClInclude Include="main.h" />
     <ClInclude Include="menu.h" />
     <ClInclude Include="menuManager.h" />
+    <ClInclude Include="objectManager.h" />
     <ClInclude Include="physicsobject.h" />
     <ClInclude Include="terrainobject.h" />
     <ClInclude Include="texture.h" />

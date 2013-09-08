@@ -8,10 +8,22 @@ uniform vec2 resolution;
 uniform float resScale;
 uniform vec2 focusPos;
 uniform float zoomOut;
+uniform float depth;
 out vec2 texCoord;
 
 void main()
 {
+	float parallax = 1.0;
+	if(depth != 0.0)
+	{
+		if(depth > 0.0)
+		{
+			parallax = 1.0 / (1.0 + depth);
+		}
+	}
+
+	float acutalZoomOut = 1.0 + (zoomOut * parallax);
+
 	texCoord = texCoordIn;
 
 	vec2 pixelPos = (vec2(position.x, position.y) * scale) + posOffset;
@@ -20,9 +32,9 @@ void main()
 
 	vec2 scaledFocusPosition = focusPos / (resolution / 2.0);
 
-	vec2 pannedPos = basePos - scaledFocusPosition;
+	vec2 pannedPos = basePos - (scaledFocusPosition * parallax);
 
-	vec2 zoomedPos = (pannedPos / zoomOut) * resScale;
+	vec2 zoomedPos = (pannedPos / acutalZoomOut) * resScale;
 	
 	gl_Position = vec4(zoomedPos.x, zoomedPos.y * -1.0, position.z, 1.0);
 }

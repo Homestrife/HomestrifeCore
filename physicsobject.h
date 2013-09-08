@@ -22,14 +22,10 @@ class PhysicsObjectHold : public TerrainObjectHold
 public:
 	PhysicsObjectHold();
 	~PhysicsObjectHold();
-	
-	virtual int Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec, bool openGL3, bool useTGAPalettes); //initialize this hold based on definition file info
 
 	virtual bool IsPhysicsObjectHold();
 
 protected:
-	virtual PhysicsObjectHold * CreateHoldOfSameType();
-	virtual void CopyAttributes(HSObjectHold * target);
 };
 
 class PhysicsObject : public TerrainObject
@@ -47,8 +43,6 @@ public:
 
 	PhysicsObject();
 	~PhysicsObject();
-
-	virtual int Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSPalette*> * paletteRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec, bool openGL3); //initialize this object based on definition file info
 	
 	virtual int Event(InputStates * inputHistory, int frame); //handle events
 	virtual int Update();
@@ -59,11 +53,6 @@ public:
 	virtual bool IsPhysicsObject();
 
 protected:
-	virtual PhysicsObjectHold * CreateNewHold();
-	virtual PhysicsObject * CreateObjectOfSameType();
-	virtual void CopyAttributes(HSObject * target);
-	virtual void CopyEventHold(HSObject * target, HSObjectHold * targetHold);
-
 	//Gets a corner point from a triangle
 	HSVect2D GetLeftHypotenusePoint(HSVect2D * boxPos, HSBox * box);
 	HSVect2D GetRightHypotenusePoint(HSVect2D * boxPos, HSBox * box);

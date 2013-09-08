@@ -124,14 +124,10 @@ public:
 
 	FighterHold();
 	~FighterHold();
-	
-	virtual int Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec, bool openGL3, bool useTGAPalettes); //initialize this hold based on definition file info
 
 	virtual bool IsFighterHold();
 
 protected:
-	virtual FighterHold * CreateHoldOfSameType();
-	virtual void CopyAttributes(HSObjectHold * target);
 };
 
 struct FighterEventHolds// : public TerrainEventHolds
@@ -325,8 +321,6 @@ public:
 
 	Fighter();
 	~Fighter();
-
-	virtual int Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSPalette*> * paletteRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec, bool openGL3); //initialize this object based on definition file info
 	
 	virtual int AdvanceHolds();
 	virtual int Event(InputStates * inputHistory, int frame); //handle events
@@ -361,19 +355,6 @@ public:
 	virtual bool ChangeHold(HSObjectHold * hold);
 
 protected:
-	virtual FighterHold * CreateNewHold();
-	virtual Fighter * CreateObjectOfSameType();
-	virtual void CopyAttributes(HSObject * target);
-	virtual void CopyEventHold(HSObject * target, HSObjectHold * targetHold);
-	virtual int SaveEventHolds(HSObjectHold * hold, XMLElement * eventHolds);
-	int DefineUprightTerrainBox(HSBox * newUprightTerrainBox, XMLElement * definition);
-	void AddUprightTerrainBox(HSBox * newUprightTerrainBox);
-	int DefineCrouchingTerrainBox(HSBox * newCrouchingTerrainBox, XMLElement * definition);
-	void AddCrouchingTerrainBox(HSBox * newCrouchingTerrainBox);
-	int DefineProneTerrainBox(HSBox * newProneTerrainBox, XMLElement * definition);
-	void AddProneTerrainBox(HSBox * newProneTerrainBox);
-	int DefineCompactTerrainBox(HSBox * newCompactTerrainBox, XMLElement * definition);
-	void AddCompactTerrainBox(HSBox * newCompactTerrainBox);
 	void ChangeTerrainBoxes(HSBox * newFirstTerrainBox);
 	virtual HSObjectHold * GetDefaultHold();
 	

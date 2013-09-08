@@ -54,6 +54,9 @@
     <ClCompile Include="menuManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="objectManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="main.h">
@@ -96,6 +99,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="menuManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="objectManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

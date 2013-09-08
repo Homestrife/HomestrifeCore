@@ -12,31 +12,9 @@ PhysicsObjectHold::~PhysicsObjectHold()
 {
 }
 
-int PhysicsObjectHold::Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec, bool openGL3, bool useTGAPalettes)
-{
-	if(int error = TerrainObjectHold::Define(definition, defFileDirectory, textureRegistry, audioRegistry, obtainedAudioSpec, openGL3, useTGAPalettes) != 0)
-	{
-		return error;
-	}
-
-	return 0;
-}
-
 bool PhysicsObjectHold::IsPhysicsObjectHold()
 {
 	return true;
-}
-
-PhysicsObjectHold * PhysicsObjectHold::CreateHoldOfSameType()
-{
-	return new PhysicsObjectHold();
-}
-
-void PhysicsObjectHold::CopyAttributes(HSObjectHold * target)
-{
-	TerrainObjectHold::CopyAttributes(target);
-
-	if(!target->IsPhysicsObjectHold()) { return; }
 }
 
 /////////////////
@@ -65,68 +43,6 @@ PhysicsObject::PhysicsObject() : TerrainObject()
 
 PhysicsObject::~PhysicsObject()
 {
-}
-
-int PhysicsObject::Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSPalette*> * paletteRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec, bool openGL3)
-{
-	if(int error = TerrainObject::Define(definition, defFileDirectory, textureRegistry, paletteRegistry, audioRegistry, obtainedAudioSpec, openGL3) != 0)
-	{
-		return error;
-	}
-
-	//get the mass
-	definition->QueryFloatAttribute("mass", &mass);
-
-	//get falls
-	const char * f = definition->Attribute("falls");
-	string b;
-	if(f != NULL)
-	{
-		b.assign(f);
-		if(b.compare("true") == 0) { falls = true; }
-		else if(b.compare("false") == 0) { falls = false; }
-	}
-
-	//get max fall speed
-	definition->QueryFloatAttribute("maxFallSpeed", &maxFallSpeed);
-
-	return 0;
-}
-
-PhysicsObjectHold * PhysicsObject::CreateNewHold()
-{
-	PhysicsObjectHold * newHold = new PhysicsObjectHold();
-
-	return newHold;
-}
-
-PhysicsObject * PhysicsObject::CreateObjectOfSameType()
-{
-	return new PhysicsObject();
-}
-
-void PhysicsObject::CopyAttributes(HSObject * target)
-{
-	TerrainObject::CopyAttributes(target);
-
-	if(!target->IsPhysicsObject()) { return; }
-
-	PhysicsObject * po = (PhysicsObject*)target;
-
-	po->mass = mass;
-	po->falls = falls;
-	po->maxFallSpeed = maxFallSpeed;
-	po->ignoreJumpThroughTerrain = ignoreJumpThroughTerrain;
-}
-
-void PhysicsObject::CopyEventHold(HSObject * target, HSObjectHold * targetHold)
-{
-	TerrainObject::CopyEventHold(target, targetHold);
-
-	if(!target->IsPhysicsObject() || !targetHold->IsPhysicsObjectHold()) { return; }
-
-	PhysicsObject * po = (PhysicsObject*)target;
-	PhysicsObjectHold * poh = (PhysicsObjectHold*)targetHold;
 }
 
 int PhysicsObject::Event(InputStates * inputHistory, int frame)

@@ -10,17 +10,13 @@ Main::Main()
 {
 	currentWorkingDirectory = GetCurrentWorkingDirectory(NULL, 0);
 
+	objectManager = new ObjectManager();
+
 	gameState = MAIN_MENU;
 	mainMenuState = TOP;
 	gameType = FREE_FOR_ALL;
 	texCoordBufferID = 0;
 	elementArrayBufferID = 0;
-	gameObjects.clear();
-	HUDObjects.clear();
-	textureRegistry.clear();
-	paletteRegistry.clear();
-	audioRegistry.clear();
-	newObjectId = 1;
 	
 	nonIndexedScaleLoc = 0;
 	indexedScaleLoc = 0;
@@ -34,10 +30,11 @@ Main::Main()
 	indexedFocusPosLoc = 0;
 	nonIndexedZoomOutLoc = 0;
 	indexedZoomOutLoc = 0;
+	nonIndexedDepthLoc = 0;
+	indexedDepthLoc = 0;
 	nonIndexedTexLoc = 0;
 	indexedTexLoc = 0;
 	paletteLoc = 0;
-	openGL3 = false;
 	notDone = true;
 	surf_display = NULL;
 	screenResolutionX = MAX_GAME_RESOLUTION_X;
@@ -46,14 +43,9 @@ Main::Main()
 	gameResolutionY = screenResolutionY;
 	fullScreen = false;
 
-	obtainedAudioSpec = NULL;
-	currentAudio.clear();
-
 	zoomOut = 1;
 	focusPos.x = 0;
 	focusPos.y = 0;
-	focusObjectOne = NULL;
-	focusObjectTwo = NULL;
 
 	lastFrameTicks = 0;
 	frame = 0;
@@ -61,23 +53,6 @@ Main::Main()
 	playerToSetUp = -1;
 	keyToSetUp = -1;
 	currentSettingMapping = SETTING_UP;
-
-	menuManager = NULL;
-	loading = NULL;
-	playerOne = NULL;
-	playerTwo = NULL;
-	playerThree = NULL;
-	playerFour = NULL;
-	wins = NULL;
-	pressDesiredButton = NULL;
-	readyOne = NULL;
-	readyTwo = NULL;
-	selectPaletteOne = NULL;
-	selectPaletteTwo = NULL;
-	selectPaletteLeftOne = NULL;
-	selectPaletteLeftTwo = NULL;
-	selectPaletteRightOne = NULL;
-	selectPaletteRightTwo = NULL;
 
 	//set up the default input states
 	defaultInputs.bKeyUp.held = false; defaultInputs.bKeyUp.pressed = false; defaultInputs.bKeyUp.released = false;
@@ -123,10 +98,6 @@ Main::Main()
 	for(int i = 0; i < MAX_PLAYERS; i++)
 	{
 		playerLives[i] = 0;
-		spawnPoints[i].x = 0;
-		spawnPoints[i].y = 0;
-		playerHUDs[i] = NULL;
-		players[i] = NULL;
 		ClearControls(i);
 		InputStates * newHistory = new InputStates();
 		*newHistory = defaultInputs;
@@ -304,7 +275,7 @@ int Main::Initialize()
 
 	/* Allocated audio specs */ 
 	desired=(SDL_AudioSpec *)malloc(sizeof(SDL_AudioSpec)); 
-	obtainedAudioSpec=(SDL_AudioSpec *)malloc(sizeof(SDL_AudioSpec)); 
+	objectManager->obtainedAudioSpec=(SDL_AudioSpec *)malloc(sizeof(SDL_AudioSpec)); 
 
 	/* Set desired format */ 
 	desired->freq=22050; 
@@ -315,7 +286,7 @@ int Main::Initialize()
 	desired->userdata=NULL; 
 
 	/* Open the audio device */ 
-	int blah = SDL_OpenAudio(desired, obtainedAudioSpec);
+	int blah = SDL_OpenAudio(desired, objectManager->obtainedAudioSpec);
 	if ( blah < 0 )
 	{ 
 		UpdateLog("Failed to open audio device.", false);
@@ -339,125 +310,6 @@ int Main::Initialize()
 	return 0;
 }
 
-int Main::LoadDefinition(string defFilePath, list<HSObject*> * objects, HSObject ** returnValue)
-{
-	//get the XML structure from the file
-	XMLDocument * file = new XMLDocument();
-	if(int error = file->LoadFile(defFilePath.data()) != 0)
-	{
-		stringstream sstm;
-		sstm << "Error loading definition file. Code: " << error << " File: " << defFilePath;
-		UpdateLog(sstm.str(), true);
-		return error; //couldn't load the file
-	}
-
-	if(strcmp(file->RootElement()->Value(), "HSObjects") != 0)
-	{
-		UpdateLog("XML file is not Homestrife definition file: " + defFilePath, true);
-		return -1; //this isn't an HSObjects definition file
-	}
-
-	//loop through all the object definitions in the xml file
-	for(XMLElement * i = file->RootElement()->FirstChildElement(); i != NULL; i = i->NextSiblingElement())
-	{
-		//get the object type
-		const char * objectType = i->Value();
-
-		//create a new object of the appropriate type
-		HSObject * newObject;
-		if(strcmp(objectType, "HSObject") == 0)
-		{
-			newObject = new HSObject();
-		}
-		else if(strcmp(objectType, "TerrainObject") == 0)
-		{
-			newObject = new TerrainObject();
-		}
-		else if(strcmp(objectType, "PhysicsObject") == 0)
-		{
-			newObject = new PhysicsObject();
-		}
-		else if(strcmp(objectType, "Fighter") == 0)
-		{
-			newObject = new Fighter();
-		}
-		else if(strcmp(objectType, "HUD") == 0)
-		{
-			newObject = new HUD();
-		}
-		else
-		{
-			continue; //invalid object type
-		}
-
-		newObject->definitionFilePath = defFilePath;
-
-		//execute the object's local definition code
-		//string currentWorkingDirectory = GetCurrentWorkingDirectory(NULL, 0);
-		//string defFileDirectory = CreateAbsolutePath(currentWorkingDirectory, defFilePath);
-		//defFileDirectory = defFileDirectory.substr(0, defFileDirectory.find_last_of("\\"));
-		string defFileDirectory = defFilePath.substr(0, defFilePath.find_last_of("\\"));
-		if(int error = newObject->Define(i, defFileDirectory, &textureRegistry, &paletteRegistry, &audioRegistry, obtainedAudioSpec, openGL3) != 0)
-		{
-			return error; //there was an error defining the object
-		}
-
-		//give the new object a unique id
-		newObject->id = newObjectId;
-		newObjectId++;
-
-		//add the object to the main list of objects
-		if(objects != NULL)
-		{
-			objects->push_back(newObject);
-		}
-
-		//save the last object created as the return value
-		if(returnValue != NULL)
-		{
-			*returnValue = newObject;
-		}
-
-		//run through all the object's holds and create any spawn objects found
-		HSObject * spawnObject = NULL;
-		HSObjectHold * curHold = newObject->firstHold;
-		while(curHold != NULL)
-		{
-			list<SpawnObject>::iterator spawnIt;
-			for(spawnIt = curHold->spawnObjects.begin(); spawnIt != curHold->spawnObjects.end(); spawnIt++)
-			{
-				if(int error = LoadDefinition(spawnIt->defFilePath, NULL, &spawnObject) != 0) { return error; }
-				spawnObject->curHold = spawnObject->firstHold;
-				spawnIt->object = spawnObject;
-				spawnObject = NULL;
-			}
-
-			curHold = curHold->nextListHold;
-		}
-
-		if(newObject->IsHUD())
-		{
-			HUD * hud = (HUD*)newObject;
-			//load the meters and counters
-			if(int error = LoadDefinition(hud->healthUnderMeterFilePath, objects, &(hud->healthUnderMeter)) != 0) { return error; }
-			hud->healthUnderMeter->curHold = hud->healthUnderMeter->firstHold;
-
-			if(int error = LoadDefinition(hud->healthMeterFilePath, objects, &(hud->healthMeter)) != 0) { return error; }
-			hud->healthMeter->curHold = hud->healthMeter->firstHold;
-
-			if(int error = LoadDefinition(hud->counterFilePath, objects, &(hud->onesCounter)) != 0) { return error; }
-			hud->onesCounter->curHold = hud->onesCounter->firstHold;
-
-			if(int error = LoadDefinition(hud->counterFilePath, objects, &(hud->tensCounter)) != 0) { return error; }
-			hud->tensCounter->curHold = hud->tensCounter->firstHold;
-		}
-	}
-
-	delete file;
-
-	return 0;
-}
-
 int Main::Update()
 {
 	if(gameState == MAIN_MENU)
@@ -470,7 +322,7 @@ int Main::Update()
 	}
 
 	list<HSObject*>::iterator objIt;
-	for ( objIt=HUDObjects.begin(); objIt != HUDObjects.end(); objIt++)
+	for ( objIt=objectManager->HUDObjects.begin(); objIt != objectManager->HUDObjects.end(); objIt++)
 	{
 		if(int error = (*objIt)->Update() != 0)
 		{
@@ -480,7 +332,7 @@ int Main::Update()
 
 	if(gameState == MATCH && matchState != IN_PROGRESS) { return 0; }
 
-	for ( objIt=gameObjects.begin(); objIt != gameObjects.end(); objIt++)
+	for ( objIt=objectManager->gameObjects.begin(); objIt != objectManager->gameObjects.end(); objIt++)
 	{
 		if(int error = (*objIt)->Update() != 0)
 		{
@@ -496,22 +348,22 @@ int Main::Collide()
 	if(gameState == MATCH && matchState != IN_PROGRESS) { return 0; }
 
 	//first handle terrain collisions
-	list<HSObject*>::iterator objIt = gameObjects.begin();
-	for ( objIt=gameObjects.begin(); objIt != gameObjects.end(); objIt++)
+	list<HSObject*>::iterator objIt = objectManager->gameObjects.begin();
+	for ( objIt=objectManager->gameObjects.begin(); objIt != objectManager->gameObjects.end(); objIt++)
 	{
 		//pass the location of the list of game objects into each object's CollideTerrain function
-		if(int error = (*objIt)->CollideTerrain(&gameObjects) != 0)
+		if(int error = (*objIt)->CollideTerrain(&objectManager->gameObjects) != 0)
 		{
 			return error; //there was an error doing terrain collisions
 		}
 	}
 
 	//next, handle collisions between fighter terrain boxes
-	for (objIt=gameObjects.begin(); objIt != gameObjects.end(); objIt++)
+	for (objIt=objectManager->gameObjects.begin(); objIt != objectManager->gameObjects.end(); objIt++)
 	{
 		if((*objIt)->IsFighter())
 		{
-			if(int error = ((Fighter*)*objIt)->CollideFighters(&gameObjects) != 0)
+			if(int error = ((Fighter*)*objIt)->CollideFighters(&objectManager->gameObjects) != 0)
 			{
 				return error; //there was an error doing terrain collisions
 			}
@@ -519,17 +371,17 @@ int Main::Collide()
 	}
 	
 	//now, handle all attack/hurt box collision
-	for ( objIt=gameObjects.begin(); objIt != gameObjects.end(); objIt++)
+	for ( objIt=objectManager->gameObjects.begin(); objIt != objectManager->gameObjects.end(); objIt++)
 	{
 		//pass the location of the list of game objects into each object's CollideAttack function
-		if(int error = (*objIt)->CollideAttack(&gameObjects) != 0)
+		if(int error = (*objIt)->CollideAttack(&objectManager->gameObjects) != 0)
 		{
 			return error; //there was an error doing Hit/Hurt collisions
 		}
 	}
 
 	//finally, apply all the results of the attack collision phase
-	for ( objIt=gameObjects.begin(); objIt != gameObjects.end(); objIt++)
+	for ( objIt=objectManager->gameObjects.begin(); objIt != objectManager->gameObjects.end(); objIt++)
 	{
 		(*objIt)->ApplyAttackResults();
 	}
@@ -545,39 +397,18 @@ int Main::Collide()
 int Main::SpawnObjects()
 {
 	list<HSObject*>::iterator objIt;
-	for ( objIt=gameObjects.begin(); objIt != gameObjects.end(); objIt++)
+	for ( objIt=objectManager->gameObjects.begin(); objIt != objectManager->gameObjects.end(); objIt++)
 	{
 		list<SpawnObject*> spawnObjects = (*objIt)->GetSpawnObjects();
 
 		list<SpawnObject*>::iterator spawnIt;
 		for(spawnIt = spawnObjects.begin(); spawnIt != spawnObjects.end(); spawnIt++)
 		{
-			if((*spawnIt)->object == NULL) { continue; }
-
-			int hFlip = 1;
-			if((*objIt)->hFlip) { hFlip = -1; }
-
-			HSObject * spawnObject = (*spawnIt)->object->Clone();
-			spawnObject->hFlip = (*objIt)->hFlip;
-			spawnObject->parent = (*objIt);
-			spawnObject->pos.x = (*objIt)->pos.x + (*spawnIt)->parentOffset.x * hFlip;
-			spawnObject->pos.y = (*objIt)->pos.y + (*spawnIt)->parentOffset.y;
-			spawnObject->prevPos.x = spawnObject->pos.x;
-			spawnObject->prevPos.y = spawnObject->pos.y;
-			spawnObject->vel.x = (*spawnIt)->vel.x * hFlip;
-			spawnObject->vel.y = (*spawnIt)->vel.y;
-			spawnObject->followParent = (*spawnIt)->followParent;
-			if(spawnObject->IsTerrainObject())
-			{
-				((TerrainObject*)spawnObject)->collideParent = (*spawnIt)->collideParent;
-			}
-			spawnObject->ChangeHold(spawnObject->firstHold);
-			spawnObject->id = newObjectId;
-			newObjectId++;
-
-			gameObjects.push_back(spawnObject);
+			objectManager->CloneObject((*spawnIt), &objectManager->gameObjects);
 		}
 	}
+
+	objectManager->SortAllObjects();
 
 	return 0;
 }
@@ -593,26 +424,26 @@ int Main::Render()
 	HSVect2D targetFocusPos;
 	targetFocusPos.x = 0;
 	targetFocusPos.y = 0;
-	if(focusObjectOne != NULL && focusObjectTwo != NULL)
+	if(objectManager->focusObjectOne != NULL && objectManager->focusObjectTwo != NULL)
 	{
 		//get the location between the two objects
 		HSVect2D posActualOne;
-		posActualOne.x = focusObjectOne->pos.x;
-		posActualOne.y = focusObjectOne->pos.y;
+		posActualOne.x = objectManager->focusObjectOne->pos.x;
+		posActualOne.y = objectManager->focusObjectOne->pos.y;
 		HSVect2D posActualTwo;
-		posActualTwo.x = focusObjectTwo->pos.x;
-		posActualTwo.y = focusObjectTwo->pos.y;
+		posActualTwo.x = objectManager->focusObjectTwo->pos.x;
+		posActualTwo.y = objectManager->focusObjectTwo->pos.y;
 
-		if(focusObjectOne->IsFighter())
+		if(objectManager->focusObjectOne->IsFighter())
 		{
-			Fighter * f = (Fighter *)focusObjectOne;
+			Fighter * f = (Fighter *)objectManager->focusObjectOne;
 			posActualOne.x = posActualOne.x + f->firstUprightTerrainBox->offset.x + f->firstUprightTerrainBox->width / 2;
 			posActualOne.y = posActualOne.y + f->firstUprightTerrainBox->offset.y + f->firstUprightTerrainBox->height / 2;
 		}
 
-		if(focusObjectTwo->IsFighter())
+		if(objectManager->focusObjectTwo->IsFighter())
 		{
-			Fighter * f = (Fighter *)focusObjectTwo;
+			Fighter * f = (Fighter *)objectManager->focusObjectTwo;
 			posActualTwo.x = posActualTwo.x + f->firstUprightTerrainBox->offset.x + f->firstUprightTerrainBox->width / 2;
 			posActualTwo.y = posActualTwo.y + f->firstUprightTerrainBox->offset.y + f->firstUprightTerrainBox->height / 2;
 		}
@@ -644,28 +475,28 @@ int Main::Render()
 
 		if(targetZoomOut < 1) { targetZoomOut = 1; }
 	}
-	else if(focusObjectOne != NULL)
+	else if(objectManager->focusObjectOne != NULL)
 	{
-		targetFocusPos.x = focusObjectOne->pos.x;
-		targetFocusPos.y = focusObjectOne->pos.y;
+		targetFocusPos.x = objectManager->focusObjectOne->pos.x;
+		targetFocusPos.y = objectManager->focusObjectOne->pos.y;
 
-		if(focusObjectOne->IsFighter())
+		if(objectManager->focusObjectOne->IsFighter())
 		{
 			//get the centerpoint of upright terrain box
-			Fighter * f = (Fighter *)focusObjectOne;
+			Fighter * f = (Fighter *)objectManager->focusObjectOne;
 			targetFocusPos.x = targetFocusPos.x + f->firstUprightTerrainBox->offset.x + f->firstUprightTerrainBox->width / 2;
 			targetFocusPos.y = targetFocusPos.y + f->firstUprightTerrainBox->offset.y + f->firstUprightTerrainBox->height / 2;
 		}
 	}
-	else if(focusObjectTwo != NULL)
+	else if(objectManager->focusObjectTwo != NULL)
 	{
-		targetFocusPos.x = focusObjectTwo->pos.x;
-		targetFocusPos.y = focusObjectTwo->pos.y;
+		targetFocusPos.x = objectManager->focusObjectTwo->pos.x;
+		targetFocusPos.y = objectManager->focusObjectTwo->pos.y;
 
-		if(focusObjectTwo->IsFighter())
+		if(objectManager->focusObjectTwo->IsFighter())
 		{
 			//get the centerpoint of upright terrain box
-			Fighter * f = (Fighter *)focusObjectTwo;
+			Fighter * f = (Fighter *)objectManager->focusObjectTwo;
 			targetFocusPos.x = targetFocusPos.x + f->firstUprightTerrainBox->offset.x + f->firstUprightTerrainBox->width / 2;
 			targetFocusPos.y = targetFocusPos.y + f->firstUprightTerrainBox->offset.y + f->firstUprightTerrainBox->height / 2;
 		}
@@ -723,11 +554,11 @@ int Main::Render()
 	
 	ChangeShaderProgram(shader_progIndexed);
 	glUniform2f(indexedFocusPosLoc, focusPos.x, focusPos.y);
-	glUniform1f(indexedZoomOutLoc, zoomOut);
+	glUniform1f(indexedZoomOutLoc, zoomOut - 1);
 	
 	ChangeShaderProgram(shader_progNonIndexed);
 	glUniform2f(nonIndexedFocusPosLoc, focusPos.x, focusPos.y);
-	glUniform1f(nonIndexedZoomOutLoc, zoomOut);
+	glUniform1f(nonIndexedZoomOutLoc, zoomOut - 1);
 
 	//ChangeShaderProgram(0);
 	
@@ -739,7 +570,7 @@ int Main::Render()
 	//glEnableClientState(GL_INDEX_ARRAY);
 
 	list<HSObject*>::iterator objIt;
-	for ( objIt=gameObjects.begin(); objIt != gameObjects.end(); objIt++)
+	for ( objIt=objectManager->gameObjects.begin(); objIt != objectManager->gameObjects.end(); objIt++)
 	{
 		if(!(*objIt)->visible) { continue; }
 
@@ -765,15 +596,15 @@ int Main::Render()
 	
 	ChangeShaderProgram(shader_progIndexed);
 	glUniform2f(indexedFocusPosLoc, 0.0f, 0.0f);
-	glUniform1f(indexedZoomOutLoc, 1.0f);
+	glUniform1f(indexedZoomOutLoc, 0.0f);
 	
 	ChangeShaderProgram(shader_progNonIndexed);
 	glUniform2f(nonIndexedFocusPosLoc, 0.0f, 0.0f);
-	glUniform1f(nonIndexedZoomOutLoc, 1.0f);
+	glUniform1f(nonIndexedZoomOutLoc, 0.0f);
 
 	//ChangeShaderProgram(0);
 
-	for ( objIt=HUDObjects.begin(); objIt != HUDObjects.end(); objIt++)
+	for ( objIt=objectManager->HUDObjects.begin(); objIt != objectManager->HUDObjects.end(); objIt++)
 	{
 		if(!(*objIt)->visible) { continue; }
 
@@ -833,6 +664,7 @@ int Main::RenderTexture(HSObject * obj, TextureInstance tex)
 		}
 		glUniform2f(indexedPosOffsetLoc, offsetX, offsetY);
 		glUniform2f(indexedScaleLoc, hScale, vScale);
+		glUniform1f(indexedDepthLoc, obj->depth);
 		glActiveTexture(GL_TEXTURE0);
 		glUniform1i(indexedTexLoc, 0);
 		glBindTexture(GL_TEXTURE_2D, tex.hsTex->textureID);
@@ -861,6 +693,7 @@ int Main::RenderTexture(HSObject * obj, TextureInstance tex)
 		}
 		glUniform2f(nonIndexedPosOffsetLoc, offsetX, offsetY);
 		glUniform2f(nonIndexedScaleLoc, hScale, vScale);
+		glUniform1f(nonIndexedDepthLoc, obj->depth);
 		glActiveTexture(GL_TEXTURE0);
 		glUniform1i(nonIndexedTexLoc, 0);
 		glBindTexture(GL_TEXTURE_2D, tex.hsTex->textureID);
@@ -872,7 +705,7 @@ int Main::RenderTexture(HSObject * obj, TextureInstance tex)
 	//glTranslatef(offsetX, offsetY, 0.0);
 	//glScalef(hScale, vScale, 1.0);
 	
-	if(openGL3)
+	if(objectManager->openGL3)
 	{
 		//get the vertex array set up
 		glBindVertexArray(tex.hsTex->vaoID);
@@ -900,7 +733,7 @@ int Main::RenderTexture(HSObject * obj, TextureInstance tex)
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, (void*)0);
 
 	//unbind stuff
-	if(openGL3)
+	if(objectManager->openGL3)
 	{
 		glBindVertexArray(0);
 	}
@@ -919,7 +752,7 @@ int Main::PlayAudio()
 	if(gameState == MATCH && matchState != IN_PROGRESS) { return 0; }
 
 	list<HSObject*>::iterator objIt;
-	for ( objIt=gameObjects.begin(); objIt != gameObjects.end(); objIt++)
+	for ( objIt=objectManager->gameObjects.begin(); objIt != objectManager->gameObjects.end(); objIt++)
 	{
 		list<AudioInstance*> audio = (*objIt)->GetAudio();
 
@@ -965,13 +798,13 @@ int Main::PlayAudio()
 
 int Main::DeleteObjects()
 {
-	list<HSObject*>::iterator objIt = gameObjects.begin();
-	while (objIt != gameObjects.end())
+	list<HSObject*>::iterator objIt = objectManager->gameObjects.begin();
+	while (objIt != objectManager->gameObjects.end())
 	{
 		if((*objIt)->toDelete)
 		{
-			ClearSpecificObject(*objIt);
-			objIt = gameObjects.erase(objIt);
+			objectManager->ClearSpecificObject(*objIt);
+			objIt = objectManager->gameObjects.erase(objIt);
 		}
 		else
 		{
@@ -984,7 +817,7 @@ int Main::DeleteObjects()
 
 int Main::Cleanup()
 {
-	ClearAllObjects();
+	objectManager->ClearAllObjects();
 
 	if(shader_vert != 0)
 	{
@@ -1024,129 +857,9 @@ int Main::Cleanup()
 	return 0;
 }
 
-int Main::ClearAllObjects()
-{
-	SDL_LockAudio();
-
-	list<HSObject*>::iterator objIt;
-	for ( objIt=gameObjects.begin(); objIt != gameObjects.end(); objIt++)
-	{
-		delete (*objIt);
-	}
-
-	gameObjects.clear();
-	
-	for ( objIt=HUDObjects.begin(); objIt != HUDObjects.end(); objIt++)
-	{
-		delete (*objIt);
-	}
-
-	HUDObjects.clear();
-
-	list<HSTexture*>::iterator texIt;
-	for ( texIt=textureRegistry.begin(); texIt != textureRegistry.end(); texIt++)
-	{
-		if((*texIt)->bufferID != 0)
-		{
-			glDeleteBuffers(1, &(*texIt)->bufferID);
-			(*texIt)->bufferID = 0;
-		}
-		if((*texIt)->vaoID != 0)
-		{
-			glDeleteVertexArrays(1, &(*texIt)->vaoID);
-			(*texIt)->vaoID = 0;
-		}
-		if((*texIt)->textureID != 0)
-		{
-			glDeleteTextures(1, &(*texIt)->textureID);
-			(*texIt)->textureID = 0;
-		}
-		delete (*texIt);
-	}
-
-	textureRegistry.clear();
-
-	list<HSPalette*>::iterator palIt;
-	for ( palIt=paletteRegistry.begin(); palIt != paletteRegistry.end(); palIt++)
-	{
-		if((*palIt)->textureID != 0)
-		{
-			glDeleteTextures(1, &(*palIt)->textureID);
-			(*palIt)->textureID = 0;
-		}
-		delete (*palIt);
-	}
-
-	paletteRegistry.clear();
-
-	list<HSAudio*>::iterator audIt;
-	for ( audIt=audioRegistry.begin(); audIt != audioRegistry.end(); audIt++)
-	{
-		delete (*audIt);
-	}
-
-	audioRegistry.clear();
-
-	list<CurrentAudioEntry*>::iterator curAudIt;
-	for ( curAudIt=currentAudio.begin(); curAudIt != currentAudio.end(); curAudIt++)
-	{
-		delete (*curAudIt);
-	}
-
-	currentAudio.clear();
-	
-	SDL_UnlockAudio();
-
-	focusObjectOne = NULL;
-	focusObjectTwo = NULL;
-
-	for(int i = 0; i < MAX_PLAYERS; i++)
-	{
-		players[i] = NULL;
-		playerHUDs[i] = NULL;
-	}
-
-	delete menuManager;
-
-	loading = NULL;
-	menuManager = NULL;
-	playerOne = NULL;
-	playerTwo = NULL;
-	playerThree = NULL;
-	playerFour = NULL;
-	wins = NULL;
-	pressDesiredButton = NULL;
-	readyOne = NULL;
-	readyTwo = NULL;
-	selectPaletteOne = NULL;
-	selectPaletteTwo = NULL;
-	selectPaletteLeftOne = NULL;
-	selectPaletteLeftTwo = NULL;
-	selectPaletteRightOne = NULL;
-	selectPaletteRightTwo = NULL;
-
-	return 0;
-}
-
-int Main::ClearSpecificObject(HSObject* object)
-{
-	if(focusObjectOne == object) { focusObjectOne = NULL; }
-	if(focusObjectTwo == object) { focusObjectTwo = NULL; }
-
-	for(int i = 0; i < MAX_PLAYERS; i++)
-	{
-		if(players[i] == object) { players[i] = NULL; }
-		if(playerHUDs[i] == object) { playerHUDs[i] = NULL; }
-	}
-
-	delete object;
-
-	return 0;
-}
-
 int Main::ChangeGameState(GameState newState)
 {
-	ClearAllObjects();
+	objectManager->ClearAllObjects();
 
 	gameState = newState;
 
@@ -1165,26 +878,28 @@ int Main::ChangeGameState(GameState newState)
 		break;
 	}
 
-	if(focusObjectOne != NULL && focusObjectTwo != NULL)
+	objectManager->SortAllObjects();
+
+	if(objectManager->focusObjectOne != NULL && objectManager->focusObjectTwo != NULL)
 	{
 		//get the location between the two objects
 		HSVect2D posActualOne;
-		posActualOne.x = focusObjectOne->pos.x;
-		posActualOne.y = focusObjectOne->pos.y;
+		posActualOne.x = objectManager->focusObjectOne->pos.x;
+		posActualOne.y = objectManager->focusObjectOne->pos.y;
 		HSVect2D posActualTwo;
-		posActualTwo.x = focusObjectTwo->pos.x;
-		posActualTwo.y = focusObjectTwo->pos.y;
+		posActualTwo.x = objectManager->focusObjectTwo->pos.x;
+		posActualTwo.y = objectManager->focusObjectTwo->pos.y;
 
-		if(focusObjectOne->IsFighter())
+		if(objectManager->focusObjectOne->IsFighter())
 		{
-			Fighter * f = (Fighter *)focusObjectOne;
+			Fighter * f = (Fighter *)objectManager->focusObjectOne;
 			posActualOne.x = posActualOne.x + f->firstUprightTerrainBox->offset.x + f->firstUprightTerrainBox->width / 2;
 			posActualOne.y = posActualOne.y + f->firstUprightTerrainBox->offset.y + f->firstUprightTerrainBox->height / 2;
 		}
 
-		if(focusObjectTwo->IsFighter())
+		if(objectManager->focusObjectTwo->IsFighter())
 		{
-			Fighter * f = (Fighter *)focusObjectTwo;
+			Fighter * f = (Fighter *)objectManager->focusObjectTwo;
 			posActualTwo.x = posActualTwo.x + f->firstUprightTerrainBox->offset.x + f->firstUprightTerrainBox->width / 2;
 			posActualTwo.y = posActualTwo.y + f->firstUprightTerrainBox->offset.y + f->firstUprightTerrainBox->height / 2;
 		}
@@ -1216,15 +931,15 @@ int Main::ChangeGameState(GameState newState)
 
 		if(zoomOut < 1) { zoomOut = 1; }
 	}
-	else if(focusObjectOne != NULL)
+	else if(objectManager->focusObjectOne != NULL)
 	{
-		focusPos.x = focusObjectOne->pos.x;
-		focusPos.y = focusObjectOne->pos.y;
+		focusPos.x = objectManager->focusObjectOne->pos.x;
+		focusPos.y = objectManager->focusObjectOne->pos.y;
 
-		if(focusObjectOne->IsFighter())
+		if(objectManager->focusObjectOne->IsFighter())
 		{
 			//get the centerpoint of upright terrain box
-			Fighter * f = (Fighter *)focusObjectOne;
+			Fighter * f = (Fighter *)objectManager->focusObjectOne;
 			focusPos.x = focusPos.x + f->firstUprightTerrainBox->offset.x + f->firstUprightTerrainBox->width / 2;
 			focusPos.y = focusPos.y + f->firstUprightTerrainBox->offset.y + f->firstUprightTerrainBox->height / 2;
 		}
@@ -1237,10 +952,10 @@ int Main::ChangeGameState(GameState newState)
 
 int Main::StartLoading()
 {
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\loading\\loading.xml"), &HUDObjects, &loading) != 0) { return error; }
-	loading->curHold = loading->firstHold;
-	loading->pos.x = -90;
-	loading->pos.y = -18;
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\loading\\loading.xml", &objectManager->HUDObjects, &objectManager->loading) != 0) { return error; }
+	objectManager->loading->ChangeHold(objectManager->loading->firstHold);
+	objectManager->loading->pos.x = -90;
+	objectManager->loading->pos.y = -18;
 
 	//refresh the screen
 	return Render();
@@ -1249,9 +964,9 @@ int Main::StartLoading()
 int Main::EndLoading()
 {
 	//get rid of the loading graphic, which is guaranteed to be in the front
-	HUDObjects.pop_front();
-	delete loading;
-	loading = NULL;
+	objectManager->HUDObjects.pop_front();
+	delete objectManager->loading;
+	objectManager->loading = NULL;
 
 	return 0;
 }
@@ -1265,204 +980,161 @@ int Main::InitializeMainMenu()
 	playerKeyConfigMenu->pos.x = (MAX_GAME_RESOLUTION_X / -2) + MAIN_MENU_ITEM_SPACING;
 	playerKeyConfigMenu->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + MAIN_MENU_ITEM_SPACING;
 
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\cursor\\cursor.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\cursor\\cursor.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	playerKeyConfigMenu->SetCursor(newObject);
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\player\\player1.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player1.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	playerKeyConfigMenu->SetHeader(newObject);
-	playerOne = newObject;
+	objectManager->playerOne = newObject;
 	newObject->visible = false;
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\player\\player2.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	playerTwo = newObject;
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player2.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	objectManager->playerTwo = newObject;
 	newObject->visible = false;
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\player\\player3.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	playerThree = newObject;
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player3.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	objectManager->playerThree = newObject;
 	newObject->visible = false;
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\player\\player4.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	playerFour = newObject;
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player4.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	objectManager->playerFour = newObject;
 	newObject->visible = false;
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\up\\up.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	playerKeyConfigMenu->AddItem(menuManager->MakeMenuItem(newObject));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\up\\up.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\down\\down.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	playerKeyConfigMenu->AddItem(menuManager->MakeMenuItem(newObject));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\down\\down.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\left\\left.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	playerKeyConfigMenu->AddItem(menuManager->MakeMenuItem(newObject));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\left\\left.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\right\\right.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	playerKeyConfigMenu->AddItem(menuManager->MakeMenuItem(newObject));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\right\\right.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\lightAttack\\lightAttack.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	playerKeyConfigMenu->AddItem(menuManager->MakeMenuItem(newObject));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\lightAttack\\lightAttack.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\heavyAttack\\heavyAttack.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	playerKeyConfigMenu->AddItem(menuManager->MakeMenuItem(newObject));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\heavyAttack\\heavyAttack.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\jump\\jump.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	playerKeyConfigMenu->AddItem(menuManager->MakeMenuItem(newObject));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\jump\\jump.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\block\\block.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	playerKeyConfigMenu->AddItem(menuManager->MakeMenuItem(newObject));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\block\\block.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\pause\\pause.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	playerKeyConfigMenu->AddItem(menuManager->MakeMenuItem(newObject));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\pause\\pause.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\menuConfirm\\menuConfirm.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	playerKeyConfigMenu->AddItem(menuManager->MakeMenuItem(newObject));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\menuConfirm\\menuConfirm.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\menuBack\\menuBack.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	playerKeyConfigMenu->AddItem(menuManager->MakeMenuItem(newObject));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\menuBack\\menuBack.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\back\\back.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	playerKeyConfigMenu->AddItem(menuManager->MakeMenuItem(newObject));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\back\\back.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 	
 	Menu * videoMenu = new Menu(MAIN_MENU_HEADER_HEIGHT, MAIN_MENU_CURSOR_WIDTH, MAIN_MENU_ITEM_HEIGHT, MAIN_MENU_ITEM_SPACING);
 	videoMenu->pos.x = (MAX_GAME_RESOLUTION_X / -2) + MAIN_MENU_ITEM_SPACING;
 	videoMenu->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + MAIN_MENU_ITEM_SPACING;
 
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\cursor\\cursor.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\cursor\\cursor.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	videoMenu->SetCursor(newObject);
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\video\\video.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\video\\video.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	videoMenu->SetHeader(newObject);
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\toggleFullscreen\\toggleFullscreen.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	videoMenu->AddItem(menuManager->MakeMenuItem(newObject));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\toggleFullscreen\\toggleFullscreen.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	videoMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\back\\back.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	videoMenu->AddItem(menuManager->MakeMenuItem(newObject));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\back\\back.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	videoMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 	
 	Menu * keyConfigMenu = new Menu(MAIN_MENU_HEADER_HEIGHT, MAIN_MENU_CURSOR_WIDTH, MAIN_MENU_ITEM_HEIGHT, MAIN_MENU_ITEM_SPACING);
 	keyConfigMenu->pos.x = (MAX_GAME_RESOLUTION_X / -2) + MAIN_MENU_ITEM_SPACING;
 	keyConfigMenu->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + MAIN_MENU_ITEM_SPACING;
 
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\cursor\\cursor.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\cursor\\cursor.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	keyConfigMenu->SetCursor(newObject);
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\keyConfig\\keyConfig.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\keyConfig\\keyConfig.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	keyConfigMenu->SetHeader(newObject);
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\player\\player1.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	keyConfigMenu->AddItem(menuManager->MakeMenuItem(newObject, playerKeyConfigMenu));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player1.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	keyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject, playerKeyConfigMenu));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\player\\player2.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	keyConfigMenu->AddItem(menuManager->MakeMenuItem(newObject, playerKeyConfigMenu));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player2.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	keyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject, playerKeyConfigMenu));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\player\\player3.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	keyConfigMenu->AddItem(menuManager->MakeMenuItem(newObject, playerKeyConfigMenu));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player3.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	keyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject, playerKeyConfigMenu));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\player\\player4.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	keyConfigMenu->AddItem(menuManager->MakeMenuItem(newObject, playerKeyConfigMenu));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player4.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	keyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject, playerKeyConfigMenu));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\back\\back.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	keyConfigMenu->AddItem(menuManager->MakeMenuItem(newObject));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\back\\back.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	keyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 
 	Menu * versusMenu = new Menu(MAIN_MENU_HEADER_HEIGHT, MAIN_MENU_CURSOR_WIDTH, MAIN_MENU_ITEM_HEIGHT, MAIN_MENU_ITEM_SPACING);
 	versusMenu->pos.x = (MAX_GAME_RESOLUTION_X / -2) + MAIN_MENU_ITEM_SPACING;
 	versusMenu->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + MAIN_MENU_ITEM_SPACING;
 
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\cursor\\cursor.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\cursor\\cursor.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	versusMenu->SetCursor(newObject);
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\versus\\versus.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\versus\\versus.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	versusMenu->SetHeader(newObject);
 
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\freeForAll\\freeForAll.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	versusMenu->AddItem(menuManager->MakeMenuItem(newObject));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\freeForAll\\freeForAll.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	versusMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\back\\back.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	versusMenu->AddItem(menuManager->MakeMenuItem(newObject));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\back\\back.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	versusMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 	
 	Menu * optionsMenu = new Menu(MAIN_MENU_HEADER_HEIGHT, MAIN_MENU_CURSOR_WIDTH, MAIN_MENU_ITEM_HEIGHT, MAIN_MENU_ITEM_SPACING);
 	optionsMenu->pos.x = (MAX_GAME_RESOLUTION_X / -2) + MAIN_MENU_ITEM_SPACING;
 	optionsMenu->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + MAIN_MENU_ITEM_SPACING;
 
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\cursor\\cursor.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\cursor\\cursor.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	optionsMenu->SetCursor(newObject);
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\options\\options.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\options\\options.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	optionsMenu->SetHeader(newObject);
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\video\\video.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	optionsMenu->AddItem(menuManager->MakeMenuItem(newObject, videoMenu));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\video\\video.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	optionsMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject, videoMenu));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\keyConfig\\keyConfig.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	optionsMenu->AddItem(menuManager->MakeMenuItem(newObject, keyConfigMenu));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\keyConfig\\keyConfig.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	optionsMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject, keyConfigMenu));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\back\\back.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	optionsMenu->AddItem(menuManager->MakeMenuItem(newObject));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\back\\back.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	optionsMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 
 	Menu * mainMenu = new Menu(MAIN_MENU_HEADER_HEIGHT, MAIN_MENU_CURSOR_WIDTH, MAIN_MENU_ITEM_HEIGHT, MAIN_MENU_ITEM_SPACING);
 	mainMenu->pos.x = (MAX_GAME_RESOLUTION_X / -2) + MAIN_MENU_ITEM_SPACING;
 	mainMenu->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + MAIN_MENU_ITEM_SPACING;
 
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\cursor\\cursor.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\cursor\\cursor.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	mainMenu->SetCursor(newObject);
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\mainMenu\\mainMenu.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\mainMenu\\mainMenu.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	mainMenu->SetHeader(newObject);
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\versus\\versus.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	mainMenu->AddItem(menuManager->MakeMenuItem(newObject, versusMenu));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\versus\\versus.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	mainMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject, versusMenu));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\options\\options.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	mainMenu->AddItem(menuManager->MakeMenuItem(newObject, optionsMenu));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\options\\options.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	mainMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject, optionsMenu));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\quit\\quitGame.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	mainMenu->AddItem(menuManager->MakeMenuItem(newObject, optionsMenu));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\quit\\quitGame.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	mainMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject, optionsMenu));
 
-	menuManager = new MenuManager(mainMenu);
+	objectManager->menuManager = new MenuManager(mainMenu);
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\pressDesiredButton\\pressDesiredButton.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	pressDesiredButton = newObject;
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\pressDesiredButton\\pressDesiredButton.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	objectManager->pressDesiredButton = newObject;
 	newObject->visible = false;
 
 	ChangeMainMenuState(TOP);
@@ -1487,27 +1159,27 @@ int Main::ChangeMainMenuState(MainMenuState newState)
 	case KEY_CONFIG:
 		break;
 	case PLAYER_KEY_CONFIG:
-		pressDesiredButton->visible = false;
+		objectManager->pressDesiredButton->visible = false;
 		switch(playerToSetUp)
 		{
 		case 0:
-			menuManager->SetHeader(playerOne);
+			objectManager->menuManager->SetHeader(objectManager->playerOne);
 			break;
 		case 1:
-			menuManager->SetHeader(playerTwo);
+			objectManager->menuManager->SetHeader(objectManager->playerTwo);
 			break;
 		case 2:
-			menuManager->SetHeader(playerThree);
+			objectManager->menuManager->SetHeader(objectManager->playerThree);
 			break;
 		case 3:
-			menuManager->SetHeader(playerFour);
+			objectManager->menuManager->SetHeader(objectManager->playerFour);
 			break;
 		}
 		break;
 	case INPUT_KEY:
-		pressDesiredButton->pos.x = menuManager->GetCursorPos().x + PRESS_DESIRED_BUTTON_OFFSET_X;
-		pressDesiredButton->pos.y = menuManager->GetCursorPos().y;
-		pressDesiredButton->visible = true;
+		objectManager->pressDesiredButton->pos.x = objectManager->menuManager->GetCursorPos().x + PRESS_DESIRED_BUTTON_OFFSET_X;
+		objectManager->pressDesiredButton->pos.y = objectManager->menuManager->GetCursorPos().y;
+		objectManager->pressDesiredButton->visible = true;
 		break;
 	}
 
@@ -1518,11 +1190,11 @@ int Main::EventMainMenu(InputStates * inputHistory, int frame)
 {
 	if(inputHistory->frame == frame && (inputHistory->bButtonDown.pressed || inputHistory->bHatDown.pressed || inputHistory->bKeyDown.pressed || inputHistory->bStickDown.pressed))
 	{
-		menuManager->CursorNext();
+		objectManager->menuManager->CursorNext();
 	}
 	else if(inputHistory->frame == frame && (inputHistory->bButtonUp.pressed || inputHistory->bHatUp.pressed || inputHistory->bKeyUp.pressed || inputHistory->bStickUp.pressed))
 	{
-		menuManager->CursorPrev();
+		objectManager->menuManager->CursorPrev();
 	}
 
 	if(inputHistory->frame == frame && (inputHistory->buttonMenuConfirm.pressed || inputHistory->keyMenuConfirm.pressed))
@@ -1530,14 +1202,14 @@ int Main::EventMainMenu(InputStates * inputHistory, int frame)
 		switch(mainMenuState)
 		{
 		case TOP:
-			switch(menuManager->GetCursorIndex())
+			switch(objectManager->menuManager->GetCursorIndex())
 			{
 			case 0:
-				menuManager->ToChild();
+				objectManager->menuManager->ToChild();
 				ChangeMainMenuState(VERSUS);
 				break;
 			case 1:
-				menuManager->ToChild();
+				objectManager->menuManager->ToChild();
 				ChangeMainMenuState(OPTIONS);
 				break;
 			case 2:
@@ -1546,37 +1218,37 @@ int Main::EventMainMenu(InputStates * inputHistory, int frame)
 			}
 			break;
 		case VERSUS:
-			switch(menuManager->GetCursorIndex())
+			switch(objectManager->menuManager->GetCursorIndex())
 			{
 			case 0:
 				gameType = FREE_FOR_ALL;
 				if(int i = ChangeGameState(CHARACTER_SELECT) != 0) { return i; }
 				break;
 			case 1:
-				menuManager->ToParent();
+				objectManager->menuManager->ToParent();
 				ChangeMainMenuState(TOP);
 				break;
 			}
 			break;
 		case OPTIONS:
-			switch(menuManager->GetCursorIndex())
+			switch(objectManager->menuManager->GetCursorIndex())
 			{
 			case 0:
-				menuManager->ToChild();
+				objectManager->menuManager->ToChild();
 				ChangeMainMenuState(VIDEO);
 				break;
 			case 1:
-				menuManager->ToChild();
+				objectManager->menuManager->ToChild();
 				ChangeMainMenuState(KEY_CONFIG);
 				break;
 			case 2:
-				menuManager->ToParent();
+				objectManager->menuManager->ToParent();
 				ChangeMainMenuState(TOP);
 				break;
 			}
 			break;
 		case VIDEO:
-			switch(menuManager->GetCursorIndex())
+			switch(objectManager->menuManager->GetCursorIndex())
 			{
 			case 0:
 				if(fullScreen)
@@ -1590,30 +1262,30 @@ int Main::EventMainMenu(InputStates * inputHistory, int frame)
 				SaveConfig();
 				break;
 			case 1:
-				menuManager->ToParent();
+				objectManager->menuManager->ToParent();
 				ChangeMainMenuState(OPTIONS);
 				break;
 			}
 			break;
 		case KEY_CONFIG:
-			switch(menuManager->GetCursorIndex())
+			switch(objectManager->menuManager->GetCursorIndex())
 			{
 			case 0:
 			case 1:
 			case 2:
 			case 3:
-				playerToSetUp = menuManager->GetCursorIndex();
-				menuManager->ToChild();
+				playerToSetUp = objectManager->menuManager->GetCursorIndex();
+				objectManager->menuManager->ToChild();
 				ChangeMainMenuState(PLAYER_KEY_CONFIG);
 				break;
 			case 4:
-				menuManager->ToParent();
+				objectManager->menuManager->ToParent();
 				ChangeMainMenuState(OPTIONS);
 				break;
 			}
 			break;
 		case PLAYER_KEY_CONFIG:
-			switch(menuManager->GetCursorIndex())
+			switch(objectManager->menuManager->GetCursorIndex())
 			{
 			case 0:
 			case 1:
@@ -1626,12 +1298,12 @@ int Main::EventMainMenu(InputStates * inputHistory, int frame)
 			case 8:
 			case 9:
 			case 10:
-				keyToSetUp = menuManager->GetCursorIndex();
+				keyToSetUp = objectManager->menuManager->GetCursorIndex();
 				ChangeMainMenuState(INPUT_KEY);
 				break;
 			case 11:
 				playerToSetUp = -1;
-				menuManager->ToParent();
+				objectManager->menuManager->ToParent();
 				ChangeMainMenuState(KEY_CONFIG);
 				break;
 			}
@@ -1646,24 +1318,24 @@ int Main::EventMainMenu(InputStates * inputHistory, int frame)
 			Exit();
 			break;
 		case VERSUS:
-			menuManager->ToParent();
+			objectManager->menuManager->ToParent();
 			ChangeMainMenuState(TOP);
 			break;
 		case OPTIONS:
-			menuManager->ToParent();
+			objectManager->menuManager->ToParent();
 			ChangeMainMenuState(TOP);
 			break;
 		case VIDEO:
-			menuManager->ToParent();
+			objectManager->menuManager->ToParent();
 			ChangeMainMenuState(OPTIONS);
 			break;
 		case KEY_CONFIG:
-			menuManager->ToParent();
+			objectManager->menuManager->ToParent();
 			ChangeMainMenuState(OPTIONS);
 			break;
 		case PLAYER_KEY_CONFIG:
 			playerToSetUp = -1;
-			menuManager->ToParent();
+			objectManager->menuManager->ToParent();
 			ChangeMainMenuState(KEY_CONFIG);
 			break;
 		}
@@ -1681,88 +1353,75 @@ int Main::InitializeCharacterSelect()
 {
 	//demo characters
 	HSObject * newObject;
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\characters\\john\\johnEgbertDemo.xml"), &gameObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data\\characters\\john\\johnEgbertDemo.xml", &objectManager->gameObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = CHAR_SELECT_PLAYER_ONE_POS_X;
 	newObject->pos.y = CHAR_SELECT_PLAYER_POS_Y;
-	newObject->curHold = newObject->firstHold;
-	focusObjectOne = newObject;
-	players[0] = newObject;
+	objectManager->focusObjectOne = newObject;
+	objectManager->players[0] = newObject;
 	selectedCharacters[0] = "data\\characters\\john\\John Egbert.xml";
-	selectedPalettes[0] = players[0]->GetPalette();
+	selectedPalettes[0] = objectManager->players[0]->GetPalette();
 
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\characters\\john\\johnEgbertDemo.xml"), &gameObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data\\characters\\john\\johnEgbertDemo.xml", &objectManager->gameObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = CHAR_SELECT_PLAYER_TWO_POS_X;
 	newObject->pos.y = CHAR_SELECT_PLAYER_POS_Y;
-	newObject->curHold = newObject->firstHold;
 	newObject->hFlip = true;
-	focusObjectTwo = newObject;
-	players[1] = newObject;
+	objectManager->focusObjectTwo = newObject;
+	objectManager->players[1] = newObject;
 	selectedCharacters[1] = "data\\characters\\john\\John Egbert.xml";
-	selectedPalettes[1] = players[1]->GetPalette();
+	selectedPalettes[1] = objectManager->players[1]->GetPalette();
 
 	//hud
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\characterSelect\\characterSelect.xml"), &HUDObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\characterSelect\\characterSelect.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = CHARACTER_SELECT_POS_X;
 	newObject->pos.y = CHARACTER_SELECT_POS_Y;
-	newObject->curHold = newObject->firstHold;
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\player\\player1.xml"), &HUDObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player1.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = PLAYER_ONE_POS_X;
 	newObject->pos.y = PLAYER_POS_Y;
-	newObject->curHold = newObject->firstHold;
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\player\\player2.xml"), &HUDObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player2.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = PLAYER_TWO_POS_X;
 	newObject->pos.y = PLAYER_POS_Y;
-	newObject->curHold = newObject->firstHold;
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\selectPalette\\selectPalette.xml"), &HUDObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\selectPalette\\selectPalette.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = SELECT_PALETTE_ONE_POS_X;
 	newObject->pos.y = SELECT_PALETTE_POS_Y;
-	newObject->curHold = newObject->firstHold;
-	selectPaletteOne = newObject;
+	objectManager->selectPaletteOne = newObject;
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\leftArrow\\leftArrow.xml"), &HUDObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\leftArrow\\leftArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = SELECT_PALETTE_ONE_POS_X - 55;
 	newObject->pos.y = SELECT_PALETTE_POS_Y;
-	newObject->curHold = newObject->firstHold;
-	selectPaletteLeftOne = newObject;
+	objectManager->selectPaletteLeftOne = newObject;
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\rightArrow\\rightArrow.xml"), &HUDObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\rightArrow\\rightArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = SELECT_PALETTE_ONE_POS_X + 305;
 	newObject->pos.y = SELECT_PALETTE_POS_Y;
-	newObject->curHold = newObject->firstHold;
-	selectPaletteRightOne = newObject;
+	objectManager->selectPaletteRightOne = newObject;
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\ready\\ready.xml"), &HUDObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\ready\\ready.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = READY_ONE_POS_X;
 	newObject->pos.y = SELECT_PALETTE_POS_Y;
-	newObject->curHold = newObject->firstHold;
-	readyOne = newObject;
+	objectManager->readyOne = newObject;
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\selectPalette\\selectPalette.xml"), &HUDObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\selectPalette\\selectPalette.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = SELECT_PALETTE_TWO_POS_X;
 	newObject->pos.y = SELECT_PALETTE_POS_Y;
-	newObject->curHold = newObject->firstHold;
-	selectPaletteTwo = newObject;
+	objectManager->selectPaletteTwo = newObject;
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\leftArrow\\leftArrow.xml"), &HUDObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\leftArrow\\leftArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = SELECT_PALETTE_TWO_POS_X - 55;
 	newObject->pos.y = SELECT_PALETTE_POS_Y;
-	newObject->curHold = newObject->firstHold;
-	selectPaletteLeftTwo = newObject;
+	objectManager->selectPaletteLeftTwo = newObject;
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\rightArrow\\rightArrow.xml"), &HUDObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\rightArrow\\rightArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = SELECT_PALETTE_TWO_POS_X + 305;
 	newObject->pos.y = SELECT_PALETTE_POS_Y;
-	newObject->curHold = newObject->firstHold;
-	selectPaletteRightTwo = newObject;
+	objectManager->selectPaletteRightTwo = newObject;
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\ready\\ready.xml"), &HUDObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\ready\\ready.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = READY_TWO_POS_X;
 	newObject->pos.y = SELECT_PALETTE_POS_Y;
-	newObject->curHold = newObject->firstHold;
-	readyTwo = newObject;
+	objectManager->readyTwo = newObject;
 
 	ChangeCharacterSelectState(PLAYERS_SELECTING);
 
@@ -1791,16 +1450,16 @@ int Main::ChangeCharacterSelectPlayerState(CharacterSelectPlayerState newState, 
 		switch(player)
 		{
 		case 0:
-			readyOne->visible = false;
-			selectPaletteLeftOne->visible = true;
-			selectPaletteRightOne->visible = true;
-			selectPaletteOne->visible = true;
+			objectManager->readyOne->visible = false;
+			objectManager->selectPaletteLeftOne->visible = true;
+			objectManager->selectPaletteRightOne->visible = true;
+			objectManager->selectPaletteOne->visible = true;
 			break;
 		case 1:
-			readyTwo->visible = false;
-			selectPaletteLeftTwo->visible = true;
-			selectPaletteRightTwo->visible = true;
-			selectPaletteTwo->visible = true;
+			objectManager->readyTwo->visible = false;
+			objectManager->selectPaletteLeftTwo->visible = true;
+			objectManager->selectPaletteRightTwo->visible = true;
+			objectManager->selectPaletteTwo->visible = true;
 			break;
 		}
 		break;
@@ -1808,16 +1467,16 @@ int Main::ChangeCharacterSelectPlayerState(CharacterSelectPlayerState newState, 
 		switch(player)
 		{
 		case 0:
-			readyOne->visible = true;
-			selectPaletteLeftOne->visible = false;
-			selectPaletteRightOne->visible = false;
-			selectPaletteOne->visible = false;
+			objectManager->readyOne->visible = true;
+			objectManager->selectPaletteLeftOne->visible = false;
+			objectManager->selectPaletteRightOne->visible = false;
+			objectManager->selectPaletteOne->visible = false;
 			break;
 		case 1:
-			readyTwo->visible = true;
-			selectPaletteLeftTwo->visible = false;
-			selectPaletteRightTwo->visible = false;
-			selectPaletteTwo->visible = false;
+			objectManager->readyTwo->visible = true;
+			objectManager->selectPaletteLeftTwo->visible = false;
+			objectManager->selectPaletteRightTwo->visible = false;
+			objectManager->selectPaletteTwo->visible = false;
 			break;
 		}
 		break;
@@ -1836,10 +1495,10 @@ int Main::EventCharacterSelect(InputStates * inputHistory, int frame, int player
 			switch(characterSelectPlayerState[player])
 			{
 			case SELECTING_PALETTE:
-				if(players[player] != NULL)
+				if(objectManager->players[player] != NULL)
 				{
-					players[player]->PrevPalette();
-					selectedPalettes[player] = players[player]->GetPalette();
+					objectManager->players[player]->PrevPalette();
+					selectedPalettes[player] = objectManager->players[player]->GetPalette();
 				}
 				break;
 			case READY:
@@ -1856,10 +1515,10 @@ int Main::EventCharacterSelect(InputStates * inputHistory, int frame, int player
 			switch(characterSelectPlayerState[player])
 			{
 			case SELECTING_PALETTE:
-				if(players[player] != NULL)
+				if(objectManager->players[player] != NULL)
 				{
-					players[player]->NextPalette();
-					selectedPalettes[player] = players[player]->GetPalette();
+					objectManager->players[player]->NextPalette();
+					selectedPalettes[player] = objectManager->players[player]->GetPalette();
 				}
 				break;
 			case READY:
@@ -1919,63 +1578,42 @@ int Main::UpdateCharacterSelect()
 int Main::InitializeMatch()
 {
 	//load stage/background
-	HSObject * newObject;
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\stages\\lowas\\LOWAS.xml"), &gameObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	newObject->pos.x = 3250;
-	newObject->pos.y = 2700;
-
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\stages\\lowas\\LeftPlatform.xml"), &gameObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	newObject->pos.x = 1785;
-	newObject->pos.y = 3365;
-
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\stages\\lowas\\RightPlatform.xml"), &gameObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	newObject->pos.x = 3838;
-	newObject->pos.y = 3036;
-
-	spawnPoints[0].x = 2315;
-	spawnPoints[0].y = 2502;
-	spawnPoints[1].x = 4432;
-	spawnPoints[1].y = 2100;
+	objectManager->LoadStage("data\\stages\\test\\test.xml");
 
 	//load characters
 	HSObject * fighterOne;
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, selectedCharacters[0]), &gameObjects, &fighterOne) != 0) { return error; }
-	fighterOne->pos.x = spawnPoints[0].x;
-	fighterOne->pos.y = spawnPoints[0].y;
-	players[0] = fighterOne;
+	if(int error = objectManager->LoadDefinition(selectedCharacters[0], &objectManager->gameObjects, &fighterOne) != 0) { return error; }
+	fighterOne->pos.x = objectManager->spawnPoints[0].x;
+	fighterOne->pos.y = objectManager->spawnPoints[0].y;
+	objectManager->players[0] = fighterOne;
 	fighterOne->SetPalette(selectedPalettes[0]);
 	((Fighter*)fighterOne)->state = STANDING;
 	((Fighter*)fighterOne)->curHealth = ((Fighter*)fighterOne)->health;
 	fighterOne->ChangeHold(((Fighter*)fighterOne)->fighterEventHolds.standing);
-	focusObjectOne = fighterOne;
+	objectManager->focusObjectOne = fighterOne;
 	
 	HSObject * fighterTwo;
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, selectedCharacters[1]), &gameObjects, &fighterTwo) != 0) { return error; }
-	fighterTwo->pos.x = spawnPoints[1].x;
-	fighterTwo->pos.y = spawnPoints[1].y;
-	players[1] = fighterTwo;
+	if(int error = objectManager->LoadDefinition(selectedCharacters[1], &objectManager->gameObjects, &fighterTwo) != 0) { return error; }
+	fighterTwo->pos.x = objectManager->spawnPoints[1].x;
+	fighterTwo->pos.y = objectManager->spawnPoints[1].y;
+	objectManager->players[1] = fighterTwo;
 	fighterTwo->SetPalette(selectedPalettes[1]);
 	if(selectedCharacters[1] == selectedCharacters[0] && selectedPalettes[1] == selectedPalettes[0]) { fighterTwo->NextPalette(); }
 	((Fighter*)fighterTwo)->state = STANDING;
 	((Fighter*)fighterTwo)->facing = LEFT;
 	((Fighter*)fighterTwo)->curHealth = ((Fighter*)fighterTwo)->health;
 	fighterTwo->ChangeHold(((Fighter*)fighterTwo)->fighterEventHolds.standing);
-	focusObjectTwo = fighterTwo;
+	objectManager->focusObjectTwo = fighterTwo;
 
 	//load HUD
 	HSObject * newHUD;
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\TestHUD\\johnHud.xml"), &HUDObjects, &newHUD) != 0) { return error; }
-	playerHUDs[0] = (HUD*)newHUD;
-	newHUD->curHold = newHUD->firstHold;
+	if(int error = objectManager->LoadDefinition("data\\hud\\TestHUD\\john Hud.xml", &objectManager->HUDObjects, &newHUD) != 0) { return error; }
+	objectManager->playerHUDs[0] = (HUD*)newHUD;
 	((HUD*)newHUD)->pos.x = (MAX_GAME_RESOLUTION_X / -2) + 20;
 	((HUD*)newHUD)->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + 20;
 
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\TestHUD\\johnHud.xml"), &HUDObjects, &newHUD) != 0) { return error; }
-	playerHUDs[1] = (HUD*)newHUD;
-	newHUD->curHold = newHUD->firstHold;
+	if(int error = objectManager->LoadDefinition("data\\hud\\TestHUD\\john Hud.xml", &objectManager->HUDObjects, &newHUD) != 0) { return error; }
+	objectManager->playerHUDs[1] = (HUD*)newHUD;
 	((HUD*)newHUD)->pos.x = (MAX_GAME_RESOLUTION_X / 2) - 560;
 	((HUD*)newHUD)->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + 20;
 
@@ -1984,177 +1622,143 @@ int Main::InitializeMatch()
 	playerKeyConfigMenu->pos.x = -382;
 	playerKeyConfigMenu->pos.y = -352;
 
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\cursor\\cursor.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
+	HSObject * newObject;
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\cursor\\cursor.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	playerKeyConfigMenu->SetCursor(newObject);
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\player\\player1.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player1.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	playerKeyConfigMenu->SetHeader(newObject);
-	playerOne = newObject;
+	objectManager->playerOne = newObject;
 	newObject->visible = false;
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\player\\player2.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	playerTwo = newObject;
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player2.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	objectManager->playerTwo = newObject;
 	newObject->visible = false;
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\player\\player3.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	playerThree = newObject;
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player3.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	objectManager->playerThree = newObject;
 	newObject->visible = false;
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\player\\player4.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	playerFour = newObject;
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player4.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	objectManager->playerFour = newObject;
 	newObject->visible = false;
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\up\\up.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	playerKeyConfigMenu->AddItem(menuManager->MakeMenuItem(newObject));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\up\\up.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\down\\down.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	playerKeyConfigMenu->AddItem(menuManager->MakeMenuItem(newObject));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\down\\down.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\left\\left.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	playerKeyConfigMenu->AddItem(menuManager->MakeMenuItem(newObject));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\left\\left.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\right\\right.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	playerKeyConfigMenu->AddItem(menuManager->MakeMenuItem(newObject));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\right\\right.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\lightAttack\\lightAttack.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	playerKeyConfigMenu->AddItem(menuManager->MakeMenuItem(newObject));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\lightAttack\\lightAttack.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\heavyAttack\\heavyAttack.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	playerKeyConfigMenu->AddItem(menuManager->MakeMenuItem(newObject));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\heavyAttack\\heavyAttack.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\jump\\jump.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	playerKeyConfigMenu->AddItem(menuManager->MakeMenuItem(newObject));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\jump\\jump.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\block\\block.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	playerKeyConfigMenu->AddItem(menuManager->MakeMenuItem(newObject));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\block\\block.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\pause\\pause.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	playerKeyConfigMenu->AddItem(menuManager->MakeMenuItem(newObject));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\pause\\pause.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\menuConfirm\\menuConfirm.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	playerKeyConfigMenu->AddItem(menuManager->MakeMenuItem(newObject));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\menuConfirm\\menuConfirm.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\menuBack\\menuBack.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	playerKeyConfigMenu->AddItem(menuManager->MakeMenuItem(newObject));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\menuBack\\menuBack.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\back\\back.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	playerKeyConfigMenu->AddItem(menuManager->MakeMenuItem(newObject));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\back\\back.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 	
 	Menu * keyConfigMenu = new Menu(MAIN_MENU_HEADER_HEIGHT, MAIN_MENU_CURSOR_WIDTH, MAIN_MENU_ITEM_HEIGHT, MAIN_MENU_ITEM_SPACING);
 	keyConfigMenu->pos.x = -382;
 	keyConfigMenu->pos.y = -352;
 
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\cursor\\cursor.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\cursor\\cursor.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	keyConfigMenu->SetCursor(newObject);
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\keyConfig\\keyConfig.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\keyConfig\\keyConfig.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	keyConfigMenu->SetHeader(newObject);
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\player\\player1.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	keyConfigMenu->AddItem(menuManager->MakeMenuItem(newObject, playerKeyConfigMenu));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player1.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	keyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject, playerKeyConfigMenu));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\player\\player2.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	keyConfigMenu->AddItem(menuManager->MakeMenuItem(newObject, playerKeyConfigMenu));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player2.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	keyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject, playerKeyConfigMenu));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\player\\player3.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	keyConfigMenu->AddItem(menuManager->MakeMenuItem(newObject, playerKeyConfigMenu));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player3.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	keyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject, playerKeyConfigMenu));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\player\\player4.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	keyConfigMenu->AddItem(menuManager->MakeMenuItem(newObject, playerKeyConfigMenu));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player4.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	keyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject, playerKeyConfigMenu));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\back\\back.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	keyConfigMenu->AddItem(menuManager->MakeMenuItem(newObject));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\back\\back.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	keyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 	
 	Menu * pauseMenu = new Menu(MAIN_MENU_HEADER_HEIGHT, MAIN_MENU_CURSOR_WIDTH, MAIN_MENU_ITEM_HEIGHT, MAIN_MENU_ITEM_SPACING);
 	pauseMenu->pos.x = -382;
 	pauseMenu->pos.y = -352;
 
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\cursor\\cursor.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\cursor\\cursor.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	pauseMenu->SetCursor(newObject);
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\pause\\pause.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\pause\\pause.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	pauseMenu->SetHeader(newObject);
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\resume\\resumeMatch.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	pauseMenu->AddItem(menuManager->MakeMenuItem(newObject));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\resume\\resumeMatch.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	pauseMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\keyConfig\\keyConfig.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	pauseMenu->AddItem(menuManager->MakeMenuItem(newObject, keyConfigMenu));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\keyConfig\\keyConfig.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	pauseMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject, keyConfigMenu));
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\quit\\quitMatch.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	pauseMenu->AddItem(menuManager->MakeMenuItem(newObject));
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\quit\\quitMatch.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	pauseMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 
-	menuManager = new MenuManager(pauseMenu);
+	objectManager->menuManager = new MenuManager(pauseMenu);
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\pressDesiredButton\\pressDesiredButton.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
-	pressDesiredButton = newObject;
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\pressDesiredButton\\pressDesiredButton.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	objectManager->pressDesiredButton = newObject;
 	newObject->visible = false;
 
 	//load win text
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\player\\player1.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player1.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->visible = false;
 	newObject->pos.x = -82;
 	newObject->pos.y = -45;
-	playerOne = newObject;
+	objectManager->playerOne = newObject;
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\player\\player2.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player2.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->visible = false;
 	newObject->pos.x = -82;
 	newObject->pos.y = -45;
-	playerTwo = newObject;
+	objectManager->playerTwo = newObject;
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\player\\player3.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player3.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->visible = false;
 	newObject->pos.x = -82;
 	newObject->pos.y = -45;
-	playerThree = newObject;
+	objectManager->playerThree = newObject;
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\player\\player4.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player4.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->visible = false;
 	newObject->pos.x = -82;
 	newObject->pos.y = -45;
-	playerFour = newObject;
+	objectManager->playerFour = newObject;
 	
-	if(int error = LoadDefinition(CreateAbsolutePath(currentWorkingDirectory, "data\\hud\\MainMenuGUI\\wins\\wins.xml"), &HUDObjects, &newObject) != 0) { return error; }
-	newObject->curHold = newObject->firstHold;
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\wins\\wins.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->visible = false;
 	newObject->pos.x = -53;
 	newObject->pos.y = 10;
-	wins = newObject;
+	objectManager->wins = newObject;
 
 	ChangeMatchState(IN_PROGRESS);
 
@@ -2176,21 +1780,21 @@ int Main::ChangeMatchState(MatchState newState)
 	switch(newState)
 	{
 		case IN_PROGRESS:
-			menuManager->Hide(true);
+			objectManager->menuManager->Hide(true);
 			break;
 		case PAUSED:
-			menuManager->Hide(false);
+			objectManager->menuManager->Hide(false);
 			break;
 		case RESULTS:
 			if(matchPlayerState[0] == ACTIVE)
 			{
-				playerOne->visible = true;
+				objectManager->playerOne->visible = true;
 			}
 			else if(matchPlayerState[1] == ACTIVE)
 			{
-				playerTwo->visible = true;
+				objectManager->playerTwo->visible = true;
 			}
-			wins->visible = true;
+			objectManager->wins->visible = true;
 			break;
 	}
 
@@ -2207,16 +1811,16 @@ int Main::ChangeMatchPlayerState(MatchPlayerState newState, int player)
 			break;
 		case LOST:
 			playerLives[player] = 0;
-			if(playerHUDs[player] != NULL)
+			if(objectManager->playerHUDs[player] != NULL)
 			{
-				playerHUDs[player]->SetHealthMeterValue(0);
-				playerHUDs[player]->SetCounterValue(0);
+				objectManager->playerHUDs[player]->SetHealthMeterValue(0);
+				objectManager->playerHUDs[player]->SetCounterValue(0);
 			}
-			if(players[player] == NULL) { break; }
-			players[player]->visible = false;
-			if(players[player]->IsTerrainObject())
+			if(objectManager->players[player] == NULL) { break; }
+			objectManager->players[player]->visible = false;
+			if(objectManager->players[player]->IsTerrainObject())
 			{
-				((TerrainObject*)players[player])->curHealth = 0;
+				((TerrainObject*)objectManager->players[player])->curHealth = 0;
 			}
 			break;
 	}
@@ -2235,27 +1839,27 @@ int Main::ChangePauseMenuState(PauseMenuState newState)
 	case PAUSE_KEY_CONFIG:
 		break;
 	case PAUSE_PLAYER_KEY_CONFIG:
-		pressDesiredButton->visible = false;
+		objectManager->pressDesiredButton->visible = false;
 		switch(playerToSetUp)
 		{
 		case 0:
-			menuManager->SetHeader(playerOne);
+			objectManager->menuManager->SetHeader(objectManager->playerOne);
 			break;
 		case 1:
-			menuManager->SetHeader(playerTwo);
+			objectManager->menuManager->SetHeader(objectManager->playerTwo);
 			break;
 		case 2:
-			menuManager->SetHeader(playerThree);
+			objectManager->menuManager->SetHeader(objectManager->playerThree);
 			break;
 		case 3:
-			menuManager->SetHeader(playerFour);
+			objectManager->menuManager->SetHeader(objectManager->playerFour);
 			break;
 		}
 		break;
 	case PAUSE_INPUT_KEY:
-		pressDesiredButton->pos.x = menuManager->GetCursorPos().x + PRESS_DESIRED_BUTTON_OFFSET_X;
-		pressDesiredButton->pos.y = menuManager->GetCursorPos().y;
-		pressDesiredButton->visible = true;
+		objectManager->pressDesiredButton->pos.x = objectManager->menuManager->GetCursorPos().x + PRESS_DESIRED_BUTTON_OFFSET_X;
+		objectManager->pressDesiredButton->pos.y = objectManager->menuManager->GetCursorPos().y;
+		objectManager->pressDesiredButton->visible = true;
 		break;
 	}
 
@@ -2271,19 +1875,19 @@ int Main::EventMatch(InputStates * inputHistory, int frame, int player)
 		{
 			ChangeMatchState(PAUSED);
 		}
-		else if(players[player] != 0)
+		else if(objectManager->players[player] != 0)
 		{
-			players[player]->Event(inputHistory, frame);
+			objectManager->players[player]->Event(inputHistory, frame);
 		}
 		break;
 	case PAUSED:
 		if(inputHistory->frame == frame && (inputHistory->bButtonDown.pressed || inputHistory->bHatDown.pressed || inputHistory->bKeyDown.pressed || inputHistory->bStickDown.pressed))
 		{
-			menuManager->CursorNext();
+			objectManager->menuManager->CursorNext();
 		}
 		else if(inputHistory->frame == frame && (inputHistory->bButtonUp.pressed || inputHistory->bHatUp.pressed || inputHistory->bKeyUp.pressed || inputHistory->bStickUp.pressed))
 		{
-			menuManager->CursorPrev();
+			objectManager->menuManager->CursorPrev();
 		}
 
 		if(inputHistory->frame == frame && (inputHistory->bButtonStart.pressed || inputHistory->bKeyStart.pressed))
@@ -2295,13 +1899,13 @@ int Main::EventMatch(InputStates * inputHistory, int frame, int player)
 			switch(pauseMenuState)
 			{
 			case PAUSE_TOP:
-				switch(menuManager->GetCursorIndex())
+				switch(objectManager->menuManager->GetCursorIndex())
 				{
 				case 0:
 					ChangeMatchState(IN_PROGRESS);
 					break;
 				case 1:
-					menuManager->ToChild();
+					objectManager->menuManager->ToChild();
 					ChangePauseMenuState(PAUSE_KEY_CONFIG);
 					break;
 				case 2:
@@ -2310,24 +1914,24 @@ int Main::EventMatch(InputStates * inputHistory, int frame, int player)
 				}
 				break;
 			case PAUSE_KEY_CONFIG:
-				switch(menuManager->GetCursorIndex())
+				switch(objectManager->menuManager->GetCursorIndex())
 				{
 				case 0:
 				case 1:
 				case 2:
 				case 3:
-					playerToSetUp = menuManager->GetCursorIndex();
-					menuManager->ToChild();
+					playerToSetUp = objectManager->menuManager->GetCursorIndex();
+					objectManager->menuManager->ToChild();
 					ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
 					break;
 				case 4:
-					menuManager->ToParent();
+					objectManager->menuManager->ToParent();
 					ChangePauseMenuState(PAUSE_TOP);
 					break;
 				}
 				break;
 			case PAUSE_PLAYER_KEY_CONFIG:
-				switch(menuManager->GetCursorIndex())
+				switch(objectManager->menuManager->GetCursorIndex())
 				{
 				case 0:
 				case 1:
@@ -2340,12 +1944,12 @@ int Main::EventMatch(InputStates * inputHistory, int frame, int player)
 				case 8:
 				case 9:
 				case 10:
-					keyToSetUp = menuManager->GetCursorIndex();
+					keyToSetUp = objectManager->menuManager->GetCursorIndex();
 					ChangePauseMenuState(PAUSE_INPUT_KEY);
 					break;
 				case 11:
 					playerToSetUp = -1;
-					menuManager->ToParent();
+					objectManager->menuManager->ToParent();
 					ChangePauseMenuState(PAUSE_KEY_CONFIG);
 					break;
 				}
@@ -2360,12 +1964,12 @@ int Main::EventMatch(InputStates * inputHistory, int frame, int player)
 				ChangeMatchState(IN_PROGRESS);
 				break;
 			case PAUSE_KEY_CONFIG:
-				menuManager->ToParent();
+				objectManager->menuManager->ToParent();
 				ChangePauseMenuState(PAUSE_TOP);
 				break;
 			case PAUSE_PLAYER_KEY_CONFIG:
 				playerToSetUp = -1;
-				menuManager->ToParent();
+				objectManager->menuManager->ToParent();
 				ChangePauseMenuState(PAUSE_KEY_CONFIG);
 				break;
 			}
@@ -2394,46 +1998,46 @@ int Main::CollideMatch()
 
 	for(int i = 0; i < MAX_PLAYERS; i++)
 	{
-		if(players[i] == NULL) { ChangeMatchPlayerState(LOST, i); continue; }
+		if(objectManager->players[i] == NULL) { ChangeMatchPlayerState(LOST, i); continue; }
 
 		if(matchPlayerState[i] == LOST) { continue; }
 
-		if((!players[i]->IsTerrain() && players[i]->pos.y > 6000) || (players[i]->IsTerrainObject() && ((TerrainObject*)players[i])->curHealth <= 0 &&
-			(!players[i]->IsFighter() || ((Fighter*)players[i])->state != KNOCKOUT && ((Fighter*)players[i])->state != KNOCKOUT_AIR)))
+		if((!objectManager->players[i]->IsTerrain() && objectManager->players[i]->pos.y > 6000) || (objectManager->players[i]->IsTerrainObject() && ((TerrainObject*)objectManager->players[i])->curHealth <= 0 &&
+			(!objectManager->players[i]->IsFighter() || ((Fighter*)objectManager->players[i])->state != KNOCKOUT && ((Fighter*)objectManager->players[i])->state != KNOCKOUT_AIR)))
 		{
 			playerLives[i]--;
 
 			if(playerLives[i] <= 0)
 			{
 				if(int error = ChangeMatchPlayerState(LOST, i) != 0) { return error; }
-				players[i]->toDelete = true;
+				objectManager->players[i]->toDelete = true;
 				continue;
 			}
 
-			players[i]->pos.x = spawnPoints[i].x;
-			players[i]->pos.y = spawnPoints[i].y;
-			players[i]->vel.x = 0;
-			players[i]->vel.y = 0;
+			objectManager->players[i]->pos.x = objectManager->spawnPoints[i].x;
+			objectManager->players[i]->pos.y = objectManager->spawnPoints[i].y;
+			objectManager->players[i]->vel.x = 0;
+			objectManager->players[i]->vel.y = 0;
 
-			if(players[i]->IsTerrainObject())
+			if(objectManager->players[i]->IsTerrainObject())
 			{
-				((TerrainObject*)players[i])->curHealth = ((TerrainObject*)players[i])->health;
+				((TerrainObject*)objectManager->players[i])->curHealth = ((TerrainObject*)objectManager->players[i])->health;
 			}
 
-			if(players[i]->IsFighter())
+			if(objectManager->players[i]->IsFighter())
 			{
-				((Fighter*)players[i])->ChangeHold(((Fighter*)players[i])->fighterEventHolds.jumpNeutralFall);
-				((Fighter*)players[i])->state = JUMPING;
-				((Fighter*)players[i])->falls = true;
+				((Fighter*)objectManager->players[i])->ChangeHold(((Fighter*)objectManager->players[i])->fighterEventHolds.jumpNeutralFall);
+				((Fighter*)objectManager->players[i])->state = JUMPING;
+				((Fighter*)objectManager->players[i])->falls = true;
 			}
 		}
 
-		if(playerHUDs[i] != NULL)
+		if(objectManager->playerHUDs[i] != NULL)
 		{
-			float curHealth = ((TerrainObject*)players[i])->curHealth;
-			float health = ((TerrainObject*)players[i])->health;
-			playerHUDs[i]->SetHealthMeterValue(curHealth / health);
-			playerHUDs[i]->SetCounterValue(playerLives[i]);
+			float curHealth = ((TerrainObject*)objectManager->players[i])->curHealth;
+			float health = ((TerrainObject*)objectManager->players[i])->health;
+			objectManager->playerHUDs[i]->SetHealthMeterValue(curHealth / health);
+			objectManager->playerHUDs[i]->SetCounterValue(playerLives[i]);
 		}
 		
 		survivingPlayers++;
@@ -3305,7 +2909,7 @@ string Main::GetStickConfigString(Uint8 stick)
 int Main::AdvanceHolds()
 {
 	list<HSObject*>::iterator objIt;
-	for ( objIt=HUDObjects.begin(); objIt != HUDObjects.end(); objIt++)
+	for ( objIt=objectManager->HUDObjects.begin(); objIt != objectManager->HUDObjects.end(); objIt++)
 	{
 		if(int error = (*objIt)->AdvanceHolds() != 0)
 		{
@@ -3315,7 +2919,7 @@ int Main::AdvanceHolds()
 
 	if(gameState == MATCH && matchState != IN_PROGRESS) { return 0; }
 
-	for ( objIt=gameObjects.begin(); objIt != gameObjects.end(); objIt++)
+	for ( objIt=objectManager->gameObjects.begin(); objIt != objectManager->gameObjects.end(); objIt++)
 	{
 		if(int error = (*objIt)->AdvanceHolds() != 0)
 		{
@@ -3510,32 +3114,32 @@ void Main::ClearControls(int player)
 
 void Main::ChangePlayerPalette(int player)
 {
-	HSPalette * curPalette = players[player]->palette;
-	players[player]->palette = NULL;
+	HSPalette * curPalette = objectManager->players[player]->palette;
+	objectManager->players[player]->palette = NULL;
 
 	curPalette->usingCount--;
 	if(curPalette->usingCount < 0) { curPalette->usingCount = 0; }
 
-	list<HSPalette*>::iterator plIt;
+	list<PaletteInstance>::iterator plIt;
 	bool getNextPalette = false;
-	for ( plIt=players[player]->palettes.begin(); plIt != players[player]->palettes.end(); plIt++)
+	for ( plIt=objectManager->players[player]->palettes.begin(); plIt != objectManager->players[player]->palettes.end(); plIt++)
 	{
-		if(getNextPalette && (*plIt)->usingCount <= 0)
+		if(getNextPalette && plIt->hsPal->usingCount <= 0)
 		{
-			players[player]->palette = (*plIt);
-			(*plIt)->usingCount++;
+			objectManager->players[player]->palette = plIt->hsPal;
+			plIt->hsPal->usingCount++;
 			break;
 		}
-		else if((*plIt) == curPalette)
+		else if(plIt->hsPal == curPalette)
 		{
 			getNextPalette = true;
 		}
 	}
 	
-	if(players[player]->palette == NULL && !players[player]->palettes.empty())
+	if(objectManager->players[player]->palette == NULL && !objectManager->players[player]->palettes.empty())
 	{
-		players[player]->palette = players[player]->palettes.front();
-		players[player]->palette->usingCount++;
+		objectManager->players[player]->palette = objectManager->players[player]->palettes.front().hsPal;
+		objectManager->players[player]->palette->usingCount++;
 	}
 }
 
@@ -3724,7 +3328,7 @@ void Main::KeyDown(SDLKey sym, SDLMod mod, Uint16 unicode)
 			mappings[playerToSetUp].buttonUp.joystick = -1;
 			mappings[playerToSetUp].buttonUp.button = -1;
 			keyToSetUp = -1;
-			menuManager->CursorNext();
+			objectManager->menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
 			{
 				ChangeMainMenuState(PLAYER_KEY_CONFIG);
@@ -3742,7 +3346,7 @@ void Main::KeyDown(SDLKey sym, SDLMod mod, Uint16 unicode)
 			mappings[playerToSetUp].buttonDown.joystick = -1;
 			mappings[playerToSetUp].buttonDown.button = -1;
 			keyToSetUp = -1;
-			menuManager->CursorNext();
+			objectManager->menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
 			{
 				ChangeMainMenuState(PLAYER_KEY_CONFIG);
@@ -3760,7 +3364,7 @@ void Main::KeyDown(SDLKey sym, SDLMod mod, Uint16 unicode)
 			mappings[playerToSetUp].buttonLeft.joystick = -1;
 			mappings[playerToSetUp].buttonLeft.button = -1;
 			keyToSetUp = -1;
-			menuManager->CursorNext();
+			objectManager->menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
 			{
 				ChangeMainMenuState(PLAYER_KEY_CONFIG);
@@ -3778,7 +3382,7 @@ void Main::KeyDown(SDLKey sym, SDLMod mod, Uint16 unicode)
 			mappings[playerToSetUp].buttonRight.joystick = -1;
 			mappings[playerToSetUp].buttonRight.button = -1;
 			keyToSetUp = -1;
-			menuManager->CursorNext();
+			objectManager->menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
 			{
 				ChangeMainMenuState(PLAYER_KEY_CONFIG);
@@ -3794,7 +3398,7 @@ void Main::KeyDown(SDLKey sym, SDLMod mod, Uint16 unicode)
 			mappings[playerToSetUp].buttonLight.joystick = -1;
 			mappings[playerToSetUp].buttonLight.button = -1;
 			keyToSetUp = -1;
-			menuManager->CursorNext();
+			objectManager->menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
 			{
 				ChangeMainMenuState(PLAYER_KEY_CONFIG);
@@ -3810,7 +3414,7 @@ void Main::KeyDown(SDLKey sym, SDLMod mod, Uint16 unicode)
 			mappings[playerToSetUp].buttonHeavy.joystick = -1;
 			mappings[playerToSetUp].buttonHeavy.button = -1;
 			keyToSetUp = -1;
-			menuManager->CursorNext();
+			objectManager->menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
 			{
 				ChangeMainMenuState(PLAYER_KEY_CONFIG);
@@ -3826,7 +3430,7 @@ void Main::KeyDown(SDLKey sym, SDLMod mod, Uint16 unicode)
 			mappings[playerToSetUp].buttonJump.joystick = -1;
 			mappings[playerToSetUp].buttonJump.button = -1;
 			keyToSetUp = -1;
-			menuManager->CursorNext();
+			objectManager->menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
 			{
 				ChangeMainMenuState(PLAYER_KEY_CONFIG);
@@ -3842,7 +3446,7 @@ void Main::KeyDown(SDLKey sym, SDLMod mod, Uint16 unicode)
 			mappings[playerToSetUp].buttonBlock.joystick = -1;
 			mappings[playerToSetUp].buttonBlock.button = -1;
 			keyToSetUp = -1;
-			menuManager->CursorNext();
+			objectManager->menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
 			{
 				ChangeMainMenuState(PLAYER_KEY_CONFIG);
@@ -3858,7 +3462,7 @@ void Main::KeyDown(SDLKey sym, SDLMod mod, Uint16 unicode)
 			mappings[playerToSetUp].buttonStart.joystick = -1;
 			mappings[playerToSetUp].buttonStart.button = -1;
 			keyToSetUp = -1;
-			menuManager->CursorNext();
+			objectManager->menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
 			{
 				ChangeMainMenuState(PLAYER_KEY_CONFIG);
@@ -3874,7 +3478,7 @@ void Main::KeyDown(SDLKey sym, SDLMod mod, Uint16 unicode)
 			mappings[playerToSetUp].buttonMenuConfirm.joystick = -1;
 			mappings[playerToSetUp].buttonMenuConfirm.button = -1;
 			keyToSetUp = -1;
-			menuManager->CursorNext();
+			objectManager->menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
 			{
 				ChangeMainMenuState(PLAYER_KEY_CONFIG);
@@ -3890,7 +3494,7 @@ void Main::KeyDown(SDLKey sym, SDLMod mod, Uint16 unicode)
 			mappings[playerToSetUp].buttonMenuBack.joystick = -1;
 			mappings[playerToSetUp].buttonMenuBack.button = -1;
 			keyToSetUp = -1;
-			menuManager->CursorNext();
+			objectManager->menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
 			{
 				ChangeMainMenuState(PLAYER_KEY_CONFIG);
@@ -4112,11 +3716,11 @@ void Main::JoyAxis(Uint8 which,Uint8 axis,Sint16 value)
 		switch(keyToSetUp)
 		{
 		case 0: //up
-			menuManager->CursorNext();
+			objectManager->menuManager->CursorNext();
 		case 1: //down
-			menuManager->CursorNext();
+			objectManager->menuManager->CursorNext();
 		case 2: //left
-			menuManager->CursorNext();
+			objectManager->menuManager->CursorNext();
 		case 3: //right
 			mappings[playerToSetUp].stick = which;
 			mappings[playerToSetUp].hat = -1;
@@ -4132,7 +3736,7 @@ void Main::JoyAxis(Uint8 which,Uint8 axis,Sint16 value)
 			mappings[playerToSetUp].keyRight = SDLK_UNKNOWN;
 			mappings[playerToSetUp].buttonRight.joystick = -1;
 			mappings[playerToSetUp].buttonRight.button = -1;
-			menuManager->CursorNext();
+			objectManager->menuManager->CursorNext();
 			keyToSetUp = -1;
 			if(gameState == MAIN_MENU)
 			{
@@ -4250,11 +3854,11 @@ void Main::JoyHat(Uint8 which,Uint8 hat,Uint8 value)
 		switch(keyToSetUp)
 		{
 		case 0: //up
-			menuManager->CursorNext();
+			objectManager->menuManager->CursorNext();
 		case 1: //down
-			menuManager->CursorNext();
+			objectManager->menuManager->CursorNext();
 		case 2: //left
-			menuManager->CursorNext();
+			objectManager->menuManager->CursorNext();
 		case 3: //right
 			mappings[playerToSetUp].hat = which;
 			mappings[playerToSetUp].stick = -1;
@@ -4270,7 +3874,7 @@ void Main::JoyHat(Uint8 which,Uint8 hat,Uint8 value)
 			mappings[playerToSetUp].keyRight = SDLK_UNKNOWN;
 			mappings[playerToSetUp].buttonRight.joystick = -1;
 			mappings[playerToSetUp].buttonRight.button = -1;
-			menuManager->CursorNext();
+			objectManager->menuManager->CursorNext();
 			keyToSetUp = -1;
 			if(gameState == MAIN_MENU)
 			{
@@ -4389,7 +3993,7 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 			mappings[playerToSetUp].hat = -1;
 			mappings[playerToSetUp].keyUp = SDLK_UNKNOWN;
 			keyToSetUp = -1;
-			menuManager->CursorNext();
+			objectManager->menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
 			{
 				ChangeMainMenuState(PLAYER_KEY_CONFIG);
@@ -4406,7 +4010,7 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 			mappings[playerToSetUp].hat = -1;
 			mappings[playerToSetUp].keyDown = SDLK_UNKNOWN;
 			keyToSetUp = -1;
-			menuManager->CursorNext();
+			objectManager->menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
 			{
 				ChangeMainMenuState(PLAYER_KEY_CONFIG);
@@ -4423,7 +4027,7 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 			mappings[playerToSetUp].hat = -1;
 			mappings[playerToSetUp].keyLeft = SDLK_UNKNOWN;
 			keyToSetUp = -1;
-			menuManager->CursorNext();
+			objectManager->menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
 			{
 				ChangeMainMenuState(PLAYER_KEY_CONFIG);
@@ -4440,7 +4044,7 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 			mappings[playerToSetUp].hat = -1;
 			mappings[playerToSetUp].keyRight = SDLK_UNKNOWN;
 			keyToSetUp = -1;
-			menuManager->CursorNext();
+			objectManager->menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
 			{
 				ChangeMainMenuState(PLAYER_KEY_CONFIG);
@@ -4455,7 +4059,7 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 			mappings[playerToSetUp].buttonLight.joystick = which; mappings[playerToSetUp].buttonLight.button = button;
 			mappings[playerToSetUp].keyLight = SDLK_UNKNOWN;
 			keyToSetUp = -1;
-			menuManager->CursorNext();
+			objectManager->menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
 			{
 				ChangeMainMenuState(PLAYER_KEY_CONFIG);
@@ -4470,7 +4074,7 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 			mappings[playerToSetUp].buttonHeavy.joystick = which; mappings[playerToSetUp].buttonHeavy.button = button;
 			mappings[playerToSetUp].keyHeavy = SDLK_UNKNOWN;
 			keyToSetUp = -1;
-			menuManager->CursorNext();
+			objectManager->menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
 			{
 				ChangeMainMenuState(PLAYER_KEY_CONFIG);
@@ -4485,7 +4089,7 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 			mappings[playerToSetUp].buttonJump.joystick = which; mappings[playerToSetUp].buttonJump.button = button;
 			mappings[playerToSetUp].keyJump = SDLK_UNKNOWN;
 			keyToSetUp = -1;
-			menuManager->CursorNext();
+			objectManager->menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
 			{
 				ChangeMainMenuState(PLAYER_KEY_CONFIG);
@@ -4500,7 +4104,7 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 			mappings[playerToSetUp].buttonBlock.joystick = which; mappings[playerToSetUp].buttonBlock.button = button;
 			mappings[playerToSetUp].keyBlock = SDLK_UNKNOWN;
 			keyToSetUp = -1;
-			menuManager->CursorNext();
+			objectManager->menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
 			{
 				ChangeMainMenuState(PLAYER_KEY_CONFIG);
@@ -4515,7 +4119,7 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 			mappings[playerToSetUp].buttonStart.joystick = which; mappings[playerToSetUp].buttonStart.button = button;
 			mappings[playerToSetUp].keyStart = SDLK_UNKNOWN;
 			keyToSetUp = -1;
-			menuManager->CursorNext();
+			objectManager->menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
 			{
 				ChangeMainMenuState(PLAYER_KEY_CONFIG);
@@ -4530,7 +4134,7 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 			mappings[playerToSetUp].buttonMenuConfirm.joystick = which; mappings[playerToSetUp].buttonMenuConfirm.button = button;
 			mappings[playerToSetUp].keyMenuConfirm = SDLK_UNKNOWN;
 			keyToSetUp = -1;
-			menuManager->CursorNext();
+			objectManager->menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
 			{
 				ChangeMainMenuState(PLAYER_KEY_CONFIG);
@@ -4545,7 +4149,7 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 			mappings[playerToSetUp].buttonMenuBack.joystick = which; mappings[playerToSetUp].buttonMenuBack.button = button;
 			mappings[playerToSetUp].keyMenuBack = SDLK_UNKNOWN;
 			keyToSetUp = -1;
-			menuManager->CursorNext();
+			objectManager->menuManager->CursorNext();
 			if(gameState == MAIN_MENU)
 			{
 				ChangeMainMenuState(PLAYER_KEY_CONFIG);
@@ -4738,10 +4342,10 @@ int Main::SetFullScreen(bool newFullScreen)
 {
 	fullScreen = newFullScreen;
 
-	if(textureRegistry.size() > 0)
+	if(objectManager->textureRegistry.size() > 0)
 	{
 		list<HSTexture*>::iterator trIt;
-		for ( trIt=textureRegistry.begin(); trIt != textureRegistry.end(); trIt++)
+		for ( trIt=objectManager->textureRegistry.begin(); trIt != objectManager->textureRegistry.end(); trIt++)
 		{
 			glDeleteTextures(1, &(*trIt)->textureID);
 			glDeleteBuffers(1, &(*trIt)->bufferID);
@@ -4757,10 +4361,10 @@ int Main::SetFullScreen(bool newFullScreen)
 		}
 	}
 
-	if(paletteRegistry.size() > 0)
+	if(objectManager->paletteRegistry.size() > 0)
 	{
 		list<HSPalette*>::iterator palIt;
-		for (palIt=paletteRegistry.begin(); palIt != paletteRegistry.end(); palIt++)
+		for (palIt=objectManager->paletteRegistry.begin(); palIt != objectManager->paletteRegistry.end(); palIt++)
 		{
 			glDeleteTextures(1, &(*palIt)->textureID);
 
@@ -4886,11 +4490,11 @@ int Main::SetFullScreen(bool newFullScreen)
 	//we need to know this for texture loading and storage
 	if(glMajorVersion >= 3)
 	{
-		openGL3 = true;
+		objectManager->openGL3 = true;
 	}
 	else
 	{
-		openGL3 = false;
+		objectManager->openGL3 = false;
 	}
 
 	stringstream sstm;
@@ -4919,7 +4523,7 @@ int Main::SetFullScreen(bool newFullScreen)
 		UpdateLog("OpenGL default array object is not enabled.", true);
 		return -1;
 	}
-	if(custom_array_objects_enabled == false && openGL3)
+	if(custom_array_objects_enabled == false && objectManager->openGL3)
 	{
 		UpdateLog("OpenGL custom array objects are not enabled.", true);
 		return -1;
@@ -4938,7 +4542,7 @@ int Main::SetFullScreen(bool newFullScreen)
 	string fragNonIndexedShaderFileName;
 	string fragIndexedShaderFileName;
 
-	if(openGL3)
+	if(objectManager->openGL3)
 	{
 		vertShaderFileName = "vertexShader3.glsl.txt";
 		fragNonIndexedShaderFileName = "fragmentShaderNonIndexed3.glsl.txt";
@@ -5187,6 +4791,8 @@ int Main::SetFullScreen(bool newFullScreen)
 	indexedFocusPosLoc = glGetUniformLocation(shader_progIndexed, "focusPos");
 	nonIndexedZoomOutLoc = glGetUniformLocation(shader_progNonIndexed, "zoomOut");
 	indexedZoomOutLoc = glGetUniformLocation(shader_progIndexed, "zoomOut");
+	nonIndexedDepthLoc =  glGetUniformLocation(shader_progNonIndexed, "depth");
+	indexedDepthLoc =  glGetUniformLocation(shader_progIndexed, "depth");
 	nonIndexedTexLoc = glGetUniformLocation(shader_progNonIndexed, "tex");
 	indexedTexLoc = glGetUniformLocation(shader_progIndexed, "tex");
 	paletteLoc = glGetUniformLocation(shader_progIndexed, "palette");
@@ -5232,7 +4838,7 @@ int Main::SetFullScreen(bool newFullScreen)
 		delete[] eArray;
 	}
 
-	if(!openGL3)
+	if(!objectManager->openGL3)
 	{
 		//bind universal things to the default vertex array object
 		glEnableVertexAttribArray(positionLocNonIndexed);
@@ -5257,24 +4863,24 @@ int Main::SetFullScreen(bool newFullScreen)
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementArrayBufferID);
 	}
 
-	if(textureRegistry.size() > 0)
+	if(objectManager->textureRegistry.size() > 0)
 	{
 		//need to reload all textures
 		list<HSTexture*>::iterator trIt;
-		for ( trIt=textureRegistry.begin(); trIt != textureRegistry.end(); trIt++)
+		for ( trIt=objectManager->textureRegistry.begin(); trIt != objectManager->textureRegistry.end(); trIt++)
 		{
-			if(int error = LoadTGAToTexture((*trIt), openGL3, (*trIt)->ownPalette != NULL) != 0)
+			if(int error = LoadTGAToTexture((*trIt), objectManager->openGL3, (*trIt)->ownPalette != NULL) != 0)
 			{
 				return error;
 			}
 		}
 	}
 
-	if(paletteRegistry.size() > 0)
+	if(objectManager->paletteRegistry.size() > 0)
 	{
 		//need to reload all palettes
 		list<HSPalette*>::iterator palIt;
-		for ( palIt=paletteRegistry.begin(); palIt != paletteRegistry.end(); palIt++)
+		for ( palIt=objectManager->paletteRegistry.begin(); palIt != objectManager->paletteRegistry.end(); palIt++)
 		{
 			if(int error = LoadHSPToPalette((*palIt)) != 0)
 			{

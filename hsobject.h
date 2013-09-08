@@ -12,17 +12,20 @@
 using namespace tinyxml2;
 using std::list;
 
-list<string> GetStringParts(list<string> parts, string toSplit, string splitToken);
-list<string> SplitString(string toSplit, string splitToken);
-string CreateAbsolutePath(string baseDirectory, string relPath);
-
 struct TextureInstance
 {
 	HSTexture * hsTex;
 	HSVect2D offset; //offset from the position of the object that owns this texture
-	int depth; //how far in front or back it should be drawn
+	int depth; //how far in front or back it should be drawn. does NOT effect zoom and parallax.
 	float hScale; //horizontal scaling
 	float vScale; //vertical scaling
+};
+
+struct PaletteInstance
+{
+	HSPalette * hsPal;
+	unsigned int orderID; //how the palettes should be ordered in the menu
+	string name; //name to display in the menu
 };
 
 struct AudioInstance
@@ -111,6 +114,7 @@ class HSObject;
 struct SpawnObject
 {
 	HSObject * object; //object that will be spawned
+	HSObject * parent; //the object that this object spawns from
 	bool followParent; //whether or not it should follow the parent's movements
 	HSVect2D parentOffset; //initial location in reference to the parent
 	HSVect2D vel; //initial velocity of the object
@@ -138,19 +142,11 @@ public:
 	HSObjectHold();
 	~HSObjectHold();
 
-	virtual int Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec, bool openGL3, bool useTGAPalettes); //initialize this hold based on definition file info
-	HSObjectHold * Clone(); //return a copy of this hold
-
 	virtual bool IsTerrainObjectHold();
 	virtual bool IsPhysicsObjectHold();
 	virtual bool IsFighterHold();
 
 protected:
-	int AddTexture(XMLElement * texture, string defFileDirectory, list<HSTexture*> * textureRegistry, bool openGL3, bool useTGAPalettes); //add a texture to the list of textures
-	int AddAudio(XMLElement * audio, string defFileDirectory, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec); //add a piece of audio to be played with the hold
-	int AddSpawnObject(XMLElement * spawnObject, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec); //add an object to the list of spawn objects
-	virtual HSObjectHold * CreateHoldOfSameType();
-	virtual void CopyAttributes(HSObjectHold * target);
 };
 
 struct HSObjectEventHolds
@@ -167,7 +163,7 @@ public:
 
 	//int player; //player currently in control of this object. -1 means no player controls this
 	
-	list<HSPalette*> palettes; //all of the object's palettes
+	list<PaletteInstance> palettes; //all of the object's palettes
 	HSPalette * palette; //current palette
 	bool useTGAPalettes; //whether or not to use the palettes within individual tga files
 	HSObjectHold * firstHold; //the first of a list of all of the object's animation holds
@@ -188,6 +184,7 @@ public:
 	HSVect2D prevPos; //the object's previous position
 	HSVect2D vel; //the object's velocity
 	HSVect2D prevVel; //the object's previous velocity
+	int depth; //how far into the background (positive) or forground (negative) the object should be considered. effects zoom and parallax
 
 	//the holds this object moves to upon particular events
 	HSObjectEventHolds hsObjectEventHolds;
@@ -197,10 +194,6 @@ public:
 
 	HSObject();
 	~HSObject();
-
-	int LoadPalettes(list<HSPalette*> * paletteRegistry);
-	virtual int Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSPalette*> * paletteRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec, bool openGL3); //initialize this object based on definition file info
-	HSObject * Clone(); //return a copy of this object
 
 	void PrevPalette();
 	void NextPalette();
@@ -226,13 +219,6 @@ public:
 	virtual bool ChangeHold(HSObjectHold * hold); //change to a new hold
 
 protected:
-	virtual HSObjectHold * CreateNewHold();
-	virtual HSObject * CreateObjectOfSameType();
-	virtual void CopyAttributes(HSObject * target);
-	virtual void CopyEventHold(HSObject * target, HSObjectHold * targetHold);
-	virtual int SaveEventHolds(HSObjectHold * hold, XMLElement * eventHolds);
-	virtual int AddHold(HSObjectHold * newHold); //add a new hold to the list of holds
-	int LinkHolds(); //sets the appropriate nextHold pointers for each hold based on its nextHoldId
 	virtual HSObjectHold * GetDefaultHold(); //gets a default hold, based on current states
 };
 

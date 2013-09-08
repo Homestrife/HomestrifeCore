@@ -72,27 +72,6 @@ int HUD::SetCounterValue(int value)
 	return 0;
 }
 
-int HUD::Define(XMLElement * definition, string defFileDirectory, list<HSTexture*> * textureRegistry, list<HSPalette*> * paletteRegistry, list<HSAudio*> * audioRegistry, SDL_AudioSpec * obtainedAudioSpec, bool openGL3)
-{
-	if(int error = HSObject::Define(definition, defFileDirectory, textureRegistry, paletteRegistry, audioRegistry, obtainedAudioSpec, openGL3) != 0)
-	{
-		return error;
-	}
-
-	healthMeterFilePath = CreateAbsolutePath(defFileDirectory, definition->Attribute("healthMeterFilePath"));
-	healthUnderMeterFilePath = CreateAbsolutePath(defFileDirectory, definition->Attribute("healthUnderMeterFilePath"));
-	counterFilePath = CreateAbsolutePath(defFileDirectory, definition->Attribute("counterFilePath"));
-
-	definition->QueryFloatAttribute("healthMeterOffsetX", &(healthMeterOffset.x));
-	definition->QueryFloatAttribute("healthMeterOffsetY", &(healthMeterOffset.y));
-	definition->QueryFloatAttribute("counterOffsetX", &(counterOffset.x));
-	definition->QueryFloatAttribute("counterOffsetY", &(counterOffset.y));
-	definition->QueryFloatAttribute("counterDigitWidth", &(counterDigitWidth));
-	definition->QueryFloatAttribute("counterDigitSeparation", &(counterDigitSeparation));
-
-	return 0;
-}
-
 int HUD::AdvanceHolds()
 {
 	if(curHold == NULL)
@@ -191,11 +170,4 @@ int HUD::Update()
 bool HUD::IsHUD()
 {
 	return true;
-}
-
-HUDHold * HUD::CreateNewHold()
-{
-	HUDHold * newHold = new HUDHold();
-
-	return newHold;
 }
