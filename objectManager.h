@@ -38,7 +38,6 @@ public:
 	SDL_AudioSpec * obtainedAudioSpec;
 	
 	HSVect2D stageSize;
-	float gravity;
 	
 	HSVect2D spawnPoints[MAX_PLAYERS];
 	HUD * playerHUDs[MAX_PLAYERS];

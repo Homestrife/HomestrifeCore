@@ -1,5 +1,7 @@
 #include "physicsobject.h"
 
+float gravity = 4;
+
 /////////////////////
 //PhysicsObjectHold//
 /////////////////////
@@ -57,7 +59,7 @@ int PhysicsObject::Update()
 	//apply gravity
 	if(falls)
 	{
-		vel.y += GRAVITY_ACC;
+		vel.y += gravity;
 		if(vel.y > maxFallSpeed)
 		{
 			vel.y = maxFallSpeed;
@@ -1013,7 +1015,7 @@ void PhysicsObject::CollisionPhysics(HSVect2D * newPos, TerrainCollisionResult *
 	//due to gravity before hitting the terrain
 	if(newPos->y != ownPos->y && ownPrevPos->y != ownPos->y)
 	{
-		newVel.y -= (abs(newPos->y - ownPos->y) / abs(ownPrevPos->y - ownPos->y)) * GRAVITY_ACC;
+		newVel.y -= (abs(newPos->y - ownPos->y) / abs(ownPrevPos->y - ownPos->y)) * gravity;
 	}
 
 	//get the largest bounce factor between the two objects
@@ -1074,7 +1076,7 @@ void PhysicsObject::CollisionPhysics(HSVect2D * newPos, TerrainCollisionResult *
 	//which it is pulling downward on the object and counteracting the upward bounce
 	if(newPos->y != ownPrevPos->y && ownPos->y != ownPrevPos->y)
 	{
-		newVel.y += (abs(newPos->y - ownPos->y) / abs(ownPrevPos->y - ownPos->y)) * GRAVITY_ACC;
+		newVel.y += (abs(newPos->y - ownPos->y) / abs(ownPrevPos->y - ownPos->y)) * gravity;
 	}
 
 	//now, get the magnitude of the velocity and if it's too small, just set it to zero

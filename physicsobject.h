@@ -4,8 +4,9 @@
 #include <cmath>
 #include "terrainobject.h"
 
-#define GRAVITY_ACC 4
 #define MIN_VEL 0.5
+
+extern float gravity;
 
 struct TerrainCollisionResult
 {
