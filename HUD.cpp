@@ -22,7 +22,8 @@ HUD::HUD() : HSObject()
 {
 	healthMeterFilePath = "";
 	healthUnderMeterFilePath = "";
-	counterFilePath = "";
+	livesCounterFilePath = "";
+	hitsCounterFilePath = "";
 
 	healthMeter = NULL;
 	healthUnderMeter = NULL;
@@ -32,14 +33,22 @@ HUD::HUD() : HSObject()
 	_healthMeterValue = 1.0f;
 	_healthUnderMeterValue = 1.0f;
 
-	onesCounter = NULL;
-	tensCounter = NULL;
-	counterOffset.x = 0;
-	counterOffset.y = 0;
-	counterDigitWidth = 0;
-	counterDigitSeparation = 0;
+	livesOnesCounter = NULL;
+	livesTensCounter = NULL;
+	livesCounterOffset.x = 0;
+	livesCounterOffset.y = 0;
+	livesCounterDigitWidth = 0;
+	livesCounterDigitSeparation = 0;
 
-	_counterValue = 0;
+	hitsOnesCounter = NULL;
+	hitsTensCounter = NULL;
+	hitsCounterOffset.x = 0;
+	hitsCounterOffset.y = 0;
+	hitsCounterDigitWidth = 0;
+	hitsCounterDigitSeparation = 0;
+
+	_livesCounterValue = 0;
+	_hitsCounterValue = 0;
 }
 
 HUD::~HUD()
@@ -62,12 +71,22 @@ int HUD::SetHealthMeterValue(float value)
 	return 0;
 }
 
-int HUD::SetCounterValue(int value)
+int HUD::SetLivesCounterValue(int value)
 {
 	if(value < 0) { value = 0; }
 	if(value > 99) { value = 99; }
 
-	_counterValue = value;
+	_livesCounterValue = value;
+
+	return 0;
+}
+
+int HUD::SetHitsCounterValue(int value)
+{
+	if(value < 0) { value = 0; }
+	if(value > 999) { value = 999; }
+
+	_hitsCounterValue = value;
 
 	return 0;
 }
@@ -130,38 +149,89 @@ int HUD::Update()
 		}
 	}
 
-	if(onesCounter != NULL)
+	if(livesOnesCounter != NULL)
 	{
-		onesCounter->pos.x = pos.x + counterOffset.x + counterDigitWidth + counterDigitSeparation;
-		onesCounter->pos.y = pos.y + counterOffset.y;
+		livesOnesCounter->pos.x = pos.x + livesCounterOffset.x + livesCounterDigitWidth + livesCounterDigitSeparation;
+		livesOnesCounter->pos.y = pos.y + livesCounterOffset.y;
 
-		int curValue = _counterValue % 10;
+		int curValue = _livesCounterValue % 10;
 
-		HSObjectHold* curHold = onesCounter->firstHold;
+		HSObjectHold* curHold = livesOnesCounter->firstHold;
 		while(curValue > 0)
 		{
 			curHold = curHold->nextListHold;
 			curValue--;
 		}
 
-		onesCounter->ChangeHold(curHold);
+		livesOnesCounter->ChangeHold(curHold);
 	}
 
-	if(tensCounter != NULL)
+	if(livesTensCounter != NULL)
 	{
-		tensCounter->pos.x = pos.x + counterOffset.x;
-		tensCounter->pos.y = pos.y + counterOffset.y;
+		livesTensCounter->pos.x = pos.x + livesCounterOffset.x;
+		livesTensCounter->pos.y = pos.y + livesCounterOffset.y;
 
-		int curValue = _counterValue / 10;
+		int curValue = _livesCounterValue / 10;
 
-		HSObjectHold* curHold = tensCounter->firstHold;
+		HSObjectHold* curHold = livesTensCounter->firstHold;
 		while(curValue > 0)
 		{
 			curHold = curHold->nextListHold;
 			curValue--;
 		}
 
-		tensCounter->ChangeHold(curHold);
+		livesTensCounter->ChangeHold(curHold);
+	}
+
+	if(hitsOnesCounter != NULL)
+	{
+		hitsOnesCounter->pos.x = pos.x + hitsCounterOffset.x + hitsCounterDigitWidth*2 + hitsCounterDigitSeparation*2;
+		hitsOnesCounter->pos.y = pos.y + hitsCounterOffset.y;
+
+		int curValue = _hitsCounterValue % 10;
+
+		HSObjectHold* curHold = hitsOnesCounter->firstHold;
+		while(curValue > 0)
+		{
+			curHold = curHold->nextListHold;
+			curValue--;
+		}
+
+		hitsOnesCounter->ChangeHold(curHold);
+	}
+
+	if(hitsTensCounter != NULL)
+	{
+		hitsTensCounter->pos.x = pos.x + hitsCounterOffset.x + hitsCounterDigitWidth + hitsCounterDigitSeparation;
+		hitsTensCounter->pos.y = pos.y + hitsCounterOffset.y;
+
+		int curValue = _hitsCounterValue / 10;
+
+		HSObjectHold* curHold = hitsTensCounter->firstHold;
+		while(curValue > 0)
+		{
+			curHold = curHold->nextListHold;
+			curValue--;
+		}
+
+		hitsTensCounter->ChangeHold(curHold);
+	}
+
+	if(hitsHundredsCounter != NULL)
+	{
+		hitsHundredsCounter->pos.x = pos.x + hitsCounterOffset.x;
+		hitsHundredsCounter->pos.y = pos.y + hitsCounterOffset.y;
+
+		int curValue = _hitsCounterValue / 100;
+
+		HSObjectHold* curHold = hitsHundredsCounter->firstHold;
+		while(curValue > 0)
+		{
+			curHold = curHold->nextListHold;
+			curValue--;
+		}
+
+		hitsHundredsCounter->ChangeHold(curHold);
 	}
 
 	return 0;

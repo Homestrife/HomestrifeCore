@@ -130,13 +130,18 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 			
 			objDef->QueryFloatAttribute("healthMeterOffsetX", &newHUD->healthMeterOffset.x);
 			objDef->QueryFloatAttribute("healthMeterOffsetY", &newHUD->healthMeterOffset.y);
-			objDef->QueryFloatAttribute("counterOffsetX", &newHUD->counterOffset.x);
-			objDef->QueryFloatAttribute("counterOffsetY", &newHUD->counterOffset.y);
-			objDef->QueryFloatAttribute("counterDigitWidth", &newHUD->counterDigitWidth);
-			objDef->QueryFloatAttribute("counterDigitSeparation", &newHUD->counterDigitSeparation);
+			objDef->QueryFloatAttribute("livesCounterOffsetX", &newHUD->livesCounterOffset.x);
+			objDef->QueryFloatAttribute("livesCounterOffsetY", &newHUD->livesCounterOffset.y);
+			objDef->QueryFloatAttribute("livesCounterDigitWidth", &newHUD->livesCounterDigitWidth);
+			objDef->QueryFloatAttribute("livesCounterDigitSeparation", &newHUD->livesCounterDigitSeparation);
+			objDef->QueryFloatAttribute("hitsCounterOffsetX", &newHUD->hitsCounterOffset.x);
+			objDef->QueryFloatAttribute("hitsCounterOffsetY", &newHUD->hitsCounterOffset.y);
+			objDef->QueryFloatAttribute("hitsCounterDigitWidth", &newHUD->hitsCounterDigitWidth);
+			objDef->QueryFloatAttribute("hitsCounterDigitSeparation", &newHUD->hitsCounterDigitSeparation);
 			newHUD->healthMeterFilePath = objDef->Attribute("healthMeterFilePath");
 			newHUD->healthUnderMeterFilePath = objDef->Attribute("healthUnderMeterFilePath");
-			newHUD->counterFilePath = objDef->Attribute("counterFilePath");
+			newHUD->livesCounterFilePath = objDef->Attribute("livesCounterFilePath");
+			newHUD->hitsCounterFilePath = objDef->Attribute("hitsCounterFilePath");
 		}
 
 		if(newObject->IsTerrainObject())
@@ -1161,9 +1166,15 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 
 			if(int error = LoadDefinition(hud->healthMeterFilePath, objects, &(hud->healthMeter)) != 0) { return error; }
 
-			if(int error = LoadDefinition(hud->counterFilePath, objects, &(hud->onesCounter)) != 0) { return error; }
+			if(int error = LoadDefinition(hud->livesCounterFilePath, objects, &(hud->livesOnesCounter)) != 0) { return error; }
 
-			if(int error = LoadDefinition(hud->counterFilePath, objects, &(hud->tensCounter)) != 0) { return error; }
+			if(int error = LoadDefinition(hud->livesCounterFilePath, objects, &(hud->livesTensCounter)) != 0) { return error; }
+
+			if(int error = LoadDefinition(hud->hitsCounterFilePath, objects, &(hud->hitsOnesCounter)) != 0) { return error; }
+
+			if(int error = LoadDefinition(hud->hitsCounterFilePath, objects, &(hud->hitsTensCounter)) != 0) { return error; }
+
+			if(int error = LoadDefinition(hud->hitsCounterFilePath, objects, &(hud->hitsHundredsCounter)) != 0) { return error; }
 		}
 
 		if(returnValue != NULL)

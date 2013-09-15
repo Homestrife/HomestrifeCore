@@ -84,6 +84,33 @@ enum FighterAction
 	QCF_HEAVY
 };
 
+enum FighterAttackAction
+{
+	NO_ATTACK_ACTION,
+	GROUND_NEUTRAL_LIGHT,
+	GROUND_UP_LIGHT,
+	GROUND_DOWN_LIGHT,
+	GROUND_FORWARD_LIGHT,
+	GROUND_QCF_LIGHT,
+	GROUND_NEUTRAL_HEAVY,
+	GROUND_UP_HEAVY,
+	GROUND_DOWN_HEAVY,
+	GROUND_FORWARD_HEAVY,
+	GROUND_QCF_HEAVY,
+	AIR_NEUTRAL_LIGHT,
+	AIR_UP_LIGHT,
+	AIR_DOWN_LIGHT,
+	AIR_FORWARD_LIGHT,
+	AIR_BACKWARD_LIGHT,
+	AIR_QCF_LIGHT,
+	AIR_NEUTRAL_HEAVY,
+	AIR_UP_HEAVY,
+	AIR_DOWN_HEAVY,
+	AIR_FORWARD_HEAVY,
+	AIR_BACKWARD_HEAVY,
+	AIR_QCF_HEAVY
+};
+
 enum Cancel
 {
 	ANY_TIME,
@@ -111,6 +138,14 @@ struct Cancels
 	Cancel heavyDown;
 	Cancel heavyBackward;
 	Cancel heavyQCF;
+};
+
+struct ComboTrack
+{
+	unsigned int stage;
+	unsigned int hits;
+	TerrainObject * attacker;
+	list<FighterAttackAction> usedAttacks;
 };
 
 class FighterHold : public PhysicsObjectHold
@@ -301,6 +336,10 @@ public:
 
 	int framesSinceKnockout;
 
+	FighterAttackAction curAttackAction;
+	bool inComboString;
+	list<ComboTrack> comboTrack;
+
 	//the holds this object moves to upon particular events
 	FighterEventHolds fighterEventHolds;
 
@@ -328,6 +367,7 @@ public:
 	virtual int CollideTerrain(list<HSObject*> * gameObjects);
 	int CollideFighters(list<HSObject*> * gameObjects);
 	virtual void ApplyAttackResults();
+	virtual void HandleAttackCollision(TerrainObject * targetObject);
 	virtual void HandleHurtCollision(TerrainObject * attacker);
 	virtual list<SpawnObject*> GetSpawnObjects(); //get any objects this object currently wishes to spawn
 	virtual list<AudioInstance*> GetAudio(); //get any audio this object currently wishes to play

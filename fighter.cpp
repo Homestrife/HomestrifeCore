@@ -90,6 +90,10 @@ Fighter::Fighter() : PhysicsObject()
 
 	framesSinceKnockout = 0;
 
+	curAttackAction = NO_ATTACK_ACTION;
+	inComboString = false;
+	comboTrack.clear();
+
 	fighterEventHolds.standing = NULL;
 	fighterEventHolds.turn = NULL;
 	fighterEventHolds.walk = NULL;
@@ -283,6 +287,7 @@ int Fighter::AdvanceHolds()
 		if(curHitstun <= 0)
 		{
 			hitstunEnd = true;
+			comboTrack.clear();
 		}
 	}
 	if(curBlockstun > 0)
@@ -714,6 +719,8 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 	//dash
 	if(CanDashCancel() && !turning && !runStopping && !blocking)
 	{
+		inComboString = false;
+		curAttackAction = NO_ATTACK_ACTION;
 		if(bufferedAction == DASH)
 		{
 			if(state == STANDING || state == WALKING || state == CROUCHING)
@@ -799,6 +806,8 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 	{
 		if(state != JUMPING && state != AIRBORN && state != AIR_DASHING)
 		{
+			inComboString = false;
+			curAttackAction = NO_ATTACK_ACTION;
 			bufferedAction = NO_ACTION;
 			//ground jump
 			if(state == CROUCHING)
@@ -869,6 +878,8 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 			//air jump
 			if(curAirActions > 0)
 			{
+				inComboString = false;
+				curAttackAction = NO_ATTACK_ACTION;
 				ChangeHold(fighterEventHolds.jumpNeutralStartAir);
 				if(inputHistory->bKeyLeft.held || inputHistory->bButtonLeft.held || inputHistory->bHatLeft.held || inputHistory->bStickLeft.held)
 				{
@@ -944,9 +955,9 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 	}
 
 	//blocking
-	if(!attacking && !blocking && curBlockstun <= 0 && (inputHistory->bKeyBlock.held || inputHistory->bButtonBlock.held))
+	if(!attacking && !blocking && !jumpStartup && curBlockstun <= 0 && (inputHistory->bKeyBlock.held || inputHistory->bButtonBlock.held))
 	{
-		if(state == STANDING || state == WALKING || state == RUNNING || state == CROUCHING || (state == JUMPING && jumpStartup))
+		if(state == STANDING || state == WALKING || state == RUNNING || state == CROUCHING)
 		{
 			if(state == RUNNING)
 			{
@@ -1021,36 +1032,41 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 		blocking = false;
 	}
 
-	if(curBlockstun > 0) { return 0; }
+	if(curBlockstun > 0 || jumpStartup) { return 0; }
 
 	//light attacks
 	if(bufferedAction >= NEUTRAL_LIGHT && bufferedAction <= QCF_LIGHT)
 	{
-		if(state == STANDING || state == CROUCHING || state == WALKING || state == RUNNING || (state == JUMPING && jumpStartup))
+		if(state == STANDING || state == CROUCHING || state == WALKING || state == RUNNING)
 		{
 			if(CanLightQCFCancel() && fighterEventHolds.attackLightQCFGround != NULL && bufferedAction == QCF_LIGHT)
 			{
+				curAttackAction = GROUND_QCF_LIGHT;
 				ChangeHold(fighterEventHolds.attackLightQCFGround);
 				GroundAttackExecuted();
 			}
 			else if(CanLightUpCancel() && fighterEventHolds.attackLightUpGround != NULL && bufferedAction == UP_LIGHT)
 			{
+				curAttackAction = GROUND_UP_LIGHT;
 				ChangeHold(fighterEventHolds.attackLightUpGround);
 				GroundAttackExecuted();
 			}
 			else if(CanLightDownCancel() && fighterEventHolds.attackLightDownGround != NULL && bufferedAction == DOWN_LIGHT)
 			{
+				curAttackAction = GROUND_DOWN_LIGHT;
 				ChangeHold(fighterEventHolds.attackLightDownGround);
 				GroundAttackExecuted();
 				state = CROUCHING;
 			}
 			else if(CanLightForwardCancel() && fighterEventHolds.attackLightForwardGround != NULL && (bufferedAction == FORWARD_LIGHT))
 			{
+				curAttackAction = GROUND_FORWARD_LIGHT;
 				ChangeHold(fighterEventHolds.attackLightForwardGround);
 				GroundAttackExecuted();
 			}
 			else if(CanLightNeutralCancel() && fighterEventHolds.attackLightNeutralGround != NULL && (bufferedAction == NEUTRAL_LIGHT || bufferedAction == BACKWARD_LIGHT))
 			{
+				curAttackAction = GROUND_NEUTRAL_LIGHT;
 				ChangeHold(fighterEventHolds.attackLightNeutralGround);
 				GroundAttackExecuted();
 			}
@@ -1060,24 +1076,28 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 		{
 			if(CanLightQCFCancel() && fighterEventHolds.attackLightQCFAir != NULL && bufferedAction == QCF_LIGHT)
 			{
+				curAttackAction = AIR_QCF_LIGHT;
 				ChangeHold(fighterEventHolds.attackLightQCFAir);
 				AirAttackExecuted();
 				landingAction = QCF_LIGHT;
 			}
 			else if(CanLightUpCancel() && fighterEventHolds.attackLightUpAir != NULL && bufferedAction == UP_LIGHT)
 			{
+				curAttackAction = AIR_UP_LIGHT;
 				ChangeHold(fighterEventHolds.attackLightUpAir);
 				AirAttackExecuted();
 				landingAction = UP_LIGHT;
 			}
 			else if(CanLightDownCancel() && fighterEventHolds.attackLightDownAir != NULL && bufferedAction == DOWN_LIGHT)
 			{
+				curAttackAction = AIR_DOWN_LIGHT;
 				ChangeHold(fighterEventHolds.attackLightDownAir);
 				AirAttackExecuted();
 				landingAction = DOWN_LIGHT;
 			}
 			else if(CanLightForwardCancel() && fighterEventHolds.attackLightForwardAir != NULL && bufferedAction == FORWARD_LIGHT)
 			{
+				curAttackAction = AIR_FORWARD_LIGHT;
 				ChangeHold(fighterEventHolds.attackLightForwardAir);
 				AirAttackExecuted();
 				landingAction = FORWARD_LIGHT;
@@ -1085,6 +1105,7 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 			}
 			else if(CanLightBackwardCancel() && fighterEventHolds.attackLightBackwardAir != NULL && bufferedAction == BACKWARD_LIGHT)
 			{
+				curAttackAction = AIR_BACKWARD_LIGHT;
 				ChangeHold(fighterEventHolds.attackLightBackwardAir);
 				AirAttackExecuted();
 				landingAction = FORWARD_LIGHT;
@@ -1092,6 +1113,7 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 			}
 			else if(CanLightNeutralCancel() && fighterEventHolds.attackLightNeutralAir != NULL && bufferedAction == NEUTRAL_LIGHT)
 			{
+				curAttackAction = AIR_NEUTRAL_LIGHT;
 				ChangeHold(fighterEventHolds.attackLightNeutralAir);
 				AirAttackExecuted();
 				landingAction = NEUTRAL_LIGHT;
@@ -1103,31 +1125,36 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 	//heavy attacks
 	if(bufferedAction >= NEUTRAL_HEAVY && bufferedAction <= QCF_HEAVY)
 	{
-		if(state == STANDING || state == CROUCHING || state == WALKING || state == RUNNING || (state == JUMPING && jumpStartup))
+		if(state == STANDING || state == CROUCHING || state == WALKING || state == RUNNING)
 		{
 			if(CanHeavyQCFCancel() && fighterEventHolds.attackHeavyQCFGround != NULL && bufferedAction == QCF_HEAVY)
 			{
+				curAttackAction = GROUND_QCF_HEAVY;
 				ChangeHold(fighterEventHolds.attackHeavyQCFGround);
 				GroundAttackExecuted();
 			}
 			else if(CanHeavyUpCancel() && fighterEventHolds.attackHeavyUpGround != NULL && bufferedAction == UP_HEAVY)
 			{
+				curAttackAction = GROUND_UP_HEAVY;
 				ChangeHold(fighterEventHolds.attackHeavyUpGround);
 				GroundAttackExecuted();
 			}
 			else if(CanHeavyDownCancel() && fighterEventHolds.attackHeavyDownGround != NULL && bufferedAction == DOWN_HEAVY)
 			{
+				curAttackAction = GROUND_DOWN_HEAVY;
 				ChangeHold(fighterEventHolds.attackHeavyDownGround);
 				GroundAttackExecuted();
 				state = CROUCHING;
 			}
 			else if(CanHeavyForwardCancel() && fighterEventHolds.attackHeavyForwardGround != NULL && (bufferedAction == FORWARD_HEAVY))
 			{
+				curAttackAction = GROUND_FORWARD_HEAVY;
 				ChangeHold(fighterEventHolds.attackHeavyForwardGround);
 				GroundAttackExecuted();
 			}
 			else if(CanHeavyNeutralCancel() && fighterEventHolds.attackHeavyNeutralGround != NULL && (bufferedAction == NEUTRAL_HEAVY || bufferedAction == BACKWARD_HEAVY))
 			{
+				curAttackAction = GROUND_NEUTRAL_HEAVY;
 				ChangeHold(fighterEventHolds.attackHeavyNeutralGround);
 				GroundAttackExecuted();
 			}
@@ -1137,36 +1164,42 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 		{
 			if(CanHeavyQCFCancel() && fighterEventHolds.attackHeavyQCFAir != NULL && bufferedAction == QCF_HEAVY)
 			{
+				curAttackAction = AIR_QCF_HEAVY;
 				ChangeHold(fighterEventHolds.attackHeavyQCFAir);
 				AirAttackExecuted();
 				landingAction = QCF_HEAVY;
 			}
 			else if(CanHeavyUpCancel() && fighterEventHolds.attackHeavyUpAir != NULL && bufferedAction == UP_HEAVY)
 			{
+				curAttackAction = AIR_UP_HEAVY;
 				ChangeHold(fighterEventHolds.attackHeavyUpAir);
 				AirAttackExecuted();
 				landingAction = UP_HEAVY;
 			}
 			else if(CanHeavyDownCancel() && fighterEventHolds.attackHeavyDownAir != NULL && bufferedAction == DOWN_HEAVY)
 			{
+				curAttackAction = AIR_DOWN_HEAVY;
 				ChangeHold(fighterEventHolds.attackHeavyDownAir);
 				AirAttackExecuted();
 				landingAction = DOWN_HEAVY;
 			}
 			else if(CanHeavyForwardCancel() && fighterEventHolds.attackHeavyForwardAir != NULL && bufferedAction == FORWARD_HEAVY)
 			{
+				curAttackAction = AIR_FORWARD_HEAVY;
 				ChangeHold(fighterEventHolds.attackHeavyForwardAir);
 				AirAttackExecuted();
 				landingAction = FORWARD_HEAVY;
 			}
 			else if(CanHeavyBackwardCancel() && fighterEventHolds.attackHeavyBackwardAir != NULL && bufferedAction == BACKWARD_HEAVY)
 			{
+				curAttackAction = AIR_BACKWARD_HEAVY;
 				ChangeHold(fighterEventHolds.attackHeavyBackwardAir);
 				AirAttackExecuted();
 				landingAction = FORWARD_HEAVY;
 			}
 			else if(CanHeavyNeutralCancel() && fighterEventHolds.attackHeavyNeutralAir != NULL && bufferedAction == NEUTRAL_HEAVY)
 			{
+				curAttackAction = AIR_NEUTRAL_HEAVY;
 				ChangeHold(fighterEventHolds.attackHeavyNeutralAir);
 				AirAttackExecuted();
 				landingAction = NEUTRAL_HEAVY;
@@ -1355,7 +1388,7 @@ int Fighter::Update()
 
 			if(shortHop)
 			{
-				vel.y = -jumpSpeed/2;
+				vel.y = -jumpSpeed * 2 / 3;
 			}
 			else
 			{
@@ -1672,6 +1705,8 @@ int Fighter::StepCheck(list<HSObject*> * gameObjects)
 
 int Fighter::HandleJumpLanding()
 {
+	inComboString = false;
+	curAttackAction = NO_ATTACK_ACTION;
 	curAirActions = airActions;
 	falls = false;
 	attacking = false;
@@ -2179,6 +2214,8 @@ void Fighter::ApplyAttackResults()
 			wasBlocked = false;
 			curHitstun = 0;
 			curBlockstun = 0;
+			curAttackAction = NO_ATTACK_ACTION;
+			comboTrack.clear();
 			
 			vel.x = attackResults.force.x * -facing;
 			vel.y = attackResults.force.y;
@@ -2226,6 +2263,11 @@ void Fighter::ApplyAttackResults()
 	else
 	{
 		sliding = false;
+	}
+	
+	if(attackResults.IPSTriggered)
+	{
+		curHitstun = 1;
 	}
 
 	if(curHitstun > 0)
@@ -2286,6 +2328,20 @@ void Fighter::ApplyAttackResults()
 	ResetAttackResults();
 }
 
+void Fighter::HandleAttackCollision(TerrainObject * targetObject)
+{
+	//first, let the target know it's been hit
+	targetObject->HandleHurtCollision(this);
+
+	//save the target so this object doesn't strike it again until the attack is over
+	victims.push_back(targetObject->id);
+
+	attackResults.hitstop = ownHitstop;
+	attackResults.didStrike = true;
+
+	inComboString = true;
+}
+
 void Fighter::HandleHurtCollision(TerrainObject * attacker)
 {
 	attackResults.struck = true;
@@ -2326,9 +2382,86 @@ void Fighter::HandleHurtCollision(TerrainObject * attacker)
 	attackResults.force.y = attacker->force.y;
 	attacker->numHitThisFrame++;
 	
-	if(attacker->IsFighter())
+	if(attacker->IsFighter() || attacker->parent->IsFighter())
 	{
-		((Fighter*)attacker)->hitSomething = true;
+		Fighter * fAttacker;
+
+		if(attacker->IsFighter())
+		{
+			fAttacker = (Fighter*)attacker;
+		}
+		else
+		{
+			fAttacker = (Fighter*)attacker->parent;
+		}
+
+		fAttacker->hitSomething = true;
+
+		//handle ips
+		bool attackerFound = false;
+		list<ComboTrack>::iterator comboItr;
+		for(comboItr = comboTrack.begin(); comboItr != comboTrack.end(); comboItr++)
+		{
+			if(comboItr->attacker == fAttacker)
+			{
+				attackerFound = true;
+				comboItr->hits++;
+
+				if(!fAttacker->inComboString)
+				{
+					//attacker started a new string, so increment the combo stage
+					comboItr->stage++;
+				}
+
+				//track hits from stage 3 and onward
+				if(comboItr->stage >= 3)
+				{
+					bool actionFound = false;
+					list<FighterAttackAction>::iterator actionItr;
+					for(actionItr = comboItr->usedAttacks.begin(); actionItr != comboItr->usedAttacks.end(); actionItr++)
+					{
+						if(*actionItr == fAttacker->curAttackAction)
+						{
+							actionFound = true;
+
+							if(comboItr->stage >= 4 && !fAttacker->inComboString)
+							{
+								//ips triggered! do... something
+								attackResults.IPSTriggered = true;
+								comboTrack.clear();
+							}
+
+							break;
+						}
+					}
+
+					if(!actionFound)
+					{
+						comboItr->usedAttacks.push_back(fAttacker->curAttackAction);
+					}
+				}
+
+				break;
+			}
+		}
+
+		if(!attackerFound)
+		{
+			ComboTrack newTrack;
+			newTrack.attacker = fAttacker;
+			newTrack.hits = 1;
+
+			if(fAttacker->state == JUMPING)
+			{
+				newTrack.stage = 1;
+			}
+			else
+			{
+				newTrack.stage = 2;
+			}
+
+			comboTrack.push_back(newTrack);
+		}
 	}
 }
 
@@ -2385,6 +2518,8 @@ HSObjectHold * Fighter::GetDefaultHold()
 	cancels = defaultCancels;
 	hitSomething = false;
 	wasBlocked = false;
+	inComboString = false;
+	curAttackAction = NO_ATTACK_ACTION;
 
 	if(state == KNOCKOUT_AIR)
 	{

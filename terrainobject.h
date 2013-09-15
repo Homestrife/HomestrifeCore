@@ -84,6 +84,7 @@ struct AttackResults
 	int blockstun;
 	HSVect2D force;
 	Blockability blockability;
+	bool IPSTriggered;
 };
 
 struct TerrainEventHolds

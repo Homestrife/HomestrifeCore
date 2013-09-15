@@ -200,6 +200,7 @@ void TerrainObject::ResetAttackResults()
 	attackResults.force.x = 0;
 	attackResults.force.y = 0;
 	attackResults.blockability = MID;
+	attackResults.IPSTriggered = false;
 }
 
 void TerrainObject::HandleHurtCollision(TerrainObject * attacker)

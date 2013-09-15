@@ -197,6 +197,8 @@ void Main::ChangeShaderProgram(GLuint programID)
 
 void AudioCallback(void *unused, Uint8 *stream, int len)
 {
+	if(currentAudio.empty()) { return; }
+
     Uint32 amount;
 
 	list<CurrentAudioEntry*> toRemove;
@@ -1814,7 +1816,8 @@ int Main::ChangeMatchPlayerState(MatchPlayerState newState, int player)
 			if(objectManager->playerHUDs[player] != NULL)
 			{
 				objectManager->playerHUDs[player]->SetHealthMeterValue(0);
-				objectManager->playerHUDs[player]->SetCounterValue(0);
+				objectManager->playerHUDs[player]->SetLivesCounterValue(0);
+				objectManager->playerHUDs[player]->SetHitsCounterValue(0);
 			}
 			if(objectManager->players[player] == NULL) { break; }
 			objectManager->players[player]->visible = false;
@@ -2037,7 +2040,21 @@ int Main::CollideMatch()
 			float curHealth = ((TerrainObject*)objectManager->players[i])->curHealth;
 			float health = ((TerrainObject*)objectManager->players[i])->health;
 			objectManager->playerHUDs[i]->SetHealthMeterValue(curHealth / health);
-			objectManager->playerHUDs[i]->SetCounterValue(playerLives[i]);
+			objectManager->playerHUDs[i]->SetLivesCounterValue(playerLives[i]);
+
+			if(objectManager->players[i]->IsFighter())
+			{
+				Fighter * fighter = (Fighter*) objectManager->players[i];
+
+				int hits = 0;
+				list<ComboTrack>::iterator comboItr;
+				for(comboItr = fighter->comboTrack.begin(); comboItr != fighter->comboTrack.end(); comboItr++)
+				{
+					hits += comboItr->hits;
+				}
+
+				objectManager->playerHUDs[i]->SetHitsCounterValue(hits);
+			}
 		}
 		
 		survivingPlayers++;

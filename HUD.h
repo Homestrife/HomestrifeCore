@@ -24,21 +24,30 @@ public:
 	
 	string healthMeterFilePath;
 	string healthUnderMeterFilePath;
-	string counterFilePath;
+	string livesCounterFilePath;
+	string hitsCounterFilePath;
 
 	HSObject * healthMeter;
 	HSObject * healthUnderMeter;
 	HSVect2D healthMeterOffset;
 
-	HSObject * onesCounter;
-	HSObject * tensCounter;
-	HSVect2D counterOffset;
-	HSVectComp counterDigitWidth;
-	HSVectComp counterDigitSeparation;
+	HSObject * livesOnesCounter;
+	HSObject * livesTensCounter;
+	HSVect2D livesCounterOffset;
+	HSVectComp livesCounterDigitWidth;
+	HSVectComp livesCounterDigitSeparation;
+
+	HSObject * hitsOnesCounter;
+	HSObject * hitsTensCounter;
+	HSObject * hitsHundredsCounter;
+	HSVect2D hitsCounterOffset;
+	HSVectComp hitsCounterDigitWidth;
+	HSVectComp hitsCounterDigitSeparation;
 
 	int SetHealthMeterValue(float value);
 
-	int SetCounterValue(int value);
+	int SetLivesCounterValue(int value);
+	int SetHitsCounterValue(int value);
 
 	virtual int AdvanceHolds();
 	virtual int Update(); //handle updates
@@ -49,8 +58,8 @@ protected:
 	float _healthMeterValue;
 	float _healthUnderMeterValue;
 
-	int _counterValue;
-
+	int _livesCounterValue;
+	int _hitsCounterValue;
 };
 
 #endif
