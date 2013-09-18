@@ -161,9 +161,10 @@ int Main::Execute()
 int Main::SetBestGameResolution()
 {
 	//get the current screen resolution
-	const SDL_VideoInfo * vidInfo = SDL_GetVideoInfo();
-	screenResolutionX = vidInfo->current_w;
-	screenResolutionY = vidInfo->current_h;
+	SDL_DisplayMode vidInfo;
+	SDL_GetDesktopDisplayMode(0, &vidInfo);
+	screenResolutionX = vidInfo.w;
+	screenResolutionY = vidInfo.h;
 	gameResolutionX = MAX_GAME_RESOLUTION_X;
 	gameResolutionY = MAX_GAME_RESOLUTION_Y;
 
@@ -197,6 +198,8 @@ void Main::ChangeShaderProgram(GLuint programID)
 
 void AudioCallback(void *unused, Uint8 *stream, int len)
 {
+	SDL_memset(stream, 0, len);
+
 	if(currentAudio.empty()) { return; }
 
     Uint32 amount;
@@ -267,7 +270,7 @@ int Main::Initialize()
 	UpdateLog("Configuration loaded.", false);
 
 	//set up SDL screen
-	if(int error = SetFullScreen(fullScreen) != 0)
+	if(int error = InitializeGraphics() != 0)
 	{
 		return error;
 	}
@@ -622,8 +625,8 @@ int Main::Render()
 	//glDisableClientState(GL_VERTEX_ARRAY);
 	//glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 	//glDisableClientState(GL_INDEX_ARRAY);
-
-	SDL_GL_SwapBuffers();
+	
+	SDL_GL_SwapWindow(surf_display);
 
 	GLenum glError = glGetError();
 	if(glError != GL_NO_ERROR)
@@ -1253,15 +1256,7 @@ int Main::EventMainMenu(InputStates * inputHistory, int frame)
 			switch(objectManager->menuManager->GetCursorIndex())
 			{
 			case 0:
-				if(fullScreen)
-				{
-					SetFullScreen(false);
-				}
-				else
-				{
-					SetFullScreen(true);
-				}
-				SaveConfig();
+				ToggleFullScreen();
 				break;
 			case 1:
 				objectManager->menuManager->ToParent();
@@ -2088,10 +2083,10 @@ void Main::DefaultConfig()
 	mappings[1].keyDown = SDLK_DOWN;
 	mappings[1].keyLeft = SDLK_LEFT;
 	mappings[1].keyRight = SDLK_RIGHT;
-	mappings[1].keyJump = SDLK_KP5;
-	mappings[1].keyLight = SDLK_KP4;
-	mappings[1].keyHeavy = SDLK_KP1;
-	mappings[1].keyBlock = SDLK_KP6;
+	mappings[1].keyJump = SDLK_KP_5;
+	mappings[1].keyLight = SDLK_KP_4;
+	mappings[1].keyHeavy = SDLK_KP_1;
+	mappings[1].keyBlock = SDLK_KP_6;
 	mappings[1].keyStart = SDLK_KP_PLUS;
 	mappings[1].keyMenuConfirm = mappings[1].keyLight;
 	mappings[1].keyMenuBack = mappings[1].keyJump;
@@ -2285,7 +2280,7 @@ void Main::LoadPlayerConfig(XMLElement * config, int player)
 	}
 }
 
-bool Main::LoadToKeyConfig(string config, SDLKey * key)
+bool Main::LoadToKeyConfig(string config, SDL_Keycode * key)
 {
 	if(config == "a") { *key = SDLK_a; return true; }
 	else if(config == "b") { *key = SDLK_b; return true; }
@@ -2358,16 +2353,16 @@ bool Main::LoadToKeyConfig(string config, SDLKey * key)
 	else if(config == "underscore") { *key = SDLK_UNDERSCORE; return true; }
 	else if(config == "backquote") { *key = SDLK_BACKQUOTE; return true; }
 	else if(config == "delete") { *key = SDLK_DELETE; return true; }
-	else if(config == "numpad_0") { *key = SDLK_KP0; return true; }
-	else if(config == "numpad_1") { *key = SDLK_KP1; return true; }
-	else if(config == "numpad_2") { *key = SDLK_KP2; return true; }
-	else if(config == "numpad_3") { *key = SDLK_KP3; return true; }
-	else if(config == "numpad_4") { *key = SDLK_KP4; return true; }
-	else if(config == "numpad_5") { *key = SDLK_KP5; return true; }
-	else if(config == "numpad_6") { *key = SDLK_KP6; return true; }
-	else if(config == "numpad_7") { *key = SDLK_KP7; return true; }
-	else if(config == "numpad_8") { *key = SDLK_KP8; return true; }
-	else if(config == "numpad_9") { *key = SDLK_KP9; return true; }
+	else if(config == "numpad_0") { *key = SDLK_KP_0; return true; }
+	else if(config == "numpad_1") { *key = SDLK_KP_1; return true; }
+	else if(config == "numpad_2") { *key = SDLK_KP_2; return true; }
+	else if(config == "numpad_3") { *key = SDLK_KP_3; return true; }
+	else if(config == "numpad_4") { *key = SDLK_KP_4; return true; }
+	else if(config == "numpad_5") { *key = SDLK_KP_5; return true; }
+	else if(config == "numpad_6") { *key = SDLK_KP_6; return true; }
+	else if(config == "numpad_7") { *key = SDLK_KP_7; return true; }
+	else if(config == "numpad_8") { *key = SDLK_KP_8; return true; }
+	else if(config == "numpad_9") { *key = SDLK_KP_9; return true; }
 	else if(config == "numpad_period") { *key = SDLK_KP_PERIOD; return true; }
 	else if(config == "numpad_divide") { *key = SDLK_KP_DIVIDE; return true; }
 	else if(config == "numpad_multiply") { *key = SDLK_KP_MULTIPLY; return true; }
@@ -2675,7 +2670,7 @@ void Main::SetPlayerConfig(XMLElement * config, int player)
 	}
 }
 
-string Main::GetKeyConfigString(SDLKey key)
+string Main::GetKeyConfigString(SDL_Keycode key)
 {
 	switch(key)
 	{
@@ -2750,16 +2745,16 @@ string Main::GetKeyConfigString(SDLKey key)
 	case SDLK_y: return "y"; break;
 	case SDLK_z: return "z"; break;
 	case SDLK_DELETE: return "delete"; break;
-	case SDLK_KP0: return "numpad_0"; break;
-	case SDLK_KP1: return "numpad_1"; break;
-	case SDLK_KP2: return "numpad_2"; break;
-	case SDLK_KP3: return "numpad_3"; break;
-	case SDLK_KP4: return "numpad_4"; break;
-	case SDLK_KP5: return "numpad_5"; break;
-	case SDLK_KP6: return "numpad_6"; break;
-	case SDLK_KP7: return "numpad_7"; break;
-	case SDLK_KP8: return "numpad_8"; break;
-	case SDLK_KP9: return "numpad_9"; break;
+	case SDLK_KP_0: return "numpad_0"; break;
+	case SDLK_KP_1: return "numpad_1"; break;
+	case SDLK_KP_2: return "numpad_2"; break;
+	case SDLK_KP_3: return "numpad_3"; break;
+	case SDLK_KP_4: return "numpad_4"; break;
+	case SDLK_KP_5: return "numpad_5"; break;
+	case SDLK_KP_6: return "numpad_6"; break;
+	case SDLK_KP_7: return "numpad_7"; break;
+	case SDLK_KP_8: return "numpad_8"; break;
+	case SDLK_KP_9: return "numpad_9"; break;
 	case SDLK_KP_PERIOD: return "numpad_period"; break;
 	case SDLK_KP_DIVIDE: return "numpad_divide"; break;
 	case SDLK_KP_MULTIPLY: return "numpad_multiply"; break;
@@ -3164,44 +3159,15 @@ int Main::HandleEvent(SDL_Event* Event)
 {
     switch(Event->type) 
 	{
-        case SDL_ACTIVEEVENT: 
-		{
-            switch(Event->active.state) 
-			{
-                case SDL_APPMOUSEFOCUS: 
-				{
-                    if ( Event->active.gain )  MouseFocus();
-                    else               MouseBlur();
-
-                    break;
-                }
-                case SDL_APPINPUTFOCUS: 
-				{
-                    if ( Event->active.gain )  InputFocus();
-                    else               InputBlur();
-
-                    break;
-                }
-                case SDL_APPACTIVE: 
-				{
-                    if ( Event->active.gain )  Restore();
-                    else               Minimize();
-
-                    break;
-                }
-            }
-            break;
-        }
-
         case SDL_KEYDOWN: 
 		{
-			KeyDown(Event->key.keysym.sym,Event->key.keysym.mod,Event->key.keysym.unicode);
+			KeyDown(Event->key.keysym.sym);
             break;
         }
 
         case SDL_KEYUP: 
 		{
-			KeyUp(Event->key.keysym.sym,Event->key.keysym.mod,Event->key.keysym.unicode);
+			KeyUp(Event->key.keysym.sym);
             break;
         }
 
@@ -3298,18 +3264,6 @@ int Main::HandleEvent(SDL_Event* Event)
             break;
         }
 
-        case SDL_VIDEORESIZE: 
-		{
-			Resize(Event->resize.w,Event->resize.h);
-            break;
-        }
-
-        case SDL_VIDEOEXPOSE: 
-		{
-			Expose();
-            break;
-        }
-
         default: 
 		{
 			User(Event->user.type,Event->user.code,Event->user.data1,Event->user.data2);
@@ -3332,7 +3286,7 @@ void Main::InputBlur()
     
 }
 
-void Main::KeyDown(SDLKey sym, SDLMod mod, Uint16 unicode) 
+void Main::KeyDown(SDL_Keycode sym) 
 {
 	if(mainMenuState == INPUT_KEY || pauseMenuState == PAUSE_INPUT_KEY)
 	{
@@ -3602,7 +3556,7 @@ void Main::KeyDown(SDLKey sym, SDLMod mod, Uint16 unicode)
 	}
 }
 
-void Main::KeyUp(SDLKey sym, SDLMod mod, Uint16 unicode) 
+void Main::KeyUp(SDL_Keycode sym) 
 {
 	if(keyToSetUp > 0)
 	{
@@ -4358,7 +4312,39 @@ int Main::ToggleFullScreen()
 int Main::SetFullScreen(bool newFullScreen)
 {
 	fullScreen = newFullScreen;
+	SaveConfig();
 
+	SetBestGameResolution();
+
+	if(!fullScreen)
+	{
+		gameResolutionX = gameResolutionX / 2;
+		gameResolutionY = gameResolutionY / 2;
+		screenResolutionX = gameResolutionX;
+		screenResolutionY = gameResolutionY;
+	}
+
+	glViewport((screenResolutionX - gameResolutionX) / 2, (screenResolutionY - gameResolutionY) / 2, gameResolutionX, gameResolutionY);
+
+	resolutionScale = (float)gameResolutionX / (float)MAX_GAME_RESOLUTION_X;
+
+	if(fullScreen)
+	{
+		SDL_SetWindowSize(surf_display, screenResolutionX, screenResolutionY);
+		SDL_SetWindowFullscreen(surf_display, SDL_WINDOW_FULLSCREEN);
+	}
+	else
+	{
+		SDL_SetWindowFullscreen(surf_display, 0);
+		SDL_SetWindowSize(surf_display, screenResolutionX, screenResolutionY);
+	}
+	
+
+	return 0;
+}
+
+int Main::InitializeGraphics()
+{
 	if(objectManager->textureRegistry.size() > 0)
 	{
 		list<HSTexture*>::iterator trIt;
@@ -4434,23 +4420,31 @@ int Main::SetFullScreen(bool newFullScreen)
 
 	UpdateLog("Resolution set.", false);
 
-	int options = SDL_HWSURFACE | SDL_DOUBLEBUF | SDL_OPENGL;
+	int options = SDL_WINDOW_OPENGL;
 
 	if(!fullScreen)
 	{
+		gameResolutionX = gameResolutionX / 2;
+		gameResolutionY = gameResolutionY / 2;
 		screenResolutionX = gameResolutionX;
 		screenResolutionY = gameResolutionY;
 	}
 	else
 	{
-		options = options | SDL_FULLSCREEN;
+		options = options | SDL_WINDOW_FULLSCREEN;
 	}
 
-	if((surf_display = SDL_SetVideoMode(screenResolutionX, screenResolutionY, 32, options)) == NULL)
+	if((surf_display = SDL_CreateWindow("Homestrife",
+                          SDL_WINDOWPOS_CENTERED,
+                          SDL_WINDOWPOS_CENTERED,
+						  screenResolutionX,
+						  screenResolutionY,
+                          options)) == NULL)
 	{
 		UpdateLog("Error setting SDL video mode.", true);
 		return -1;
 	}
+	SDL_GL_CreateContext(surf_display);
 
 	UpdateLog("SDL video mode set.", false);
 
@@ -4478,7 +4472,7 @@ int Main::SetFullScreen(bool newFullScreen)
  
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glLoadIdentity();
-	SDL_GL_SwapBuffers();
+	SDL_GL_SwapWindow(surf_display);
 
 	//get the current opengl version
 	int glMajorVersion = 0;

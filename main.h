@@ -113,18 +113,18 @@ struct JoystickMapping
 struct InputMappings
 {
 	//keyboard key mappings
-	SDLKey keyUp;
-	SDLKey keyDown;
-	SDLKey keyLeft;
-	SDLKey keyRight;
-	SDLKey keyJump;
-	SDLKey keyBlock;
-	SDLKey keyLight;
-	SDLKey keyHeavy;
-	SDLKey keyStart;
-	SDLKey keySelect;
-	SDLKey keyMenuConfirm;
-	SDLKey keyMenuBack;
+	SDL_Keycode keyUp;
+	SDL_Keycode keyDown;
+	SDL_Keycode keyLeft;
+	SDL_Keycode keyRight;
+	SDL_Keycode keyJump;
+	SDL_Keycode keyBlock;
+	SDL_Keycode keyLight;
+	SDL_Keycode keyHeavy;
+	SDL_Keycode keyStart;
+	SDL_Keycode keySelect;
+	SDL_Keycode keyMenuConfirm;
+	SDL_Keycode keyMenuBack;
 
 	//joystick button mappings
 	JoystickMapping buttonUp;
@@ -208,7 +208,7 @@ protected:
 	int indexedTexLoc;
 	int paletteLoc;
 	bool notDone;
-	SDL_Surface* surf_display;
+	SDL_Window* surf_display;
 	int screenResolutionX;
 	int screenResolutionY;
 	int gameResolutionX;
@@ -284,14 +284,14 @@ protected:
 	void DefaultConfig();
 	int LoadConfig();
 	void LoadPlayerConfig(XMLElement * config, int player);
-	bool LoadToKeyConfig(string config, SDLKey * key);
+	bool LoadToKeyConfig(string config, SDL_Keycode * key);
 	bool LoadToJoyButtonConfig(string config, JoystickMapping * joyButton);
 	bool LoadToHatConfig(string config, Uint8 * hat);
 	bool LoadToStickConfig(string config, Uint8 * stick);
 
 	int SaveConfig();
 	void SetPlayerConfig(XMLElement * config, int player);
-	string GetKeyConfigString(SDLKey key);
+	string GetKeyConfigString(SDL_Keycode key);
 	string GetJoyButtonConfigString(JoystickMapping joyButton);
 	string GetHatConfigString(Uint8 hat);
 	string GetStickConfigString(Uint8 stick);
@@ -306,8 +306,8 @@ protected:
 	bool IsReleased(InputState * cur, InputState * prev);
     void InputFocus();
     void InputBlur();
-    void KeyDown(SDLKey sym, SDLMod mod, Uint16 unicode);
-    void KeyUp(SDLKey sym, SDLMod mod, Uint16 unicode);
+    void KeyDown(SDL_Keycode sym);
+    void KeyUp(SDL_Keycode sym);
     void MouseFocus();
     void MouseBlur();
     void MouseMove(int mX, int mY, int relX, int relY, bool Left,bool Right,bool Middle);
