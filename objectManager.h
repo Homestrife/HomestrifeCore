@@ -27,10 +27,16 @@ public:
 
 	unsigned int newObjectId;
 
-	bool gameObjectsNeedSort;
+	bool stageObjectsNeedSort;
+	bool BGSpawnedObjectsNeedSort;
+	bool fighterObjectsNeedSort;
+	bool FGSpawnedObjectsNeedSort;
 	bool HUDObjectsNeedSort;
-	list<HSObject*> gameObjects;
-	list<HSObject*> HUDObjects;
+	list<HSObject*> stageObjects; //for the background
+	list<HSObject*> BGSpawnedObjects; //for things spawned by the player characters, which go behind them
+	list<HSObject*> fighterObjects; //for the acutal player characters
+	list<HSObject*> FGSpawnedObjects; //for things spawned by the player characters, which go in front of them
+	list<HSObject*> HUDObjects; //for the HUD
 	list<HSTexture*> textureRegistry;
 	list<HSPalette*> paletteRegistry;
 	list<HSAudio*> audioRegistry;

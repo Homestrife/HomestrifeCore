@@ -4,9 +4,15 @@ list<CurrentAudioEntry*> currentAudio;
 
 ObjectManager::ObjectManager()
 {
-	gameObjectsNeedSort = false;
+	stageObjectsNeedSort = false;
+	BGSpawnedObjectsNeedSort = false;
+	fighterObjectsNeedSort = false;
+	FGSpawnedObjectsNeedSort = false;
 	HUDObjectsNeedSort = false;
-	gameObjects.clear();
+	stageObjects.clear();
+	BGSpawnedObjects.clear();
+	fighterObjects.clear();
+	FGSpawnedObjects.clear();
 	HUDObjects.clear();
 	textureRegistry.clear();
 	paletteRegistry.clear();
@@ -32,16 +38,10 @@ bool PaletteSort(PaletteInstance first, PaletteInstance second)
 
 void ObjectManager::SortAllObjects()
 {
-	if(gameObjectsNeedSort)
+	if(stageObjectsNeedSort)
 	{
-		gameObjects.sort(ObjectSort);
-		gameObjectsNeedSort = false;
-	}
-
-	if(HUDObjectsNeedSort)
-	{
-		HUDObjects.sort(ObjectSort);
-		HUDObjectsNeedSort = false;
+		stageObjects.sort(ObjectSort);
+		stageObjectsNeedSort = false;
 	}
 }
 
@@ -1148,13 +1148,9 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 
 			objects->push_back(newObject);
 
-			if(objects == &gameObjects)
+			if(objects == &stageObjects)
 			{
-				gameObjectsNeedSort = true;
-			}
-			else if(objects == &HUDObjects)
-			{
-				HUDObjectsNeedSort = true;
+				stageObjectsNeedSort = true;
 			}
 		}
 
@@ -1249,7 +1245,7 @@ int ObjectManager::LoadStage(string defFilePath)
 				HSObject * newObject;
 				const char * defFilePath = j->Attribute("defFilePath");
 
-				LoadDefinition(defFilePath, &gameObjects, &newObject);
+				LoadDefinition(defFilePath, &stageObjects, &newObject);
 
 				j->QueryFloatAttribute("posX", &(newObject->pos.x));
 				j->QueryFloatAttribute("posY", &(newObject->pos.y));
@@ -1852,13 +1848,9 @@ int ObjectManager::CloneObject(HSObject * objectToClone, list<HSObject*> * objec
 
 		objects->push_back(newObject);
 
-		if(objects == &gameObjects)
+		if(objects == &stageObjects)
 		{
-			gameObjectsNeedSort = true;
-		}
-		else if(objects == &HUDObjects)
-		{
-			HUDObjectsNeedSort = true;
+			stageObjectsNeedSort = true;
 		}
 	}
 
@@ -1875,12 +1867,33 @@ int ObjectManager::ClearAllObjects()
 	SDL_LockAudio();
 
 	list<HSObject*>::iterator objIt;
-	for ( objIt=gameObjects.begin(); objIt != gameObjects.end(); objIt++)
+	for ( objIt=stageObjects.begin(); objIt != stageObjects.end(); objIt++)
 	{
 		delete (*objIt);
 	}
 
-	gameObjects.clear();
+	stageObjects.clear();
+	
+	for ( objIt=BGSpawnedObjects.begin(); objIt != BGSpawnedObjects.end(); objIt++)
+	{
+		delete (*objIt);
+	}
+
+	BGSpawnedObjects.clear();
+	
+	for ( objIt=fighterObjects.begin(); objIt != fighterObjects.end(); objIt++)
+	{
+		delete (*objIt);
+	}
+
+	fighterObjects.clear();
+	
+	for ( objIt=FGSpawnedObjects.begin(); objIt != FGSpawnedObjects.end(); objIt++)
+	{
+		delete (*objIt);
+	}
+
+	FGSpawnedObjects.clear();
 	
 	for ( objIt=HUDObjects.begin(); objIt != HUDObjects.end(); objIt++)
 	{

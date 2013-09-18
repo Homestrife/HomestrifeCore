@@ -237,7 +237,9 @@ protected:
 	int Render();
 	int RenderTexture(HSObject * obj, TextureInstance tex); 
 	int PlayAudio();
+	int PlayAudio(list<HSObject*> * objects);
 	int DeleteObjects();
+	int DeleteObjects(list<HSObject*> * objects);
 	int Cleanup();
 
 	//state handling

@@ -337,7 +337,31 @@ int Main::Update()
 
 	if(gameState == MATCH && matchState != IN_PROGRESS) { return 0; }
 
-	for ( objIt=objectManager->gameObjects.begin(); objIt != objectManager->gameObjects.end(); objIt++)
+	for ( objIt=objectManager->stageObjects.begin(); objIt != objectManager->stageObjects.end(); objIt++)
+	{
+		if(int error = (*objIt)->Update() != 0)
+		{
+			return error; //there was an error updating the object
+		}
+	}
+
+	for ( objIt=objectManager->BGSpawnedObjects.begin(); objIt != objectManager->BGSpawnedObjects.end(); objIt++)
+	{
+		if(int error = (*objIt)->Update() != 0)
+		{
+			return error; //there was an error updating the object
+		}
+	}
+
+	for ( objIt=objectManager->fighterObjects.begin(); objIt != objectManager->fighterObjects.end(); objIt++)
+	{
+		if(int error = (*objIt)->Update() != 0)
+		{
+			return error; //there was an error updating the object
+		}
+	}
+
+	for ( objIt=objectManager->FGSpawnedObjects.begin(); objIt != objectManager->FGSpawnedObjects.end(); objIt++)
 	{
 		if(int error = (*objIt)->Update() != 0)
 		{
@@ -353,43 +377,81 @@ int Main::Collide()
 	if(gameState == MATCH && matchState != IN_PROGRESS) { return 0; }
 
 	//first handle terrain collisions
-	list<HSObject*>::iterator objIt = objectManager->gameObjects.begin();
-	for ( objIt=objectManager->gameObjects.begin(); objIt != objectManager->gameObjects.end(); objIt++)
+	list<HSObject*>::iterator objIt = objectManager->BGSpawnedObjects.begin();
+	for ( objIt=objectManager->BGSpawnedObjects.begin(); objIt != objectManager->BGSpawnedObjects.end(); objIt++)
 	{
-		//pass the location of the list of game objects into each object's CollideTerrain function
-		if(int error = (*objIt)->CollideTerrain(&objectManager->gameObjects) != 0)
-		{
-			return error; //there was an error doing terrain collisions
-		}
+		if(int error = (*objIt)->CollideTerrain(&objectManager->stageObjects) != 0) { return error; }
+	}
+
+	for ( objIt=objectManager->fighterObjects.begin(); objIt != objectManager->fighterObjects.end(); objIt++)
+	{
+		if(int error = (*objIt)->CollideTerrain(&objectManager->stageObjects) != 0) { return error; }
+	}
+
+	for ( objIt=objectManager->FGSpawnedObjects.begin(); objIt != objectManager->FGSpawnedObjects.end(); objIt++)
+	{
+		if(int error = (*objIt)->CollideTerrain(&objectManager->stageObjects) != 0) { return error; }
 	}
 
 	//next, handle collisions between fighter terrain boxes
-	for (objIt=objectManager->gameObjects.begin(); objIt != objectManager->gameObjects.end(); objIt++)
+	for (objIt=objectManager->fighterObjects.begin(); objIt != objectManager->fighterObjects.end(); objIt++)
 	{
 		if((*objIt)->IsFighter())
 		{
-			if(int error = ((Fighter*)*objIt)->CollideFighters(&objectManager->gameObjects) != 0)
-			{
-				return error; //there was an error doing terrain collisions
-			}
+			if(int error = ((Fighter*)*objIt)->CollideFighters(&objectManager->fighterObjects) != 0) { return error; }
 		}
 	}
 	
 	//now, handle all attack/hurt box collision
-	for ( objIt=objectManager->gameObjects.begin(); objIt != objectManager->gameObjects.end(); objIt++)
+	for ( objIt=objectManager->stageObjects.begin(); objIt != objectManager->stageObjects.end(); objIt++)
 	{
-		//pass the location of the list of game objects into each object's CollideAttack function
-		if(int error = (*objIt)->CollideAttack(&objectManager->gameObjects) != 0)
-		{
-			return error; //there was an error doing Hit/Hurt collisions
-		}
+		if(int error = (*objIt)->CollideAttack(&objectManager->stageObjects) != 0) { return error; }
+		if(int error = (*objIt)->CollideAttack(&objectManager->BGSpawnedObjects) != 0) { return error; }
+		if(int error = (*objIt)->CollideAttack(&objectManager->fighterObjects) != 0) { return error; }
+		if(int error = (*objIt)->CollideAttack(&objectManager->FGSpawnedObjects) != 0) { return error; }
+	}
+	for ( objIt=objectManager->BGSpawnedObjects.begin(); objIt != objectManager->BGSpawnedObjects.end(); objIt++)
+	{
+		if(int error = (*objIt)->CollideAttack(&objectManager->stageObjects) != 0) { return error; }
+		if(int error = (*objIt)->CollideAttack(&objectManager->BGSpawnedObjects) != 0) { return error; }
+		if(int error = (*objIt)->CollideAttack(&objectManager->fighterObjects) != 0) { return error; }
+		if(int error = (*objIt)->CollideAttack(&objectManager->FGSpawnedObjects) != 0) { return error; }
+	}
+	for ( objIt=objectManager->fighterObjects.begin(); objIt != objectManager->fighterObjects.end(); objIt++)
+	{
+		if(int error = (*objIt)->CollideAttack(&objectManager->stageObjects) != 0) { return error; }
+		if(int error = (*objIt)->CollideAttack(&objectManager->BGSpawnedObjects) != 0) { return error; }
+		if(int error = (*objIt)->CollideAttack(&objectManager->fighterObjects) != 0) { return error; }
+		if(int error = (*objIt)->CollideAttack(&objectManager->FGSpawnedObjects) != 0) { return error; }
+	}
+	for ( objIt=objectManager->FGSpawnedObjects.begin(); objIt != objectManager->FGSpawnedObjects.end(); objIt++)
+	{
+		if(int error = (*objIt)->CollideAttack(&objectManager->stageObjects) != 0) { return error; }
+		if(int error = (*objIt)->CollideAttack(&objectManager->BGSpawnedObjects) != 0) { return error; }
+		if(int error = (*objIt)->CollideAttack(&objectManager->fighterObjects) != 0) { return error; }
+		if(int error = (*objIt)->CollideAttack(&objectManager->FGSpawnedObjects) != 0) { return error; }
 	}
 
 	//finally, apply all the results of the attack collision phase
-	for ( objIt=objectManager->gameObjects.begin(); objIt != objectManager->gameObjects.end(); objIt++)
+	for ( objIt=objectManager->stageObjects.begin(); objIt != objectManager->stageObjects.end(); objIt++) { (*objIt)->ApplyAttackResults(); }
+	for ( objIt=objectManager->BGSpawnedObjects.begin(); objIt != objectManager->BGSpawnedObjects.end(); objIt++) { (*objIt)->ApplyAttackResults(); }
+	list<HSObject*> fightersToBack;
+	for ( objIt=objectManager->fighterObjects.begin(); objIt != objectManager->fighterObjects.end(); objIt++)
 	{
+		//save objectst that hit something this frame
+		if((*objIt)->IsTerrainObject() && ((TerrainObject*)(*objIt))->attackResults.didStrike)
+		{
+			fightersToBack.push_back((*objIt));
+		}
 		(*objIt)->ApplyAttackResults();
 	}
+	//move objects that hit something this frame to the back of the list
+	for ( objIt=fightersToBack.begin(); objIt != fightersToBack.end(); objIt++)
+	{
+		objectManager->fighterObjects.remove((*objIt));
+		objectManager->fighterObjects.push_back((*objIt));
+	}
+	for ( objIt=objectManager->FGSpawnedObjects.begin(); objIt != objectManager->FGSpawnedObjects.end(); objIt++) { (*objIt)->ApplyAttackResults(); }
 
 	if(gameState == MATCH)
 	{
@@ -402,14 +464,44 @@ int Main::Collide()
 int Main::SpawnObjects()
 {
 	list<HSObject*>::iterator objIt;
-	for ( objIt=objectManager->gameObjects.begin(); objIt != objectManager->gameObjects.end(); objIt++)
+	for ( objIt=objectManager->stageObjects.begin(); objIt != objectManager->stageObjects.end(); objIt++)
 	{
 		list<SpawnObject*> spawnObjects = (*objIt)->GetSpawnObjects();
 
 		list<SpawnObject*>::iterator spawnIt;
 		for(spawnIt = spawnObjects.begin(); spawnIt != spawnObjects.end(); spawnIt++)
 		{
-			objectManager->CloneObject((*spawnIt), &objectManager->gameObjects);
+			objectManager->CloneObject((*spawnIt), &objectManager->FGSpawnedObjects);
+		}
+	}
+	for ( objIt=objectManager->BGSpawnedObjects.begin(); objIt != objectManager->BGSpawnedObjects.end(); objIt++)
+	{
+		list<SpawnObject*> spawnObjects = (*objIt)->GetSpawnObjects();
+
+		list<SpawnObject*>::iterator spawnIt;
+		for(spawnIt = spawnObjects.begin(); spawnIt != spawnObjects.end(); spawnIt++)
+		{
+			objectManager->CloneObject((*spawnIt), &objectManager->FGSpawnedObjects);
+		}
+	}
+	for ( objIt=objectManager->fighterObjects.begin(); objIt != objectManager->fighterObjects.end(); objIt++)
+	{
+		list<SpawnObject*> spawnObjects = (*objIt)->GetSpawnObjects();
+
+		list<SpawnObject*>::iterator spawnIt;
+		for(spawnIt = spawnObjects.begin(); spawnIt != spawnObjects.end(); spawnIt++)
+		{
+			objectManager->CloneObject((*spawnIt), &objectManager->FGSpawnedObjects);
+		}
+	}
+	for ( objIt=objectManager->FGSpawnedObjects.begin(); objIt != objectManager->FGSpawnedObjects.end(); objIt++)
+	{
+		list<SpawnObject*> spawnObjects = (*objIt)->GetSpawnObjects();
+
+		list<SpawnObject*>::iterator spawnIt;
+		for(spawnIt = spawnObjects.begin(); spawnIt != spawnObjects.end(); spawnIt++)
+		{
+			objectManager->CloneObject((*spawnIt), &objectManager->FGSpawnedObjects);
 		}
 	}
 
@@ -575,7 +667,37 @@ int Main::Render()
 	//glEnableClientState(GL_INDEX_ARRAY);
 
 	list<HSObject*>::iterator objIt;
-	for ( objIt=objectManager->gameObjects.begin(); objIt != objectManager->gameObjects.end(); objIt++)
+	for ( objIt=objectManager->stageObjects.begin(); objIt != objectManager->stageObjects.end(); objIt++)
+	{
+		if(!(*objIt)->visible) { continue; }
+
+		list<TextureInstance>::iterator texIt;
+		for ( texIt=(*objIt)->curHold->textures.begin(); texIt != (*objIt)->curHold->textures.end(); texIt++)
+		{
+			RenderTexture((*objIt), (*texIt));
+		}
+	}
+	for ( objIt=objectManager->BGSpawnedObjects.begin(); objIt != objectManager->BGSpawnedObjects.end(); objIt++)
+	{
+		if(!(*objIt)->visible) { continue; }
+
+		list<TextureInstance>::iterator texIt;
+		for ( texIt=(*objIt)->curHold->textures.begin(); texIt != (*objIt)->curHold->textures.end(); texIt++)
+		{
+			RenderTexture((*objIt), (*texIt));
+		}
+	}
+	for ( objIt=objectManager->fighterObjects.begin(); objIt != objectManager->fighterObjects.end(); objIt++)
+	{
+		if(!(*objIt)->visible) { continue; }
+
+		list<TextureInstance>::iterator texIt;
+		for ( texIt=(*objIt)->curHold->textures.begin(); texIt != (*objIt)->curHold->textures.end(); texIt++)
+		{
+			RenderTexture((*objIt), (*texIt));
+		}
+	}
+	for ( objIt=objectManager->FGSpawnedObjects.begin(); objIt != objectManager->FGSpawnedObjects.end(); objIt++)
 	{
 		if(!(*objIt)->visible) { continue; }
 
@@ -756,8 +878,18 @@ int Main::PlayAudio()
 {
 	if(gameState == MATCH && matchState != IN_PROGRESS) { return 0; }
 
+	PlayAudio(&objectManager->stageObjects);
+	PlayAudio(&objectManager->BGSpawnedObjects);
+	PlayAudio(&objectManager->fighterObjects);
+	PlayAudio(&objectManager->FGSpawnedObjects);
+
+	return 0;
+}
+
+int Main::PlayAudio(list<HSObject*> * objects)
+{
 	list<HSObject*>::iterator objIt;
-	for ( objIt=objectManager->gameObjects.begin(); objIt != objectManager->gameObjects.end(); objIt++)
+	for ( objIt=objects->begin(); objIt != objects->end(); objIt++)
 	{
 		list<AudioInstance*> audio = (*objIt)->GetAudio();
 
@@ -803,13 +935,23 @@ int Main::PlayAudio()
 
 int Main::DeleteObjects()
 {
-	list<HSObject*>::iterator objIt = objectManager->gameObjects.begin();
-	while (objIt != objectManager->gameObjects.end())
+	DeleteObjects(&objectManager->stageObjects);
+	DeleteObjects(&objectManager->BGSpawnedObjects);
+	DeleteObjects(&objectManager->fighterObjects);
+	DeleteObjects(&objectManager->FGSpawnedObjects);
+
+	return 0;
+}
+
+int Main::DeleteObjects(list<HSObject*> * objects)
+{
+	list<HSObject*>::iterator objIt = objects->begin();
+	while (objIt != objects->end())
 	{
 		if((*objIt)->toDelete)
 		{
 			objectManager->ClearSpecificObject(*objIt);
-			objIt = objectManager->gameObjects.erase(objIt);
+			objIt = objects->erase(objIt);
 		}
 		else
 		{
@@ -1350,7 +1492,7 @@ int Main::InitializeCharacterSelect()
 {
 	//demo characters
 	HSObject * newObject;
-	if(int error = objectManager->LoadDefinition("data\\characters\\john\\johnEgbertDemo.xml", &objectManager->gameObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data\\characters\\john\\johnEgbertDemo.xml", &objectManager->fighterObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = CHAR_SELECT_PLAYER_ONE_POS_X;
 	newObject->pos.y = CHAR_SELECT_PLAYER_POS_Y;
 	objectManager->focusObjectOne = newObject;
@@ -1358,7 +1500,7 @@ int Main::InitializeCharacterSelect()
 	selectedCharacters[0] = "data\\characters\\john\\John Egbert.xml";
 	selectedPalettes[0] = objectManager->players[0]->GetPalette();
 
-	if(int error = objectManager->LoadDefinition("data\\characters\\john\\johnEgbertDemo.xml", &objectManager->gameObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data\\characters\\john\\johnEgbertDemo.xml", &objectManager->fighterObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = CHAR_SELECT_PLAYER_TWO_POS_X;
 	newObject->pos.y = CHAR_SELECT_PLAYER_POS_Y;
 	newObject->hFlip = true;
@@ -1579,7 +1721,7 @@ int Main::InitializeMatch()
 
 	//load characters
 	HSObject * fighterOne;
-	if(int error = objectManager->LoadDefinition(selectedCharacters[0], &objectManager->gameObjects, &fighterOne) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition(selectedCharacters[0], &objectManager->fighterObjects, &fighterOne) != 0) { return error; }
 	fighterOne->pos.x = objectManager->spawnPoints[0].x;
 	fighterOne->pos.y = objectManager->spawnPoints[0].y;
 	objectManager->players[0] = fighterOne;
@@ -1590,7 +1732,7 @@ int Main::InitializeMatch()
 	objectManager->focusObjectOne = fighterOne;
 	
 	HSObject * fighterTwo;
-	if(int error = objectManager->LoadDefinition(selectedCharacters[1], &objectManager->gameObjects, &fighterTwo) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition(selectedCharacters[1], &objectManager->fighterObjects, &fighterTwo) != 0) { return error; }
 	fighterTwo->pos.x = objectManager->spawnPoints[1].x;
 	fighterTwo->pos.y = objectManager->spawnPoints[1].y;
 	objectManager->players[1] = fighterTwo;
@@ -2931,12 +3073,21 @@ int Main::AdvanceHolds()
 
 	if(gameState == MATCH && matchState != IN_PROGRESS) { return 0; }
 
-	for ( objIt=objectManager->gameObjects.begin(); objIt != objectManager->gameObjects.end(); objIt++)
+	for ( objIt=objectManager->stageObjects.begin(); objIt != objectManager->stageObjects.end(); objIt++)
 	{
-		if(int error = (*objIt)->AdvanceHolds() != 0)
-		{
-			return error; //there was an error advancing holds
-		}
+		if(int error = (*objIt)->AdvanceHolds() != 0) { return error; }
+	}
+	for ( objIt=objectManager->BGSpawnedObjects.begin(); objIt != objectManager->BGSpawnedObjects.end(); objIt++)
+	{
+		if(int error = (*objIt)->AdvanceHolds() != 0) { return error; }
+	}
+	for ( objIt=objectManager->fighterObjects.begin(); objIt != objectManager->fighterObjects.end(); objIt++)
+	{
+		if(int error = (*objIt)->AdvanceHolds() != 0) { return error; }
+	}
+	for ( objIt=objectManager->FGSpawnedObjects.begin(); objIt != objectManager->FGSpawnedObjects.end(); objIt++)
+	{
+		if(int error = (*objIt)->AdvanceHolds() != 0) { return error; }
 	}
 
 	return 0;
