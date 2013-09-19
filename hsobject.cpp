@@ -116,6 +116,11 @@ HSObject::HSObject()
 	prevVel.y = 0;
 	depth = 0;
 	hsObjectEventHolds.lifetimeDeath = NULL;
+	reposition.x;
+	reposition.y;
+	overwriteVelocity = false;
+	holdVelocity.x = 0;
+	holdVelocity.y = 0;
 
 	objectsSpawned = false;
 	audioPlayed = false;
@@ -263,6 +268,10 @@ int HSObject::Update()
 	prevPos.x = pos.x;
 	prevPos.y = pos.y;
 
+	//save the current velocity
+	prevVel.x = vel.x;
+	prevVel.y = vel.y;
+
 	//reposition from the hold
 	pos.x += reposition.x;
 	pos.y += reposition.y;
@@ -277,12 +286,20 @@ int HSObject::Update()
 		pos.y += parent->pos.y - parent->prevPos.y;
 	}
 
+	//overwrite velocity
+	if(overwriteVelocity)
+	{
+		vel.x = holdVelocity.x;
+		vel.y = holdVelocity.y;
+	}
+
+	overwriteVelocity = false;
+	holdVelocity.x = 0;
+	holdVelocity.y = 0;
+
 	//move according to velocity
 	pos.x += vel.x;
 	pos.y += vel.y;
-
-	prevVel.x = vel.x;
-	prevVel.y = vel.y;
 
 	//handle lifetime
 	if(lifetime > 0)
@@ -309,11 +326,8 @@ bool HSObject::ChangeHold(HSObjectHold* hold)
 	}
 
 	reposition = curHold->reposition;
-	if(curHold->overwriteVelocity)
-	{
-		vel.x = curHold->velocity.x;
-		vel.y = curHold->velocity.y;
-	}
+	overwriteVelocity = curHold->overwriteVelocity;
+	holdVelocity = curHold->velocity;
 
 	return result;
 }

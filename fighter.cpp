@@ -1215,6 +1215,20 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 
 int Fighter::Update()
 {
+	//apply facing to reposition
+	reposition.x += reposition.x * facing;
+
+	//apply facing to overwrite velocity
+	if(overwriteVelocity)
+	{
+		holdVelocity.x = holdVelocity.x * facing;
+
+		if(vel.x != 0 && (state == STANDING || state == CROUCHING || (state == JUMPING && jumpStartup) || state == KNOCKOUT))
+		{
+			sliding = true;
+		}
+	}
+
 	//apply push
 	HSVectComp prevVelX = vel.x;
 	vel.x += fighterPushXAccel;
@@ -2520,6 +2534,7 @@ HSObjectHold * Fighter::GetDefaultHold()
 	wasBlocked = false;
 	inComboString = false;
 	curAttackAction = NO_ATTACK_ACTION;
+	ignoreGravity = false;
 
 	if(state == KNOCKOUT_AIR)
 	{

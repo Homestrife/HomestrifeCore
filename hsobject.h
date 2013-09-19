@@ -189,6 +189,8 @@ public:
 	HSVect2D prevVel; //the object's previous velocity
 	int depth; //how far into the background (positive) or forground (negative) the object should be considered. effects zoom and parallax
 	HSVect2D reposition; //a shifting of position to be applied during the update phase
+	bool overwriteVelocity; //whether or not to overwrite the current velocity with the value in the below variable
+	HSVect2D holdVelocity; //velocity to apply in the update phase, if the above boolean is true
 
 	//the holds this object moves to upon particular events
 	HSObjectEventHolds hsObjectEventHolds;
