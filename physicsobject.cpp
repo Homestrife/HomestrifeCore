@@ -8,6 +8,9 @@ float gravity = 4;
 
 PhysicsObjectHold::PhysicsObjectHold() : TerrainObjectHold()
 {
+	changePhysicsAttributes = false;
+
+	ignoreGravity = false;
 }
 
 PhysicsObjectHold::~PhysicsObjectHold()
@@ -29,6 +32,7 @@ PhysicsObject::PhysicsObject() : TerrainObject()
 	curHealth = 0;
 	mass = 0;
 	falls = true;
+	ignoreGravity = false;
 	maxFallSpeed = 100;
 	ignoreJumpThroughTerrain = false;
 	takesTerrainDamage = false;
@@ -57,7 +61,7 @@ int PhysicsObject::Update()
 	if(int error = TerrainObject::Update() != 0) { return error; } //there was an error in the base update
 
 	//apply gravity
-	if(falls)
+	if(falls && !ignoreGravity)
 	{
 		vel.y += gravity;
 		if(vel.y > maxFallSpeed)
@@ -67,6 +71,30 @@ int PhysicsObject::Update()
 	}
 
 	return 0;
+}
+
+bool PhysicsObject::ChangeHold(HSObjectHold * hold)
+{
+	if(TerrainObject::ChangeHold(hold))
+	{
+		PhysicsObjectHold * phHold = (PhysicsObjectHold*)curHold;
+
+		if(phHold->changePhysicsAttributes)
+		{
+			ignoreGravity = phHold->ignoreGravity;
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+HSObjectHold * PhysicsObject::GetDefaultHold()
+{
+	ignoreGravity = false;
+
+	return TerrainObject::GetDefaultHold();
 }
 
 HSVect2D PhysicsObject::GetLeftHypotenusePoint(HSVect2D * boxPos, HSBox * box)

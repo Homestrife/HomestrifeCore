@@ -2482,7 +2482,7 @@ bool Fighter::IsFighter()
 
 bool Fighter::ChangeHold(HSObjectHold* hold)
 {
-	if(TerrainObject::ChangeHold(hold))
+	if(PhysicsObject::ChangeHold(hold))
 	{
 		FighterHold * fHold = (FighterHold*)curHold;
 
@@ -2623,7 +2623,7 @@ HSObjectHold * Fighter::GetDefaultHold()
 	}
 
 	//default to whatever the base class does
-	return TerrainObject::GetDefaultHold();
+	return PhysicsObject::GetDefaultHold();
 }
 
 void Fighter::GroundAttackExecuted()

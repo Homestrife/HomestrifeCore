@@ -51,6 +51,11 @@ HSObjectHold::HSObjectHold()
 	spawnObjects.clear();
 	nextHold = NULL;
 	nextListHold = NULL;
+	reposition.x = 0;
+	reposition.y = 0;
+	overwriteVelocity = false;
+	velocity.x = 0;
+	velocity.y = 0;
 
 	duration = 0;
 }
@@ -258,6 +263,13 @@ int HSObject::Update()
 	prevPos.x = pos.x;
 	prevPos.y = pos.y;
 
+	//reposition from the hold
+	pos.x += reposition.x;
+	pos.y += reposition.y;
+
+	reposition.x = 0;
+	reposition.y = 0;
+
 	//move according to parent, if applicable
 	if(parent != NULL && followParent)
 	{
@@ -287,15 +299,23 @@ int HSObject::Update()
 
 bool HSObject::ChangeHold(HSObjectHold* hold)
 {
+	bool result = true;
 	holdTime = 0;
 	curHold = hold;
 	if(curHold == NULL)
 	{
 		curHold = GetDefaultHold();
-		return false;
+		result = false;
 	}
 
-	return true;
+	reposition = curHold->reposition;
+	if(curHold->overwriteVelocity)
+	{
+		vel.x = curHold->velocity.x;
+		vel.y = curHold->velocity.y;
+	}
+
+	return result;
 }
 
 HSObjectHold * HSObject::GetDefaultHold()

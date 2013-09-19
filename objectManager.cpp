@@ -1343,7 +1343,6 @@ int ObjectManager::CloneObject(HSObject * objectToClone, list<HSObject*> * objec
 	newObject->pos.y = objectToClone->parent->pos.y;
 	newObject->prevPos.x = newObject->pos.x;
 	newObject->prevPos.y = newObject->pos.y;
-	newObject->ChangeHold(newObject->firstHold);
 	newObject->parent = objectToClone->parent;
 
 	//get all the input object's variables

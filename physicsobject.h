@@ -24,6 +24,10 @@ public:
 	PhysicsObjectHold();
 	~PhysicsObjectHold();
 
+	bool changePhysicsAttributes;
+
+	bool ignoreGravity;
+
 	virtual bool IsPhysicsObjectHold();
 
 protected:
@@ -35,9 +39,10 @@ public:
 	//the complete mass of this object
 	HSVectComp mass;
 
-	//whether or not this object is affected by gravity
+	//whether or not this object is affected by gravity, as set internally
 	bool falls;
 	float maxFallSpeed;
+	bool ignoreGravity; //whether or not this object is affected by gravity, as set by changing to a hold
 
 	//whether or not this object falls through jump-through terrain when its falling downward
 	bool ignoreJumpThroughTerrain;
@@ -52,8 +57,12 @@ public:
 	virtual bool IsTerrain();
 	virtual bool IsTerrainObject();
 	virtual bool IsPhysicsObject();
+	
+	virtual bool ChangeHold(HSObjectHold * hold);
 
 protected:
+	virtual HSObjectHold * GetDefaultHold();
+
 	//Gets a corner point from a triangle
 	HSVect2D GetLeftHypotenusePoint(HSVect2D * boxPos, HSBox * box);
 	HSVect2D GetRightHypotenusePoint(HSVect2D * boxPos, HSBox * box);
