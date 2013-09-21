@@ -1637,7 +1637,6 @@ int Main::EventCharacterSelect(InputStates * inputHistory, int frame, int player
 				if(objectManager->players[player] != NULL)
 				{
 					objectManager->players[player]->PrevPalette();
-					selectedPalettes[player] = objectManager->players[player]->GetPalette();
 				}
 				break;
 			case READY:
@@ -1657,7 +1656,6 @@ int Main::EventCharacterSelect(InputStates * inputHistory, int frame, int player
 				if(objectManager->players[player] != NULL)
 				{
 					objectManager->players[player]->NextPalette();
-					selectedPalettes[player] = objectManager->players[player]->GetPalette();
 				}
 				break;
 			case READY:
@@ -1675,8 +1673,26 @@ int Main::EventCharacterSelect(InputStates * inputHistory, int frame, int player
 			switch(characterSelectPlayerState[player])
 			{
 			case SELECTING_PALETTE:
-				ChangeCharacterSelectPlayerState(READY, player);
-				break;
+				{
+					selectedPalettes[player] = objectManager->players[player]->GetPalette();
+					bool searchFailed = true;
+					while(searchFailed)
+					{
+						searchFailed = false;
+						for(int i = 0; i < MAX_PLAYERS; i++)
+						{
+							if(i != player && characterSelectPlayerState[i] == READY && selectedCharacters[player] == selectedCharacters[i] && selectedPalettes[player] == selectedPalettes[i])
+							{
+								objectManager->players[player]->NextPalette();
+								selectedPalettes[player] = objectManager->players[player]->GetPalette();
+								searchFailed = true;
+								break;
+							}
+						}
+					}
+					ChangeCharacterSelectPlayerState(READY, player);
+					break;
+				}
 			case READY:
 				break;
 			}
@@ -1737,7 +1753,6 @@ int Main::InitializeMatch()
 	fighterTwo->pos.y = objectManager->spawnPoints[1].y;
 	objectManager->players[1] = fighterTwo;
 	fighterTwo->SetPalette(selectedPalettes[1]);
-	if(selectedCharacters[1] == selectedCharacters[0] && selectedPalettes[1] == selectedPalettes[0]) { fighterTwo->NextPalette(); }
 	((Fighter*)fighterTwo)->state = STANDING;
 	((Fighter*)fighterTwo)->facing = LEFT;
 	((Fighter*)fighterTwo)->curHealth = ((Fighter*)fighterTwo)->health;
