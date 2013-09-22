@@ -2195,6 +2195,8 @@ void Fighter::ApplyAttackResults()
 	if(health > 0)
 	{
 		curHealth -= attackResults.damage;
+
+		if(attackResults.blockstun > 0 && curHealth < 1) { curHealth = 1; } //can't die from chip damage
 	
 		if(curHealth <= 0)
 		{
@@ -2375,6 +2377,7 @@ void Fighter::HandleHurtCollision(TerrainObject * attacker)
 		(attacker->blockability == HIGH && state == STANDING && blocking) ||
 		(attacker->blockability == LOW && state == CROUCHING && blocking)))
 	{
+		attackResults.damage += attacker->damage / 10;
 		attackResults.hitstop = attacker->victimHitstop;
 		attackResults.blockstun = attacker->blockstun;
 		attackResults.force.x = attacker->force.x;
