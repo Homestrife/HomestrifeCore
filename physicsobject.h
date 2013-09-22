@@ -58,6 +58,7 @@ public:
 	virtual bool IsTerrainObject();
 	virtual bool IsPhysicsObject();
 	
+	virtual bool AdvanceHold(HSObjectHold * hold);
 	virtual bool ChangeHold(HSObjectHold * hold);
 
 protected:

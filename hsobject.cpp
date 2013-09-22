@@ -250,7 +250,7 @@ int HSObject::AdvanceHolds()
 		holdTime++;
 		if(holdTime >= curHold->duration)
 		{
-			ChangeHold(curHold->nextHold);
+			AdvanceHold(curHold->nextHold);
 		}
 	}
 
@@ -314,7 +314,7 @@ int HSObject::Update()
 	return 0;
 }
 
-bool HSObject::ChangeHold(HSObjectHold* hold)
+bool HSObject::AdvanceHold(HSObjectHold* hold)
 {
 	bool result = true;
 	holdTime = 0;
@@ -330,6 +330,11 @@ bool HSObject::ChangeHold(HSObjectHold* hold)
 	holdVelocity = curHold->velocity;
 
 	return result;
+}
+
+bool HSObject::ChangeHold(HSObjectHold* hold)
+{
+	return AdvanceHold(hold);
 }
 
 HSObjectHold * HSObject::GetDefaultHold()

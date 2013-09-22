@@ -2494,9 +2494,9 @@ bool Fighter::IsFighter()
 	return true;
 }
 
-bool Fighter::ChangeHold(HSObjectHold* hold)
+bool Fighter::AdvanceHold(HSObjectHold* hold)
 {
-	if(PhysicsObject::ChangeHold(hold))
+	if(PhysicsObject::AdvanceHold(hold))
 	{
 		FighterHold * fHold = (FighterHold*)curHold;
 
@@ -2509,6 +2509,11 @@ bool Fighter::ChangeHold(HSObjectHold* hold)
 	}
 
 	return false;
+}
+
+bool Fighter::ChangeHold(HSObjectHold* hold)
+{
+	return PhysicsObject::ChangeHold(hold);
 }
 
 HSObjectHold * Fighter::GetDefaultHold()

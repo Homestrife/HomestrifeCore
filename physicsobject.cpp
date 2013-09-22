@@ -73,9 +73,9 @@ int PhysicsObject::Update()
 	return 0;
 }
 
-bool PhysicsObject::ChangeHold(HSObjectHold * hold)
+bool PhysicsObject::AdvanceHold(HSObjectHold * hold)
 {
-	if(TerrainObject::ChangeHold(hold))
+	if(TerrainObject::AdvanceHold(hold))
 	{
 		PhysicsObjectHold * phHold = (PhysicsObjectHold*)curHold;
 
@@ -88,6 +88,13 @@ bool PhysicsObject::ChangeHold(HSObjectHold * hold)
 	}
 
 	return false;
+}
+
+bool PhysicsObject::ChangeHold(HSObjectHold * hold)
+{
+	ignoreGravity = false;
+
+	return TerrainObject::ChangeHold(hold);
 }
 
 HSObjectHold * PhysicsObject::GetDefaultHold()

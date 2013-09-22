@@ -161,6 +161,7 @@ public:
 	virtual bool IsTerrain();
 	virtual bool IsTerrainObject();
 	
+	virtual bool AdvanceHold(HSObjectHold * hold);
 	virtual bool ChangeHold(HSObjectHold * hold);
 
 protected:

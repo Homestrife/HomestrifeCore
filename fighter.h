@@ -392,6 +392,7 @@ public:
 	bool BackwardHardPressed(InputStates * inputHistory, int untilFrame, int sinceFrame);
 	bool QCFInput(InputStates * inputHistory, int untilFrame, int sinceFrame);
 	
+	virtual bool AdvanceHold(HSObjectHold * hold);
 	virtual bool ChangeHold(HSObjectHold * hold);
 
 protected:

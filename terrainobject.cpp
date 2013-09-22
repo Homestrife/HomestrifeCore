@@ -111,9 +111,9 @@ int TerrainObject::Update()
 	return HSObject::Update();
 }
 
-bool TerrainObject::ChangeHold(HSObjectHold* hold)
+bool TerrainObject::AdvanceHold(HSObjectHold* hold)
 {
-	if(HSObject::ChangeHold(hold))
+	if(HSObject::AdvanceHold(hold))
 	{
 		//we can be confident that this is actually a TerrainObjectHold
 		TerrainObjectHold * tHold = (TerrainObjectHold*)curHold;
@@ -143,6 +143,11 @@ bool TerrainObject::ChangeHold(HSObjectHold* hold)
 	}
 	
 	return false;
+}
+
+bool TerrainObject::ChangeHold(HSObjectHold * hold)
+{
+	return HSObject::ChangeHold(hold);
 }
 
 HSObjectHold * TerrainObject::GetDefaultHold()

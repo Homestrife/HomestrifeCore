@@ -222,7 +222,8 @@ public:
 	virtual bool IsPhysicsObject();
 	virtual bool IsFighter();
 	
-	virtual bool ChangeHold(HSObjectHold * hold); //change to a new hold
+	virtual bool AdvanceHold(HSObjectHold * hold); //naturally move to a new hold, mantaining variables from the previous hold
+	virtual bool ChangeHold(HSObjectHold * hold); //force change to a new hold, resetting variables to default
 
 protected:
 	virtual HSObjectHold * GetDefaultHold(); //gets a default hold, based on current states
