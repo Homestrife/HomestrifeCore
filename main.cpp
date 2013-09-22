@@ -1368,6 +1368,11 @@ int Main::EventMainMenu(InputStates * inputHistory, int frame)
 			switch(objectManager->menuManager->GetCursorIndex())
 			{
 			case 0:
+				for(int i = 0; i < MAX_PLAYERS; i++)
+				{
+					selectedCharacters[i] = "data\\characters\\john\\John Egbert.xml";
+					selectedPalettes[i] = 0;
+				}
 				gameType = FREE_FOR_ALL;
 				if(int i = ChangeGameState(CHARACTER_SELECT) != 0) { return i; }
 				break;
@@ -1497,8 +1502,7 @@ int Main::InitializeCharacterSelect()
 	newObject->pos.y = CHAR_SELECT_PLAYER_POS_Y;
 	objectManager->focusObjectOne = newObject;
 	objectManager->players[0] = newObject;
-	selectedCharacters[0] = "data\\characters\\john\\John Egbert.xml";
-	selectedPalettes[0] = objectManager->players[0]->GetPalette();
+	objectManager->players[0]->SetPalette(selectedPalettes[0]);
 
 	if(int error = objectManager->LoadDefinition("data\\characters\\john\\johnEgbertDemo.xml", &objectManager->fighterObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = CHAR_SELECT_PLAYER_TWO_POS_X;
@@ -1506,8 +1510,7 @@ int Main::InitializeCharacterSelect()
 	newObject->hFlip = true;
 	objectManager->focusObjectTwo = newObject;
 	objectManager->players[1] = newObject;
-	selectedCharacters[1] = "data\\characters\\john\\John Egbert.xml";
-	selectedPalettes[1] = objectManager->players[1]->GetPalette();
+	objectManager->players[1]->SetPalette(selectedPalettes[1]);
 
 	//hud
 	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\characterSelect\\characterSelect.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
