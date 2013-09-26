@@ -48,8 +48,7 @@ public:
 	HSVect2D spawnPoints[MAX_PLAYERS];
 	HUD * playerHUDs[MAX_PLAYERS];
 	HSObject * players[MAX_PLAYERS];
-	HSObject * focusObjectOne;
-	HSObject * focusObjectTwo;
+	HSObject * focusObject[MAX_PLAYERS];
 
 	MenuManager * menuManager;
 
@@ -62,12 +61,20 @@ public:
 	HSObject * pressDesiredButton;
 	HSObject * readyOne;
 	HSObject * readyTwo;
+	HSObject * readyThree;
+	HSObject * readyFour;
 	HSObject * selectPaletteOne;
 	HSObject * selectPaletteTwo;
+	HSObject * selectPaletteThree;
+	HSObject * selectPaletteFour;
 	HSObject * selectPaletteLeftOne;
 	HSObject * selectPaletteLeftTwo;
+	HSObject * selectPaletteLeftThree;
+	HSObject * selectPaletteLeftFour;
 	HSObject * selectPaletteRightOne;
 	HSObject * selectPaletteRightTwo;
+	HSObject * selectPaletteRightThree;
+	HSObject * selectPaletteRightFour;
 
 	void SortAllObjects();
 	

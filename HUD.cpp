@@ -20,6 +20,12 @@ HUDHold::~HUDHold()
 
 HUD::HUD() : HSObject()
 {
+	hudWidth = 0;
+	hudHeight = 0;
+	
+	comboCounterXPosition = COUNTER_LEFT;
+	comboCounterYPosition = COUNTER_BELOW;
+
 	healthMeterFilePath = "";
 	healthUnderMeterFilePath = "";
 	livesCounterFilePath = "";
@@ -42,8 +48,8 @@ HUD::HUD() : HSObject()
 
 	hitsOnesCounter = NULL;
 	hitsTensCounter = NULL;
-	hitsCounterOffset.x = 0;
-	hitsCounterOffset.y = 0;
+	hitsCounterXDistanceFromSide = 0;
+	hitsCounterYDistanceFromHUD = 0;
 	hitsCounterDigitWidth = 0;
 	hitsCounterDigitSeparation = 0;
 
@@ -183,10 +189,38 @@ int HUD::Update()
 		livesTensCounter->ChangeHold(curHold);
 	}
 
+	if(_hitsCounterValue >= 2)
+	{
+		hitsOnesCounter->visible = true;
+		hitsTensCounter->visible = true;
+		hitsHundredsCounter->visible = true;
+	}
+	else
+	{
+		hitsOnesCounter->visible = false;
+		hitsTensCounter->visible = false;
+		hitsHundredsCounter->visible = false;
+	}
+
 	if(hitsOnesCounter != NULL)
 	{
-		hitsOnesCounter->pos.x = pos.x + hitsCounterOffset.x + hitsCounterDigitWidth*2 + hitsCounterDigitSeparation*2;
-		hitsOnesCounter->pos.y = pos.y + hitsCounterOffset.y;
+		if(comboCounterXPosition == COUNTER_LEFT)
+		{
+			hitsOnesCounter->pos.x = pos.x + hitsCounterXDistanceFromSide + hitsCounterDigitWidth*2 + hitsCounterDigitSeparation*2;
+		}
+		else if(comboCounterXPosition == COUNTER_RIGHT)
+		{
+			hitsOnesCounter->pos.x = pos.x + hudWidth - hitsCounterXDistanceFromSide - hitsCounterDigitWidth;
+		}
+
+		if(comboCounterYPosition == COUNTER_BELOW)
+		{
+			hitsOnesCounter->pos.y = pos.y + hudHeight + hitsCounterYDistanceFromHUD;
+		}
+		else if(comboCounterYPosition == COUNTER_ABOVE)
+		{
+			hitsOnesCounter->pos.y = pos.y + hitsCounterYDistanceFromHUD*-1 - hitsCounterDigitHeight;
+		}
 
 		int curValue = _hitsCounterValue % 10;
 
@@ -202,8 +236,23 @@ int HUD::Update()
 
 	if(hitsTensCounter != NULL)
 	{
-		hitsTensCounter->pos.x = pos.x + hitsCounterOffset.x + hitsCounterDigitWidth + hitsCounterDigitSeparation;
-		hitsTensCounter->pos.y = pos.y + hitsCounterOffset.y;
+		if(comboCounterXPosition == COUNTER_LEFT)
+		{
+			hitsTensCounter->pos.x = pos.x + hitsCounterXDistanceFromSide + hitsCounterDigitWidth + hitsCounterDigitSeparation;
+		}
+		else if(comboCounterXPosition == COUNTER_RIGHT)
+		{
+			hitsTensCounter->pos.x = pos.x + hudWidth - hitsCounterXDistanceFromSide - hitsCounterDigitWidth*2 - hitsCounterDigitSeparation;
+		}
+
+		if(comboCounterYPosition == COUNTER_BELOW)
+		{
+			hitsTensCounter->pos.y = pos.y + hudHeight + hitsCounterYDistanceFromHUD;
+		}
+		else if(comboCounterYPosition == COUNTER_ABOVE)
+		{
+			hitsTensCounter->pos.y = pos.y + hitsCounterYDistanceFromHUD*-1 - hitsCounterDigitHeight;
+		}
 
 		int curValue = _hitsCounterValue / 10;
 
@@ -219,8 +268,24 @@ int HUD::Update()
 
 	if(hitsHundredsCounter != NULL)
 	{
-		hitsHundredsCounter->pos.x = pos.x + hitsCounterOffset.x;
-		hitsHundredsCounter->pos.y = pos.y + hitsCounterOffset.y;
+		if(comboCounterXPosition == COUNTER_LEFT)
+		{
+			hitsHundredsCounter->pos.x = pos.x + hitsCounterXDistanceFromSide;
+		}
+		else if(comboCounterXPosition == COUNTER_RIGHT)
+		{
+			hitsHundredsCounter->pos.x = pos.x + hudWidth - hitsCounterXDistanceFromSide - hitsCounterDigitWidth*3 - hitsCounterDigitSeparation*2;
+		}
+
+		if(comboCounterYPosition == COUNTER_BELOW)
+		{
+			hitsHundredsCounter->pos.y = pos.y + hudHeight + hitsCounterYDistanceFromHUD;
+		}
+		else if(comboCounterYPosition == COUNTER_ABOVE)
+		{
+			hitsHundredsCounter->pos.y = pos.y + hitsCounterYDistanceFromHUD*-1 - hitsCounterDigitHeight;
+		}
+
 
 		int curValue = _hitsCounterValue / 100;
 

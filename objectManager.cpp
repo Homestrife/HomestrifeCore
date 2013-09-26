@@ -22,6 +22,38 @@ ObjectManager::ObjectManager()
 	obtainedAudioSpec = NULL;
 	currentAudio.clear();
 	menuManager = NULL;
+
+	for(int i = 0; i < MAX_PLAYERS; i++)
+	{
+		playerHUDs[i] = NULL;
+		players[i] = NULL;
+		focusObject[i] = NULL;
+	}
+
+	loading = NULL;
+	menuManager = NULL;
+	playerOne = NULL;
+	playerTwo = NULL;
+	playerThree = NULL;
+	playerFour = NULL;
+	wins = NULL;
+	pressDesiredButton = NULL;
+	readyOne = NULL;
+	readyTwo = NULL;
+	readyThree = NULL;
+	readyFour = NULL;
+	selectPaletteOne = NULL;
+	selectPaletteTwo = NULL;
+	selectPaletteThree = NULL;
+	selectPaletteFour = NULL;
+	selectPaletteLeftOne = NULL;
+	selectPaletteLeftTwo = NULL;
+	selectPaletteLeftThree = NULL;
+	selectPaletteLeftFour = NULL;
+	selectPaletteRightOne = NULL;
+	selectPaletteRightTwo = NULL;
+	selectPaletteRightThree = NULL;
+	selectPaletteRightFour = NULL;
 }
 
 bool ObjectSort(HSObject * first, HSObject * second)
@@ -128,15 +160,18 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 		{
 			HUD * newHUD = (HUD*)newObject;
 			
+			objDef->QueryFloatAttribute("hudWidth", &newHUD->hudWidth);
+			objDef->QueryFloatAttribute("hudHeight", &newHUD->hudHeight);
 			objDef->QueryFloatAttribute("healthMeterOffsetX", &newHUD->healthMeterOffset.x);
 			objDef->QueryFloatAttribute("healthMeterOffsetY", &newHUD->healthMeterOffset.y);
 			objDef->QueryFloatAttribute("livesCounterOffsetX", &newHUD->livesCounterOffset.x);
 			objDef->QueryFloatAttribute("livesCounterOffsetY", &newHUD->livesCounterOffset.y);
 			objDef->QueryFloatAttribute("livesCounterDigitWidth", &newHUD->livesCounterDigitWidth);
 			objDef->QueryFloatAttribute("livesCounterDigitSeparation", &newHUD->livesCounterDigitSeparation);
-			objDef->QueryFloatAttribute("hitsCounterOffsetX", &newHUD->hitsCounterOffset.x);
-			objDef->QueryFloatAttribute("hitsCounterOffsetY", &newHUD->hitsCounterOffset.y);
+			objDef->QueryFloatAttribute("hitsCounterXDistanceFromSide", &newHUD->hitsCounterXDistanceFromSide);
+			objDef->QueryFloatAttribute("hitsCounterYDistanceFromHUD", &newHUD->hitsCounterYDistanceFromHUD);
 			objDef->QueryFloatAttribute("hitsCounterDigitWidth", &newHUD->hitsCounterDigitWidth);
+			objDef->QueryFloatAttribute("hitsCounterDigitHeight", &newHUD->hitsCounterDigitHeight);
 			objDef->QueryFloatAttribute("hitsCounterDigitSeparation", &newHUD->hitsCounterDigitSeparation);
 			newHUD->healthMeterFilePath = objDef->Attribute("healthMeterFilePath");
 			newHUD->healthUnderMeterFilePath = objDef->Attribute("healthUnderMeterFilePath");
@@ -1955,13 +1990,11 @@ int ObjectManager::ClearAllObjects()
 	
 	SDL_UnlockAudio();
 
-	focusObjectOne = NULL;
-	focusObjectTwo = NULL;
-
 	for(int i = 0; i < MAX_PLAYERS; i++)
 	{
 		players[i] = NULL;
 		playerHUDs[i] = NULL;
+		focusObject[i] = NULL;
 	}
 
 	delete menuManager;
@@ -1976,25 +2009,31 @@ int ObjectManager::ClearAllObjects()
 	pressDesiredButton = NULL;
 	readyOne = NULL;
 	readyTwo = NULL;
+	readyThree = NULL;
+	readyFour = NULL;
 	selectPaletteOne = NULL;
 	selectPaletteTwo = NULL;
+	selectPaletteThree = NULL;
+	selectPaletteFour = NULL;
 	selectPaletteLeftOne = NULL;
 	selectPaletteLeftTwo = NULL;
+	selectPaletteLeftThree = NULL;
+	selectPaletteLeftFour = NULL;
 	selectPaletteRightOne = NULL;
 	selectPaletteRightTwo = NULL;
+	selectPaletteRightThree = NULL;
+	selectPaletteRightFour = NULL;
 
 	return 0;
 }
 
 int ObjectManager::ClearSpecificObject(HSObject* object)
 {
-	if(focusObjectOne == object) { focusObjectOne = NULL; }
-	if(focusObjectTwo == object) { focusObjectTwo = NULL; }
-
 	for(int i = 0; i < MAX_PLAYERS; i++)
 	{
 		if(players[i] == object) { players[i] = NULL; }
 		if(playerHUDs[i] == object) { playerHUDs[i] = NULL; }
+		if(focusObject[i] == object) { focusObject[i] = NULL; }
 	}
 
 	delete object;

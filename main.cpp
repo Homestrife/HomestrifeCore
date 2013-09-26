@@ -14,7 +14,7 @@ Main::Main()
 
 	gameState = MAIN_MENU;
 	mainMenuState = TOP;
-	gameType = FREE_FOR_ALL;
+	gameType = FREE_FOR_ALL_2;
 	texCoordBufferID = 0;
 	elementArrayBufferID = 0;
 	
@@ -521,82 +521,63 @@ int Main::Render()
 	HSVect2D targetFocusPos;
 	targetFocusPos.x = 0;
 	targetFocusPos.y = 0;
-	if(objectManager->focusObjectOne != NULL && objectManager->focusObjectTwo != NULL)
+	float top = 0;
+	float bottom = 0;
+	float left = 0;
+	float right = 0;
+	for(int i = 0; i < MAX_PLAYERS; i++)
 	{
-		//get the location between the two objects
-		HSVect2D posActualOne;
-		posActualOne.x = objectManager->focusObjectOne->pos.x;
-		posActualOne.y = objectManager->focusObjectOne->pos.y;
-		HSVect2D posActualTwo;
-		posActualTwo.x = objectManager->focusObjectTwo->pos.x;
-		posActualTwo.y = objectManager->focusObjectTwo->pos.y;
-
-		if(objectManager->focusObjectOne->IsFighter())
+		if(objectManager->focusObject[i] == NULL)
 		{
-			Fighter * f = (Fighter *)objectManager->focusObjectOne;
-			posActualOne.x = posActualOne.x + f->firstUprightTerrainBox->offset.x + f->firstUprightTerrainBox->width / 2;
-			posActualOne.y = posActualOne.y + f->firstUprightTerrainBox->offset.y + f->firstUprightTerrainBox->height / 2;
+			continue;
 		}
 
-		if(objectManager->focusObjectTwo->IsFighter())
+		HSVect2D checkPos;
+
+		if(objectManager->focusObject[i]->IsFighter())
 		{
-			Fighter * f = (Fighter *)objectManager->focusObjectTwo;
-			posActualTwo.x = posActualTwo.x + f->firstUprightTerrainBox->offset.x + f->firstUprightTerrainBox->width / 2;
-			posActualTwo.y = posActualTwo.y + f->firstUprightTerrainBox->offset.y + f->firstUprightTerrainBox->height / 2;
+			Fighter * f = (Fighter*)objectManager->focusObject[i];
+
+			//get the center of the fighter's terrain box
+			checkPos.x = f->pos.x + f->firstTerrainBox->offset.x + f->firstTerrainBox->width/2;
+			checkPos.y = f->pos.y + f->firstTerrainBox->offset.y + f->firstTerrainBox->height/2;
+		}
+		else
+		{
+			checkPos.x = objectManager->focusObject[i]->pos.x;
+			checkPos.y = objectManager->focusObject[i]->pos.y;
 		}
 
-		HSVect2D posDiff;
-		posDiff.x = posActualTwo.x - posActualOne.x;
-		posDiff.y = posActualTwo.y - posActualOne.y;
-
-		targetFocusPos.x = posActualOne.x + posDiff.x / 2;
-		targetFocusPos.y = posActualOne.y + posDiff.y / 2;
-
-		//get the zoom
-		float xZoomOut = 1;
-		float yZoomOut = 1;
-		if(abs(posDiff.x) + ZOOM_BOUNDARY_X_THRESHOLD * 2 > MAX_GAME_RESOLUTION_X)
+		if(i == 0)
 		{
-			float minRes = MAX_GAME_RESOLUTION_X;
-			float neededRes = abs(posDiff.x) + ZOOM_BOUNDARY_X_THRESHOLD * 2;
-			xZoomOut = neededRes / minRes;
+			left = checkPos.x;
+			right = checkPos.x;
+			top = checkPos.y;
+			bottom = checkPos.y;
 		}
-		if(abs(posDiff.y) + ZOOM_BOUNDARY_Y_THRESHOLD * 2 > MAX_GAME_RESOLUTION_Y)
+		else
 		{
-			float minRes = MAX_GAME_RESOLUTION_Y;
-			float neededRes = abs(posDiff.y) + ZOOM_BOUNDARY_Y_THRESHOLD * 2;
-			yZoomOut = neededRes / minRes;
-		}
-		if(xZoomOut > yZoomOut) { targetZoomOut = xZoomOut; }
-		else { targetZoomOut = yZoomOut; }
-
-		if(targetZoomOut < 1) { targetZoomOut = 1; }
-	}
-	else if(objectManager->focusObjectOne != NULL)
-	{
-		targetFocusPos.x = objectManager->focusObjectOne->pos.x;
-		targetFocusPos.y = objectManager->focusObjectOne->pos.y;
-
-		if(objectManager->focusObjectOne->IsFighter())
-		{
-			//get the centerpoint of upright terrain box
-			Fighter * f = (Fighter *)objectManager->focusObjectOne;
-			targetFocusPos.x = targetFocusPos.x + f->firstUprightTerrainBox->offset.x + f->firstUprightTerrainBox->width / 2;
-			targetFocusPos.y = targetFocusPos.y + f->firstUprightTerrainBox->offset.y + f->firstUprightTerrainBox->height / 2;
+			if(checkPos.x < left) { left = checkPos.x; }
+			if(checkPos.x > right) { right = checkPos.x; }
+			if(checkPos.y < top) { top = checkPos.y; }
+			if(checkPos.y > bottom) { bottom = checkPos.y; }
 		}
 	}
-	else if(objectManager->focusObjectTwo != NULL)
-	{
-		targetFocusPos.x = objectManager->focusObjectTwo->pos.x;
-		targetFocusPos.y = objectManager->focusObjectTwo->pos.y;
 
-		if(objectManager->focusObjectTwo->IsFighter())
-		{
-			//get the centerpoint of upright terrain box
-			Fighter * f = (Fighter *)objectManager->focusObjectTwo;
-			targetFocusPos.x = targetFocusPos.x + f->firstUprightTerrainBox->offset.x + f->firstUprightTerrainBox->width / 2;
-			targetFocusPos.y = targetFocusPos.y + f->firstUprightTerrainBox->offset.y + f->firstUprightTerrainBox->height / 2;
-		}
+	targetFocusPos.x = left + (right - left) / 2;
+	targetFocusPos.y = top + (bottom - top) / 2;
+
+	if(right - left <= MAX_GAME_RESOLUTION_X - ZOOM_BOUNDARY_X_THRESHOLD && bottom - top <= MAX_GAME_RESOLUTION_Y - ZOOM_BOUNDARY_Y_THRESHOLD)
+	{
+		targetZoomOut = 1;
+	}
+	else
+	{
+		float targetZoomOutX = (right - left) / (MAX_GAME_RESOLUTION_X - ZOOM_BOUNDARY_X_THRESHOLD);
+		float targetZoomOutY = (bottom - top) / (MAX_GAME_RESOLUTION_Y - ZOOM_BOUNDARY_Y_THRESHOLD);
+
+		if(targetZoomOutX > targetZoomOutY) { targetZoomOut = targetZoomOutX; }
+		else { targetZoomOut = targetZoomOutY; }
 	}
 
 	if(focusPos.x != targetFocusPos.x || focusPos.y != targetFocusPos.y)
@@ -637,17 +618,6 @@ int Main::Render()
 	{
 		zoomOut = targetZoomOut;
 	}
-
-	//float left = focusPos.x - ((MAX_GAME_RESOLUTION_X * zoomOut) / 2);
-	//float right = focusPos.x + ((MAX_GAME_RESOLUTION_X * zoomOut) / 2);
-	//float bottom = focusPos.y + ((MAX_GAME_RESOLUTION_Y * zoomOut) / 2);
-	//float top = focusPos.y - ((MAX_GAME_RESOLUTION_Y * zoomOut) / 2);
-
-	//glMatrixMode(GL_PROJECTION);
-	//glLoadIdentity();
-	//glOrtho(left, right, bottom, top, 1, -1);
-	//glMatrixMode(GL_MODELVIEW);
-	//glLoadIdentity();
 	
 	ChangeShaderProgram(shader_progIndexed);
 	glUniform2f(indexedFocusPosLoc, focusPos.x, focusPos.y);
@@ -656,15 +626,9 @@ int Main::Render()
 	ChangeShaderProgram(shader_progNonIndexed);
 	glUniform2f(nonIndexedFocusPosLoc, focusPos.x, focusPos.y);
 	glUniform1f(nonIndexedZoomOutLoc, zoomOut - 1);
-
-	//ChangeShaderProgram(0);
 	
 	//render objects
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	//glEnableClientState(GL_VERTEX_ARRAY);
-	//glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-	//glEnableClientState(GL_INDEX_ARRAY);
 
 	list<HSObject*>::iterator objIt;
 	for ( objIt=objectManager->stageObjects.begin(); objIt != objectManager->stageObjects.end(); objIt++)
@@ -1027,71 +991,6 @@ int Main::ChangeGameState(GameState newState)
 
 	objectManager->SortAllObjects();
 
-	if(objectManager->focusObjectOne != NULL && objectManager->focusObjectTwo != NULL)
-	{
-		//get the location between the two objects
-		HSVect2D posActualOne;
-		posActualOne.x = objectManager->focusObjectOne->pos.x;
-		posActualOne.y = objectManager->focusObjectOne->pos.y;
-		HSVect2D posActualTwo;
-		posActualTwo.x = objectManager->focusObjectTwo->pos.x;
-		posActualTwo.y = objectManager->focusObjectTwo->pos.y;
-
-		if(objectManager->focusObjectOne->IsFighter())
-		{
-			Fighter * f = (Fighter *)objectManager->focusObjectOne;
-			posActualOne.x = posActualOne.x + f->firstUprightTerrainBox->offset.x + f->firstUprightTerrainBox->width / 2;
-			posActualOne.y = posActualOne.y + f->firstUprightTerrainBox->offset.y + f->firstUprightTerrainBox->height / 2;
-		}
-
-		if(objectManager->focusObjectTwo->IsFighter())
-		{
-			Fighter * f = (Fighter *)objectManager->focusObjectTwo;
-			posActualTwo.x = posActualTwo.x + f->firstUprightTerrainBox->offset.x + f->firstUprightTerrainBox->width / 2;
-			posActualTwo.y = posActualTwo.y + f->firstUprightTerrainBox->offset.y + f->firstUprightTerrainBox->height / 2;
-		}
-
-		HSVect2D posDiff;
-		posDiff.x = posActualTwo.x - posActualOne.x;
-		posDiff.y = posActualTwo.y - posActualOne.y;
-
-		focusPos.x = posActualOne.x + posDiff.x / 2;
-		focusPos.y = posActualOne.y + posDiff.y / 2;
-
-		//get the zoom
-		float xZoomOut = 1;
-		float yZoomOut = 1;
-		if(abs(posDiff.x) + ZOOM_BOUNDARY_X_THRESHOLD * 2 > MAX_GAME_RESOLUTION_X)
-		{
-			float minRes = MAX_GAME_RESOLUTION_X;
-			float neededRes = abs(posDiff.x) + ZOOM_BOUNDARY_X_THRESHOLD * 2;
-			xZoomOut = neededRes / minRes;
-		}
-		if(abs(posDiff.y) + ZOOM_BOUNDARY_Y_THRESHOLD * 2 > MAX_GAME_RESOLUTION_Y)
-		{
-			float minRes = MAX_GAME_RESOLUTION_Y;
-			float neededRes = abs(posDiff.y) + ZOOM_BOUNDARY_Y_THRESHOLD * 2;
-			yZoomOut = neededRes / minRes;
-		}
-		if(xZoomOut > yZoomOut) { zoomOut = xZoomOut; }
-		else { zoomOut = yZoomOut; }
-
-		if(zoomOut < 1) { zoomOut = 1; }
-	}
-	else if(objectManager->focusObjectOne != NULL)
-	{
-		focusPos.x = objectManager->focusObjectOne->pos.x;
-		focusPos.y = objectManager->focusObjectOne->pos.y;
-
-		if(objectManager->focusObjectOne->IsFighter())
-		{
-			//get the centerpoint of upright terrain box
-			Fighter * f = (Fighter *)objectManager->focusObjectOne;
-			focusPos.x = focusPos.x + f->firstUprightTerrainBox->offset.x + f->firstUprightTerrainBox->width / 2;
-			focusPos.y = focusPos.y + f->firstUprightTerrainBox->offset.y + f->firstUprightTerrainBox->height / 2;
-		}
-	}
-
 	EndLoading();
 
 	return 0;
@@ -1224,6 +1123,28 @@ int Main::InitializeMainMenu()
 	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\back\\back.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	keyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 
+	Menu * freeForAllMenu = new Menu(MAIN_MENU_HEADER_HEIGHT, MAIN_MENU_CURSOR_WIDTH, MAIN_MENU_ITEM_HEIGHT, MAIN_MENU_ITEM_SPACING);
+	freeForAllMenu->pos.x = (MAX_GAME_RESOLUTION_X / -2) + MAIN_MENU_ITEM_SPACING;
+	freeForAllMenu->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + MAIN_MENU_ITEM_SPACING;
+
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\cursor\\cursor.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	freeForAllMenu->SetCursor(newObject);
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\freeForAll\\freeForAll.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	freeForAllMenu->SetHeader(newObject);
+
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\players\\2players.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	freeForAllMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
+
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\players\\3players.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	freeForAllMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
+
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\players\\4players.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	freeForAllMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\back\\back.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	freeForAllMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
+
 	Menu * versusMenu = new Menu(MAIN_MENU_HEADER_HEIGHT, MAIN_MENU_CURSOR_WIDTH, MAIN_MENU_ITEM_HEIGHT, MAIN_MENU_ITEM_SPACING);
 	versusMenu->pos.x = (MAX_GAME_RESOLUTION_X / -2) + MAIN_MENU_ITEM_SPACING;
 	versusMenu->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + MAIN_MENU_ITEM_SPACING;
@@ -1235,7 +1156,7 @@ int Main::InitializeMainMenu()
 	versusMenu->SetHeader(newObject);
 
 	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\freeForAll\\freeForAll.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	versusMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
+	versusMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject, freeForAllMenu));
 	
 	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\back\\back.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	versusMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
@@ -1298,6 +1219,8 @@ int Main::ChangeMainMenuState(MainMenuState newState)
 	case TOP:
 		break;
 	case VERSUS:
+		break;
+	case FREE_FOR_ALL:
 		break;
 	case OPTIONS:
 		break;
@@ -1368,17 +1291,48 @@ int Main::EventMainMenu(InputStates * inputHistory, int frame)
 			switch(objectManager->menuManager->GetCursorIndex())
 			{
 			case 0:
+				objectManager->menuManager->ToChild();
+				ChangeMainMenuState(FREE_FOR_ALL);
+				break;
+			case 1:
+				objectManager->menuManager->ToParent();
+				ChangeMainMenuState(TOP);
+				break;
+			}
+			break;
+		case FREE_FOR_ALL:
+			switch(objectManager->menuManager->GetCursorIndex())
+			{
+			case 0:
 				for(int i = 0; i < MAX_PLAYERS; i++)
 				{
 					selectedCharacters[i] = "data\\characters\\john\\John Egbert.xml";
 					selectedPalettes[i] = 0;
 				}
-				gameType = FREE_FOR_ALL;
+				gameType = FREE_FOR_ALL_2;
 				if(int i = ChangeGameState(CHARACTER_SELECT) != 0) { return i; }
 				break;
 			case 1:
+				for(int i = 0; i < MAX_PLAYERS; i++)
+				{
+					selectedCharacters[i] = "data\\characters\\john\\John Egbert.xml";
+					selectedPalettes[i] = 0;
+				}
+				gameType = FREE_FOR_ALL_3;
+				if(int i = ChangeGameState(CHARACTER_SELECT) != 0) { return i; }
+				break;
+			case 2:
+				for(int i = 0; i < MAX_PLAYERS; i++)
+				{
+					selectedCharacters[i] = "data\\characters\\john\\John Egbert.xml";
+					selectedPalettes[i] = 0;
+				}
+				gameType = FREE_FOR_ALL_4;
+				if(int i = ChangeGameState(CHARACTER_SELECT) != 0) { return i; }
+				break;
+			case 3:
 				objectManager->menuManager->ToParent();
-				ChangeMainMenuState(TOP);
+				ChangeMainMenuState(VERSUS);
 				break;
 			}
 			break;
@@ -1465,6 +1419,10 @@ int Main::EventMainMenu(InputStates * inputHistory, int frame)
 			objectManager->menuManager->ToParent();
 			ChangeMainMenuState(TOP);
 			break;
+		case FREE_FOR_ALL:
+			objectManager->menuManager->ToParent();
+			ChangeMainMenuState(VERSUS);
+			break;
 		case OPTIONS:
 			objectManager->menuManager->ToParent();
 			ChangeMainMenuState(TOP);
@@ -1498,72 +1456,157 @@ int Main::InitializeCharacterSelect()
 	//demo characters
 	HSObject * newObject;
 	if(int error = objectManager->LoadDefinition("data\\characters\\john\\johnEgbertDemo.xml", &objectManager->fighterObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = CHAR_SELECT_PLAYER_ONE_POS_X;
-	newObject->pos.y = CHAR_SELECT_PLAYER_POS_Y;
-	objectManager->focusObjectOne = newObject;
+	newObject->pos.x = CHAR_SELECT_PLAYER_LEFT_POS_X;
+	newObject->pos.y = CHAR_SELECT_PLAYER_TOP_POS_Y;
+	objectManager->focusObject[0] = newObject;
 	objectManager->players[0] = newObject;
 	objectManager->players[0]->SetPalette(selectedPalettes[0]);
 
 	if(int error = objectManager->LoadDefinition("data\\characters\\john\\johnEgbertDemo.xml", &objectManager->fighterObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = CHAR_SELECT_PLAYER_TWO_POS_X;
-	newObject->pos.y = CHAR_SELECT_PLAYER_POS_Y;
+	newObject->pos.x = CHAR_SELECT_PLAYER_RIGHT_POS_X;
+	newObject->pos.y = CHAR_SELECT_PLAYER_TOP_POS_Y;
 	newObject->hFlip = true;
-	objectManager->focusObjectTwo = newObject;
+	objectManager->focusObject[1] = newObject;
 	objectManager->players[1] = newObject;
 	objectManager->players[1]->SetPalette(selectedPalettes[1]);
+
+	if(gameType == FREE_FOR_ALL_3 || gameType == FREE_FOR_ALL_4)
+	{
+		if(int error = objectManager->LoadDefinition("data\\characters\\john\\johnEgbertDemo.xml", &objectManager->fighterObjects, &newObject) != 0) { return error; }
+		newObject->pos.x = CHAR_SELECT_PLAYER_LEFT_POS_X;
+		newObject->pos.y = CHAR_SELECT_PLAYER_BOTTOM_POS_Y;
+		objectManager->focusObject[2] = newObject;
+		objectManager->players[2] = newObject;
+		objectManager->players[2]->SetPalette(selectedPalettes[2]);
+	}
+
+	if(gameType == FREE_FOR_ALL_4)
+	{
+		if(int error = objectManager->LoadDefinition("data\\characters\\john\\johnEgbertDemo.xml", &objectManager->fighterObjects, &newObject) != 0) { return error; }
+		newObject->pos.x = CHAR_SELECT_PLAYER_RIGHT_POS_X;
+		newObject->pos.y = CHAR_SELECT_PLAYER_BOTTOM_POS_Y;
+		newObject->hFlip = true;
+		objectManager->focusObject[3] = newObject;
+		objectManager->players[3] = newObject;
+		objectManager->players[3]->SetPalette(selectedPalettes[1]);
+	}
 
 	//hud
 	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\characterSelect\\characterSelect.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = CHARACTER_SELECT_POS_X;
 	newObject->pos.y = CHARACTER_SELECT_POS_Y;
+
+	float hudYOffset = 0;
+	if(gameType == FREE_FOR_ALL_2)
+	{
+		hudYOffset = 350;
+	}
 	
+	//player 1 hud
 	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player1.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = PLAYER_ONE_POS_X;
-	newObject->pos.y = PLAYER_POS_Y;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player2.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = PLAYER_TWO_POS_X;
-	newObject->pos.y = PLAYER_POS_Y;
-	
+	newObject->pos.x = PLAYER_LEFT_POS_X;
+	newObject->pos.y = PLAYER_TOP_POS_Y + hudYOffset;
+
 	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\selectPalette\\selectPalette.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = SELECT_PALETTE_ONE_POS_X;
-	newObject->pos.y = SELECT_PALETTE_POS_Y;
+	newObject->pos.x = SELECT_PALETTE_LEFT_POS_X;
+	newObject->pos.y = SELECT_PALETTE_TOP_POS_Y + hudYOffset;
 	objectManager->selectPaletteOne = newObject;
 	
 	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\leftArrow\\leftArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = SELECT_PALETTE_ONE_POS_X - 55;
-	newObject->pos.y = SELECT_PALETTE_POS_Y;
+	newObject->pos.x = SELECT_PALETTE_LEFT_POS_X - 55;
+	newObject->pos.y = SELECT_PALETTE_TOP_POS_Y + hudYOffset;
 	objectManager->selectPaletteLeftOne = newObject;
 	
 	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\rightArrow\\rightArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = SELECT_PALETTE_ONE_POS_X + 305;
-	newObject->pos.y = SELECT_PALETTE_POS_Y;
+	newObject->pos.x = SELECT_PALETTE_LEFT_POS_X + 305;
+	newObject->pos.y = SELECT_PALETTE_TOP_POS_Y + hudYOffset;
 	objectManager->selectPaletteRightOne = newObject;
 	
 	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\ready\\ready.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = READY_ONE_POS_X;
-	newObject->pos.y = SELECT_PALETTE_POS_Y;
+	newObject->pos.x = READY_LEFT_POS_X;
+	newObject->pos.y = SELECT_PALETTE_TOP_POS_Y + hudYOffset;
 	objectManager->readyOne = newObject;
 	
+	//player 2 hud
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player2.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	newObject->pos.x = PLAYER_RIGHT_POS_X;
+	newObject->pos.y = PLAYER_TOP_POS_Y + hudYOffset;
+
 	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\selectPalette\\selectPalette.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = SELECT_PALETTE_TWO_POS_X;
-	newObject->pos.y = SELECT_PALETTE_POS_Y;
+	newObject->pos.x = SELECT_PALETTE_RIGHT_POS_X;
+	newObject->pos.y = SELECT_PALETTE_TOP_POS_Y + hudYOffset;
 	objectManager->selectPaletteTwo = newObject;
 	
 	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\leftArrow\\leftArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = SELECT_PALETTE_TWO_POS_X - 55;
-	newObject->pos.y = SELECT_PALETTE_POS_Y;
+	newObject->pos.x = SELECT_PALETTE_RIGHT_POS_X - 55;
+	newObject->pos.y = SELECT_PALETTE_TOP_POS_Y + hudYOffset;
 	objectManager->selectPaletteLeftTwo = newObject;
 	
 	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\rightArrow\\rightArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = SELECT_PALETTE_TWO_POS_X + 305;
-	newObject->pos.y = SELECT_PALETTE_POS_Y;
+	newObject->pos.x = SELECT_PALETTE_RIGHT_POS_X + 305;
+	newObject->pos.y = SELECT_PALETTE_TOP_POS_Y + hudYOffset;
 	objectManager->selectPaletteRightTwo = newObject;
 	
 	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\ready\\ready.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = READY_TWO_POS_X;
-	newObject->pos.y = SELECT_PALETTE_POS_Y;
+	newObject->pos.x = READY_RIGHT_POS_X;
+	newObject->pos.y = SELECT_PALETTE_TOP_POS_Y + hudYOffset;
 	objectManager->readyTwo = newObject;
+	
+	//player 3 hud
+	if(gameType == FREE_FOR_ALL_3 || gameType == FREE_FOR_ALL_4)
+	{
+		if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player3.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+		newObject->pos.x = PLAYER_LEFT_POS_X;
+		newObject->pos.y = PLAYER_BOTTOM_POS_Y;
+
+		if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\selectPalette\\selectPalette.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+		newObject->pos.x = SELECT_PALETTE_LEFT_POS_X;
+		newObject->pos.y = SELECT_PALETTE_BOTTOM_POS_Y;
+		objectManager->selectPaletteThree = newObject;
+	
+		if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\leftArrow\\leftArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+		newObject->pos.x = SELECT_PALETTE_LEFT_POS_X - 55;
+		newObject->pos.y = SELECT_PALETTE_BOTTOM_POS_Y;
+		objectManager->selectPaletteLeftThree = newObject;
+	
+		if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\rightArrow\\rightArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+		newObject->pos.x = SELECT_PALETTE_LEFT_POS_X + 305;
+		newObject->pos.y = SELECT_PALETTE_BOTTOM_POS_Y;
+		objectManager->selectPaletteRightThree = newObject;
+	
+		if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\ready\\ready.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+		newObject->pos.x = READY_LEFT_POS_X;
+		newObject->pos.y = SELECT_PALETTE_BOTTOM_POS_Y;
+		objectManager->readyThree = newObject;
+	}
+	
+	//player 4 hud
+	if(gameType == FREE_FOR_ALL_4)
+	{
+		if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player4.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+		newObject->pos.x = PLAYER_RIGHT_POS_X;
+		newObject->pos.y = PLAYER_BOTTOM_POS_Y;
+
+		if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\selectPalette\\selectPalette.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+		newObject->pos.x = SELECT_PALETTE_RIGHT_POS_X;
+		newObject->pos.y = SELECT_PALETTE_BOTTOM_POS_Y;
+		objectManager->selectPaletteFour = newObject;
+	
+		if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\leftArrow\\leftArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+		newObject->pos.x = SELECT_PALETTE_RIGHT_POS_X - 55;
+		newObject->pos.y = SELECT_PALETTE_BOTTOM_POS_Y;
+		objectManager->selectPaletteLeftFour = newObject;
+	
+		if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\rightArrow\\rightArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+		newObject->pos.x = SELECT_PALETTE_RIGHT_POS_X + 305;
+		newObject->pos.y = SELECT_PALETTE_BOTTOM_POS_Y;
+		objectManager->selectPaletteRightFour = newObject;
+	
+		if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\ready\\ready.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+		newObject->pos.x = READY_RIGHT_POS_X;
+		newObject->pos.y = SELECT_PALETTE_BOTTOM_POS_Y;
+		objectManager->readyFour = newObject;
+	}
 
 	ChangeCharacterSelectState(PLAYERS_SELECTING);
 
@@ -1603,6 +1646,24 @@ int Main::ChangeCharacterSelectPlayerState(CharacterSelectPlayerState newState, 
 			objectManager->selectPaletteRightTwo->visible = true;
 			objectManager->selectPaletteTwo->visible = true;
 			break;
+		case 2:
+			if(objectManager->players[2] != NULL)
+			{
+				objectManager->readyThree->visible = false;
+				objectManager->selectPaletteLeftThree->visible = true;
+				objectManager->selectPaletteRightThree->visible = true;
+				objectManager->selectPaletteThree->visible = true;
+			}
+			break;
+		case 3:
+			if(objectManager->players[3] != NULL)
+			{
+				objectManager->readyFour->visible = false;
+				objectManager->selectPaletteLeftFour->visible = true;
+				objectManager->selectPaletteRightFour->visible = true;
+				objectManager->selectPaletteFour->visible = true;
+			}
+			break;
 		}
 		break;
 	case READY:
@@ -1616,9 +1677,27 @@ int Main::ChangeCharacterSelectPlayerState(CharacterSelectPlayerState newState, 
 			break;
 		case 1:
 			objectManager->readyTwo->visible = true;
-			objectManager->selectPaletteLeftTwo->visible = false;
 			objectManager->selectPaletteRightTwo->visible = false;
+			objectManager->selectPaletteLeftTwo->visible = false;
 			objectManager->selectPaletteTwo->visible = false;
+			break;
+		case 2:
+			if(objectManager->players[2] != NULL)
+			{
+				objectManager->readyThree->visible = true;
+				objectManager->selectPaletteLeftThree->visible = false;
+				objectManager->selectPaletteRightThree->visible = false;
+				objectManager->selectPaletteThree->visible = false;
+			}
+			break;
+		case 3:
+			if(objectManager->players[3] != NULL)
+			{
+				objectManager->readyFour->visible = true;
+				objectManager->selectPaletteLeftFour->visible = false;
+				objectManager->selectPaletteRightFour->visible = false;
+				objectManager->selectPaletteFour->visible = false;
+			}
 			break;
 		}
 		break;
@@ -1725,7 +1804,24 @@ int Main::EventCharacterSelect(InputStates * inputHistory, int frame, int player
 
 int Main::UpdateCharacterSelect()
 {
-	if(characterSelectPlayerState[0] == READY && characterSelectPlayerState[1] == READY)
+	bool ready = true;
+
+	if(characterSelectPlayerState[0] != READY || characterSelectPlayerState[1] != READY)
+	{
+		ready = false;
+	}
+
+	if((gameType == FREE_FOR_ALL_3 || gameType == FREE_FOR_ALL_4) && characterSelectPlayerState[2] != READY)
+	{
+		ready = false;
+	}
+
+	if(gameType == FREE_FOR_ALL_4 && characterSelectPlayerState[3] != READY)
+	{
+		ready = false;
+	}
+
+	if(ready)
 	{
 		if(int i = ChangeGameState(MATCH) != 0) { return i; }
 	}
@@ -1748,7 +1844,7 @@ int Main::InitializeMatch()
 	((Fighter*)fighterOne)->state = STANDING;
 	((Fighter*)fighterOne)->curHealth = ((Fighter*)fighterOne)->health;
 	fighterOne->ChangeHold(((Fighter*)fighterOne)->fighterEventHolds.standing);
-	objectManager->focusObjectOne = fighterOne;
+	objectManager->focusObject[0] = fighterOne;
 	
 	HSObject * fighterTwo;
 	if(int error = objectManager->LoadDefinition(selectedCharacters[1], &objectManager->fighterObjects, &fighterTwo) != 0) { return error; }
@@ -1760,7 +1856,36 @@ int Main::InitializeMatch()
 	((Fighter*)fighterTwo)->facing = LEFT;
 	((Fighter*)fighterTwo)->curHealth = ((Fighter*)fighterTwo)->health;
 	fighterTwo->ChangeHold(((Fighter*)fighterTwo)->fighterEventHolds.standing);
-	objectManager->focusObjectTwo = fighterTwo;
+	objectManager->focusObject[1] = fighterTwo;
+
+	if(gameType == FREE_FOR_ALL_3 || gameType == FREE_FOR_ALL_4)
+	{
+		HSObject * fighterThree;
+		if(int error = objectManager->LoadDefinition(selectedCharacters[2], &objectManager->fighterObjects, &fighterThree) != 0) { return error; }
+		fighterThree->pos.x = objectManager->spawnPoints[2].x;
+		fighterThree->pos.y = objectManager->spawnPoints[2].y;
+		objectManager->players[2] = fighterThree;
+		fighterThree->SetPalette(selectedPalettes[2]);
+		((Fighter*)fighterThree)->state = STANDING;
+		((Fighter*)fighterThree)->curHealth = ((Fighter*)fighterThree)->health;
+		fighterThree->ChangeHold(((Fighter*)fighterThree)->fighterEventHolds.standing);
+		objectManager->focusObject[2] = fighterThree;
+	}
+
+	if(gameType == FREE_FOR_ALL_4)
+	{
+		HSObject * fighterFour;
+		if(int error = objectManager->LoadDefinition(selectedCharacters[3], &objectManager->fighterObjects, &fighterFour) != 0) { return error; }
+		fighterFour->pos.x = objectManager->spawnPoints[3].x;
+		fighterFour->pos.y = objectManager->spawnPoints[3].y;
+		objectManager->players[3] = fighterFour;
+		fighterFour->SetPalette(selectedPalettes[3]);
+		((Fighter*)fighterFour)->state = STANDING;
+		((Fighter*)fighterFour)->facing = LEFT;
+		((Fighter*)fighterFour)->curHealth = ((Fighter*)fighterFour)->health;
+		fighterFour->ChangeHold(((Fighter*)fighterFour)->fighterEventHolds.standing);
+		objectManager->focusObject[3] = fighterFour;
+	}
 
 	//load HUD
 	HSObject * newHUD;
@@ -1773,6 +1898,26 @@ int Main::InitializeMatch()
 	objectManager->playerHUDs[1] = (HUD*)newHUD;
 	((HUD*)newHUD)->pos.x = (MAX_GAME_RESOLUTION_X / 2) - 560;
 	((HUD*)newHUD)->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + 20;
+	((HUD*)newHUD)->comboCounterXPosition = COUNTER_RIGHT;
+
+	if(gameType == FREE_FOR_ALL_3 || gameType == FREE_FOR_ALL_4)
+	{
+		if(int error = objectManager->LoadDefinition("data\\hud\\TestHUD\\john Hud.xml", &objectManager->HUDObjects, &newHUD) != 0) { return error; }
+		objectManager->playerHUDs[2] = (HUD*)newHUD;
+		((HUD*)newHUD)->pos.x = (MAX_GAME_RESOLUTION_X / -2) + 20;
+		((HUD*)newHUD)->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + 900;
+		((HUD*)newHUD)->comboCounterYPosition = COUNTER_ABOVE;
+	}
+
+	if(gameType == FREE_FOR_ALL_4)
+	{
+		if(int error = objectManager->LoadDefinition("data\\hud\\TestHUD\\john Hud.xml", &objectManager->HUDObjects, &newHUD) != 0) { return error; }
+		objectManager->playerHUDs[3] = (HUD*)newHUD;
+		((HUD*)newHUD)->pos.x = (MAX_GAME_RESOLUTION_X / 2) - 560;
+		((HUD*)newHUD)->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + 900;
+		((HUD*)newHUD)->comboCounterXPosition = COUNTER_RIGHT;
+		((HUD*)newHUD)->comboCounterYPosition = COUNTER_ABOVE;
+	}
 
 	//load pause menu
 	Menu * playerKeyConfigMenu = new Menu(MAIN_MENU_HEADER_HEIGHT, MAIN_MENU_CURSOR_WIDTH, MAIN_MENU_ITEM_HEIGHT, MAIN_MENU_ITEM_SPACING);

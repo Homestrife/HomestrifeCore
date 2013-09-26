@@ -5,6 +5,18 @@
 
 #define UNDER_METER_SPEED 0.003f
 
+enum ComboCounterXPosition
+{
+	COUNTER_LEFT,
+	COUNTER_RIGHT
+};
+
+enum ComboCounterYPosition
+{
+	COUNTER_ABOVE,
+	COUNTER_BELOW
+};
+
 class HUDHold : public HSObjectHold
 {
 public:
@@ -21,6 +33,12 @@ class HUD : public HSObject
 public:
 	HUD();
 	~HUD();
+
+	float hudWidth;
+	float hudHeight;
+	
+	ComboCounterXPosition comboCounterXPosition;
+	ComboCounterYPosition comboCounterYPosition;
 	
 	string healthMeterFilePath;
 	string healthUnderMeterFilePath;
@@ -40,8 +58,10 @@ public:
 	HSObject * hitsOnesCounter;
 	HSObject * hitsTensCounter;
 	HSObject * hitsHundredsCounter;
-	HSVect2D hitsCounterOffset;
+	float hitsCounterXDistanceFromSide;
+	float hitsCounterYDistanceFromHUD;
 	HSVectComp hitsCounterDigitWidth;
+	HSVectComp hitsCounterDigitHeight;
 	HSVectComp hitsCounterDigitSeparation;
 
 	int SetHealthMeterValue(float value);
