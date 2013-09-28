@@ -717,12 +717,12 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 	}
 
 	//dash
-	if(CanDashCancel() && !turning && !runStopping && !blocking)
+	if(CanDashCancel() && !runStopping && !blocking)
 	{
-		inComboString = false;
-		curAttackAction = NO_ATTACK_ACTION;
-		if(bufferedAction == DASH)
+		if(!turning && bufferedAction == DASH)
 		{
+			inComboString = false;
+			curAttackAction = NO_ATTACK_ACTION;
 			if(state == STANDING || state == WALKING || state == CROUCHING)
 			{
 				bufferedAction = NO_ACTION;
@@ -745,16 +745,26 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 				attacking = false;
 			}
 		}
-		else if(bufferedAction == BACKWARD_DASH && state == JUMPING && curAirActions > 0 && !jumpStartup && !jumpStartupJustEnded)
+		else if(bufferedAction == BACKWARD_DASH)
 		{
-			bufferedAction = NO_ACTION;
-			ChangeHold(fighterEventHolds.airDashBackward);
-			state = AIR_DASHING;
-			airDash = BACKWARD_AIR_DASH;
-			curAirActions--;
-			landingAction = DASH;
-			turnUponLanding = true;
-			attacking = false;
+			if(!attacking && (state == STANDING || state == WALKING || state == CROUCHING))
+			{
+				bufferedAction = NO_ACTION;
+				runAfterTurning = true;
+			}
+			else if(!turning && state == JUMPING && curAirActions > 0 && !jumpStartup && !jumpStartupJustEnded)
+			{
+				inComboString = false;
+				curAttackAction = NO_ATTACK_ACTION;
+				bufferedAction = NO_ACTION;
+				ChangeHold(fighterEventHolds.airDashBackward);
+				state = AIR_DASHING;
+				airDash = BACKWARD_AIR_DASH;
+				curAirActions--;
+				landingAction = DASH;
+				turnUponLanding = true;
+				attacking = false;
+			}
 		}
 	}
 
@@ -1402,7 +1412,7 @@ int Fighter::Update()
 
 			if(shortHop)
 			{
-				vel.y = -jumpSpeed * 2 / 3;
+				vel.y = ceil(-jumpSpeed * 2 / 3);
 			}
 			else
 			{
@@ -2712,7 +2722,7 @@ bool Fighter::ForwardWasTapped(InputStates * inputHistory, int untilFrame, int s
 	if(curHistory->frame < sinceFrame) { return false; }
 
 	//find the latest point in history that forward was pressed
-	while(curHistory->frame >= releasedFrame - TAP_THRESHOLD)
+	while(curHistory->frame >= releasedFrame - TAP_THRESHOLD && curHistory->frame >= sinceFrame)
 	{
 		if((facing == LEFT && (curHistory->bKeyLeft.pressed || curHistory->bButtonLeft.pressed || curHistory->bHatLeft.pressed || curHistory->bStickLeft.pressed)) ||
 		(facing == RIGHT && (curHistory->bKeyRight.pressed || curHistory->bButtonRight.pressed || curHistory->bHatRight.pressed || curHistory->bStickRight.pressed)))
@@ -2762,7 +2772,7 @@ bool Fighter::BackwardWasTapped(InputStates * inputHistory, int untilFrame, int 
 	if(curHistory->frame < sinceFrame) { return false; }
 
 	//find the latest point in history that backward was pressed
-	while(curHistory->frame >= releasedFrame - TAP_THRESHOLD)
+	while(curHistory->frame >= releasedFrame - TAP_THRESHOLD && curHistory->frame >= sinceFrame)
 	{
 		if((facing == RIGHT && (curHistory->bKeyLeft.pressed || curHistory->bButtonLeft.pressed || curHistory->bHatLeft.pressed || curHistory->bStickLeft.pressed)) ||
 		(facing == LEFT && (curHistory->bKeyRight.pressed || curHistory->bButtonRight.pressed || curHistory->bHatRight.pressed || curHistory->bStickRight.pressed)))
@@ -3072,13 +3082,19 @@ bool Fighter::ForwardHardPressed(InputStates * inputHistory, int untilFrame, int
 	//find the latest point in history the stick was neutral
 	while(curHistory->frame >= hardPressFrame - HARD_PRESS_THRESHOLD)
 	{
-		curHistory = curHistory->prevInputState;
-		if(curHistory == NULL) { return true; }
-
 		if(!curHistory->bStickLeft.held && !curHistory->bStickRight.held && !curHistory->bStickUp.held && !curHistory->bStickDown.held)
 		{
 			return true;
 		}
+		
+		curHistory = curHistory->prevInputState;
+		if(curHistory == NULL) { return false; }
+	}
+
+	//check one more time
+	if(!curHistory->bStickLeft.held && !curHistory->bStickRight.held && !curHistory->bStickUp.held && !curHistory->bStickDown.held)
+	{
+		return true;
 	}
 
 	return false;
@@ -3121,13 +3137,19 @@ bool Fighter::BackwardHardPressed(InputStates * inputHistory, int untilFrame, in
 	//find the latest point in history the stick was neutral
 	while(curHistory->frame >= hardPressFrame - HARD_PRESS_THRESHOLD)
 	{
-		curHistory = curHistory->prevInputState;
-		if(curHistory == NULL) { return true; }
-
 		if(!curHistory->bStickLeft.held && !curHistory->bStickRight.held && !curHistory->bStickUp.held && !curHistory->bStickDown.held)
 		{
 			return true;
 		}
+		
+		curHistory = curHistory->prevInputState;
+		if(curHistory == NULL) { return false; }
+	}
+
+	//check one more time
+	if(!curHistory->bStickLeft.held && !curHistory->bStickRight.held && !curHistory->bStickUp.held && !curHistory->bStickDown.held)
+	{
+		return true;
 	}
 
 	return false;

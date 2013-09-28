@@ -18,7 +18,7 @@
 #define GAME_ASPECT_RATIO_Y 9
 #define MAX_INPUT_HISTORY 60
 #define STICK_THRESHOLD 18000 //how far a stick must be tilted before it actually registers as a direction being "pressed"
-#define STICK_HARD_THRESHOLD 32000 //how far a stick must be tilted before it actually registers as a direction being pressed hard
+#define STICK_HARD_THRESHOLD 32700 //how far a stick must be tilted before it actually registers as a direction being pressed hard
 
 #define PAN_SPEED 200
 #define ZOOM_BOUNDARY_X_THRESHOLD 450
@@ -236,8 +236,9 @@ protected:
 
 	int Initialize();
 	int InitializeGraphics();
+	void DebugOutput();
 	int AdvanceHolds();
-	int Event(SDL_Event* events);
+	int Event();
 	int Update();
 	int Collide();
 	int SpawnObjects();

@@ -181,10 +181,20 @@ bool TerrainObject::AreRectanglesColliding(HSVect2D * boxOnePos, HSBox * boxOne,
 {
 	if(boxOnePos == NULL || boxOne == NULL || boxTwoPos == NULL || boxTwo == NULL) { return false; }
 
-	if(boxOnePos->x + boxOne->offset.x < boxTwoPos->x + boxTwo->offset.x + boxTwo->width &&
-		boxOnePos->x + boxOne->offset.x + boxOne->width > boxTwoPos->x + boxTwo->offset.x &&
-		boxOnePos->y + boxOne->offset.y < boxTwoPos->y + boxTwo->offset.y + boxTwo->height &&
-		boxOnePos->y + boxOne->offset.y + boxOne->height > boxTwoPos->y + boxTwo->offset.y)
+	float boxOneLeft = boxOnePos->x + boxOne->offset.x;
+	float boxOneRight = boxOneLeft + boxOne->width;
+	float boxOneTop = boxOnePos->y + boxOne->offset.y;
+	float boxOneBottom = boxOneTop + boxOne->height;
+
+	float boxTwoLeft = boxTwoPos->x + boxTwo->offset.x;
+	float boxTwoRight = boxTwoLeft + boxTwo->width;
+	float boxTwoTop = boxTwoPos->y + boxTwo->offset.y;
+	float boxTwoBottom = boxTwoTop + boxTwo->height;
+
+	if(boxOneLeft < boxTwoRight &&
+		boxOneRight > boxTwoLeft &&
+		boxOneTop < boxTwoBottom &&
+		boxOneBottom > boxTwoTop)
 	{
 		return true;
 	}

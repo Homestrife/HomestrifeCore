@@ -126,8 +126,6 @@ int Main::Execute()
 
 	UpdateLog("Game initialization complete.", false);
 
-	SDL_Event curEvent;
-
 	UpdateLog("Starting main game loop.", false);
 
 	while(notDone)
@@ -136,14 +134,19 @@ int Main::Execute()
 		if(thisFrameTicks - lastFrameTicks >= 1000 / TARGET_FPS)
 		{
 			lastFrameTicks = thisFrameTicks;
+
 			if((error = AdvanceHolds()) != 0) { return error; }
-			if((error = Event(&curEvent)) != 0) { return error; }
+			if((error = Event()) != 0) { return error; }
 			if((error = Update()) != 0) { return error; }
 			if((error = Collide()) != 0) { return error; }
 			if((error = SpawnObjects()) != 0) { return error; }
 			if((error = PlayAudio()) != 0) { return error; }
 			if((error = DeleteObjects()) != 0) { return error; }
 			if((error = Render()) != 0) { return error; }
+
+#if _DEBUG
+			//DebugOutput();
+#endif
 
 			frame++;
 		}
@@ -156,6 +159,45 @@ int Main::Execute()
 	UpdateLog("Cleanup complete.", false);
 
 	return 0;
+}
+
+void Main::DebugOutput()
+{
+	CONSOLE_SCREEN_BUFFER_INFO Info;
+	GetConsoleScreenBufferInfo(GetStdHandle (STD_OUTPUT_HANDLE), &Info) ;
+	SHORT Width = Info.srWindow.Right - Info.srWindow.Left + 1 ;
+	for ( SHORT N = Info.srWindow.Top ; N <= Info.srWindow.Bottom ; ++N ) {
+		DWORD Chars ;
+		COORD Pos = { Info.srWindow.Left, N } ;
+		FillConsoleOutputCharacter(GetStdHandle (STD_OUTPUT_HANDLE), ' ', Width, Pos, &Chars) ;
+		FillConsoleOutputAttribute(GetStdHandle (STD_OUTPUT_HANDLE), ' ', Width, Pos, &Chars) ;
+	}
+	COORD TopLeft = { Info.srWindow.Left, Info.srWindow.Top } ;
+	SetConsoleCursorPosition(GetStdHandle (STD_OUTPUT_HANDLE), TopLeft) ;
+
+	cout << "====DEBUG INFO====" << endl;
+	for(int i = 0; i < MAX_PLAYERS; i++)
+	{
+		if(objectManager->players[i] == NULL) { continue; }
+
+		cout << "---Player " << i << "---" << endl;
+
+		if(objectManager->players[i]->IsFighter())
+		{
+			Fighter * f = (Fighter*)objectManager->players[i];
+
+			cout << "Keyboard Left Pressed: " << (inputHistory[i]->bKeyLeft.pressed && inputHistory[i]->frame == frame) << endl;
+			cout << "Keyboard Left Held: " << inputHistory[i]->bKeyLeft.held << endl;
+			cout << "Keyboard Left Released: " << (inputHistory[i]->bKeyLeft.released && inputHistory[i]->frame == frame) << endl;
+			cout << "Keyboard Right Pressed: " << (inputHistory[i]->bKeyRight.pressed && inputHistory[i]->frame == frame) << endl;
+			cout << "Keyboard Right Held: " << inputHistory[i]->bKeyRight.held << endl;
+			cout << "Keyboard Right Released: " << (inputHistory[i]->bKeyRight.released && inputHistory[i]->frame == frame) << endl;
+		}
+
+		cout << endl;
+	}
+	
+	cout << endl;
 }
 
 int Main::SetBestGameResolution()
@@ -3257,7 +3299,7 @@ int Main::AdvanceHolds()
 }
 
 //event/input stuff
-int Main::Event(SDL_Event* curEvent)
+int Main::Event()
 {
 	//reset current inputs
 	for(int i = 0; i < MAX_PLAYERS; i++)
@@ -3268,9 +3310,10 @@ int Main::Event(SDL_Event* curEvent)
 	}
 
 	//get current inputs
-	while(SDL_PollEvent(curEvent))
+	SDL_Event curEvent;
+	while(SDL_PollEvent(&curEvent))
 	{
-        HandleEvent(curEvent);
+        HandleEvent(&curEvent);
     }
 
 	if(mainMenuState == INPUT_KEY) { return 0; } 
@@ -3328,22 +3371,6 @@ int Main::Event(SDL_Event* curEvent)
 		*newInputs = *curInputs[i];
 		newInputs->prevInputState = inputHistory[i];
 		inputHistory[i] = newInputs;
-
-		//clean out the outdated input history
-		/*int historyCount = 1;
-		InputStates * is = inputHistory[i]->prevInputStates;
-		InputStates * prevIs = NULL;
-		while((is = is->prevInputStates) != NULL)
-		{
-			delete prevIs;
-			historyCount++;
-			if(historyCount > MAX_INPUT_HISTORY)
-			{
-				prevIs = is;
-			}
-		}
-
-		delete prevIs;*/
 	}
 	
 	//call event handling on players
@@ -3475,12 +3502,14 @@ int Main::HandleEvent(SDL_Event* Event)
 	{
         case SDL_KEYDOWN: 
 		{
+			if(Event->key.repeat != 0) { break; }
 			KeyDown(Event->key.keysym.sym);
             break;
         }
 
         case SDL_KEYUP: 
 		{
+			if(Event->key.repeat != 0) { break; }
 			KeyUp(Event->key.keysym.sym);
             break;
         }
@@ -4059,11 +4088,15 @@ void Main::JoyAxis(Uint8 which,Uint8 axis,Sint16 value)
 		if(value < -STICK_THRESHOLD)
 		{
 			if(!prevStickState->stickHeldLeft) { tempInputs->bStickLeft.pressed = true; inputStateChange[player] = true; }
+			if(prevStickState->stickHeldRight) { tempInputs->bStickRight.released = true; inputStateChange[player] = true; }
 			prevStickState->stickHeldLeft = true;
+			prevStickState->stickHeldRight = false;
 		}
 		else if(value > STICK_THRESHOLD)
 		{
 			if(!prevStickState->stickHeldRight) { tempInputs->bStickRight.pressed = true; inputStateChange[player] = true; }
+			if(prevStickState->stickHeldLeft) { tempInputs->bStickLeft.released = true; inputStateChange[player] = true; }
+			prevStickState->stickHeldLeft = false;
 			prevStickState->stickHeldRight = true;
 		}
 		else
@@ -4077,11 +4110,15 @@ void Main::JoyAxis(Uint8 which,Uint8 axis,Sint16 value)
 		if(value < -STICK_HARD_THRESHOLD)
 		{
 			if(!prevStickState->stickHeldHardLeft) { tempInputs->bStickHardLeft.pressed = true; inputStateChange[player] = true; }
+			if(prevStickState->stickHeldHardRight) { tempInputs->bStickHardRight.released = true; inputStateChange[player] = true; }
 			prevStickState->stickHeldHardLeft = true;
+			prevStickState->stickHeldHardRight = false;
 		}
 		else if(value > STICK_HARD_THRESHOLD)
 		{
 			if(!prevStickState->stickHeldHardRight) { tempInputs->bStickHardRight.pressed = true; inputStateChange[player] = true; }
+			if(prevStickState->stickHeldHardLeft) { tempInputs->bStickHardLeft.released = true; inputStateChange[player] = true; }
+			prevStickState->stickHeldHardLeft = false;
 			prevStickState->stickHeldHardRight = true;
 		}
 		else
@@ -4097,11 +4134,15 @@ void Main::JoyAxis(Uint8 which,Uint8 axis,Sint16 value)
 		if(value < -STICK_THRESHOLD)
 		{
 			if(!prevStickState->stickHeldUp) { tempInputs->bStickUp.pressed = true; inputStateChange[player] = true; }
+			if(prevStickState->stickHeldDown) { tempInputs->bStickDown.released = true; inputStateChange[player] = true; }
 			prevStickState->stickHeldUp = true;
+			prevStickState->stickHeldDown = false;
 		}
 		else if(value > STICK_THRESHOLD)
 		{
 			if(!prevStickState->stickHeldDown) { tempInputs->bStickDown.pressed = true; inputStateChange[player] = true; }
+			if(prevStickState->stickHeldUp) { tempInputs->bStickUp.released = true; inputStateChange[player] = true; }
+			prevStickState->stickHeldUp = false;
 			prevStickState->stickHeldDown = true;
 		}
 		else
@@ -4115,11 +4156,15 @@ void Main::JoyAxis(Uint8 which,Uint8 axis,Sint16 value)
 		if(value < -STICK_HARD_THRESHOLD)
 		{
 			if(!prevStickState->stickHeldHardUp) { tempInputs->bStickHardUp.pressed = true; inputStateChange[player] = true; }
+			if(prevStickState->stickHeldHardDown) { tempInputs->bStickHardDown.released = true; inputStateChange[player] = true; }
 			prevStickState->stickHeldHardUp = true;
+			prevStickState->stickHeldHardDown = false;
 		}
 		else if(value > STICK_HARD_THRESHOLD)
 		{
 			if(!prevStickState->stickHeldHardDown) { tempInputs->bStickHardDown.pressed = true; inputStateChange[player] = true; }
+			if(prevStickState->stickHeldHardUp) { tempInputs->bStickHardUp.released = true; inputStateChange[player] = true; }
+			prevStickState->stickHeldHardUp = false;
 			prevStickState->stickHeldHardDown = true;
 		}
 		else

@@ -9,7 +9,7 @@
 #define COMMAND_INPUT_THRESHOLD 10 //number of frames allowed between individual direction inputs for a command
 #define BUFFERED_ACTION_LIFETIME 10 //number of frames to hold on to buffered inputs
 #define TAP_THRESHOLD 10 //number of frames between a press and release of a button to count as a "tap"
-#define HARD_PRESS_THRESHOLD 4 //number of frames the stick has to go from neutral to hard pressed to be equivalent to a double-tap
+#define HARD_PRESS_THRESHOLD 0 //number of frames the stick has to go from neutral to hard pressed to be equivalent to a double-tap
 #define WAIT_AFTER_KNOCKOUT 120 //how many frames to wait after a knockout to respawn
 #define FIGHTER_OVERLAP_PUSH_ACCEL 5 //how much to alter a fighter's velocity when overlapping another fighter
 
