@@ -1593,13 +1593,35 @@ void Fighter::HandleChangeInTerrainBoxes(list<HSObject*> * gameObjects)
 
 void Fighter::HandleFighterCollison(TerrainObject * target)
 {
-	if(pos.x <= target->pos.x)
+	if(pos.x < target->pos.x)
 	{
 		fighterPushXAccel -= FIGHTER_OVERLAP_PUSH_ACCEL;
 	}
-	else
+	else if(pos.x > target->pos.x)
 	{
 		fighterPushXAccel += FIGHTER_OVERLAP_PUSH_ACCEL;
+	}
+	else
+	{
+		Fighter * ft;
+		if(target->IsFighter())
+		{
+			ft = (Fighter*)target;
+		}
+		else
+		{
+			fighterPushXAccel -= FIGHTER_OVERLAP_PUSH_ACCEL;
+			return;
+		}
+
+		if(ft->fighterPushXAccel <= 0)
+		{
+			fighterPushXAccel += FIGHTER_OVERLAP_PUSH_ACCEL;
+		}
+		else
+		{
+			fighterPushXAccel -= FIGHTER_OVERLAP_PUSH_ACCEL;
+		}
 	}
 }
 
