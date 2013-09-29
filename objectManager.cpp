@@ -1243,6 +1243,9 @@ int ObjectManager::LoadStage(string defFilePath)
 	root->QueryFloatAttribute("height", &(stageSize.y));
 	root->QueryFloatAttribute("gravity", &(gravity));
 
+	if(stageSize.x < 1920) { stageSize.x = 1920; }
+	if(stageSize.y < 1080) { stageSize.y = 1080; }
+
 	//loop through all the sections of the stage definition
 	for(XMLElement * i = root->FirstChildElement(); i != NULL; i = i->NextSiblingElement())
 	{

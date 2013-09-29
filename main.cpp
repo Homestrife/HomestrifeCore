@@ -554,9 +554,6 @@ int Main::SpawnObjects()
 
 int Main::Render()
 {
-	//adjust the camera
- 
-	//get the current screen resolution
 	if(zoomOut < 1) { zoomOut = 1; }
 
 	float targetZoomOut = 1;
@@ -567,6 +564,8 @@ int Main::Render()
 	float bottom = 0;
 	float left = 0;
 	float right = 0;
+
+	//get the target camera position
 	for(int i = 0; i < MAX_PLAYERS; i++)
 	{
 		if(objectManager->focusObject[i] == NULL)
@@ -609,6 +608,7 @@ int Main::Render()
 	targetFocusPos.x = left + (right - left) / 2;
 	targetFocusPos.y = top + (bottom - top) / 2;
 
+	//get the target camera zoom
 	if(right - left <= MAX_GAME_RESOLUTION_X - ZOOM_BOUNDARY_X_THRESHOLD && bottom - top <= MAX_GAME_RESOLUTION_Y - ZOOM_BOUNDARY_Y_THRESHOLD)
 	{
 		targetZoomOut = 1;
@@ -622,6 +622,7 @@ int Main::Render()
 		else { targetZoomOut = targetZoomOutY; }
 	}
 
+	//pan/zoom towards the target values
 	if(focusPos.x != targetFocusPos.x || focusPos.y != targetFocusPos.y)
 	{
 		HSVect2D posDiff;
@@ -659,6 +660,47 @@ int Main::Render()
 	else
 	{
 		zoomOut = targetZoomOut;
+	}
+
+	if(gameState == MATCH)
+	{
+		//adjust zoom based on stage size
+		HSVect2D viewportSize;
+		viewportSize.x = MAX_GAME_RESOLUTION_X * zoomOut;
+		viewportSize.y = MAX_GAME_RESOLUTION_Y * zoomOut;
+
+		if(viewportSize.x > objectManager->stageSize.x)
+		{
+			zoomOut = objectManager->stageSize.x / MAX_GAME_RESOLUTION_X;
+			viewportSize.x = MAX_GAME_RESOLUTION_X * zoomOut;
+			viewportSize.y = MAX_GAME_RESOLUTION_Y * zoomOut;
+		}
+
+		if(viewportSize.y > objectManager->stageSize.y)
+		{
+			zoomOut = objectManager->stageSize.y / MAX_GAME_RESOLUTION_Y;
+			viewportSize.x = MAX_GAME_RESOLUTION_X * zoomOut;
+			viewportSize.y = MAX_GAME_RESOLUTION_Y * zoomOut;
+		}
+
+		//adjust focus position based on stage boundary
+
+		if(focusPos.x - (viewportSize.x / 2) < objectManager->stageSize.x / -2)
+		{
+			focusPos.x = (objectManager->stageSize.x / -2) + (viewportSize.x / 2);
+		}
+		else if(focusPos.x + (viewportSize.x / 2) > objectManager->stageSize.x / 2)
+		{
+			focusPos.x = (objectManager->stageSize.x / 2) - (viewportSize.x / 2);
+		}
+		if(focusPos.y - (viewportSize.y / 2) < objectManager->stageSize.y / -2)
+		{
+			focusPos.y = (objectManager->stageSize.y / -2) + (viewportSize.y / 2);
+		}
+		else if(focusPos.y + (viewportSize.y / 2) > objectManager->stageSize.y / 2)
+		{
+			focusPos.y = (objectManager->stageSize.y / 2) - (viewportSize.y / 2);
+		}
 	}
 	
 	ChangeShaderProgram(shader_progIndexed);
@@ -2347,7 +2389,7 @@ int Main::CollideMatch()
 
 		if(matchPlayerState[i] == LOST) { continue; }
 
-		if((!objectManager->players[i]->IsTerrain() && objectManager->players[i]->pos.y > 6000) || (objectManager->players[i]->IsTerrainObject() && ((TerrainObject*)objectManager->players[i])->curHealth <= 0 &&
+		if((!objectManager->players[i]->IsTerrain() && objectManager->players[i]->pos.y > (objectManager->stageSize.y / 2) + RINGOUT_BUFFER) || (objectManager->players[i]->IsTerrainObject() && ((TerrainObject*)objectManager->players[i])->curHealth <= 0 &&
 			(!objectManager->players[i]->IsFighter() || ((Fighter*)objectManager->players[i])->state != KNOCKOUT && ((Fighter*)objectManager->players[i])->state != KNOCKOUT_AIR)))
 		{
 			playerLives[i]--;

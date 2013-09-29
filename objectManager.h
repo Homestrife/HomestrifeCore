@@ -9,6 +9,7 @@
 #include "menuManager.h"
 
 #define MAX_PLAYERS 4
+#define RINGOUT_BUFFER 500 //how far below the bottom of the stage something must fall before its considered "ringed out"
 
 struct CurrentAudioEntry
 {
