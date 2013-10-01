@@ -1388,29 +1388,14 @@ int Main::EventMainMenu(InputStates * inputHistory, int frame)
 			switch(objectManager->menuManager->GetCursorIndex())
 			{
 			case 0:
-				for(int i = 0; i < MAX_PLAYERS; i++)
-				{
-					selectedCharacters[i] = "data\\characters\\john\\John Egbert.xml";
-					selectedPalettes[i] = 0;
-				}
 				gameType = FREE_FOR_ALL_2;
 				if(int i = ChangeGameState(CHARACTER_SELECT) != 0) { return i; }
 				break;
 			case 1:
-				for(int i = 0; i < MAX_PLAYERS; i++)
-				{
-					selectedCharacters[i] = "data\\characters\\john\\John Egbert.xml";
-					selectedPalettes[i] = 0;
-				}
 				gameType = FREE_FOR_ALL_3;
 				if(int i = ChangeGameState(CHARACTER_SELECT) != 0) { return i; }
 				break;
 			case 2:
-				for(int i = 0; i < MAX_PLAYERS; i++)
-				{
-					selectedCharacters[i] = "data\\characters\\john\\John Egbert.xml";
-					selectedPalettes[i] = 0;
-				}
 				gameType = FREE_FOR_ALL_4;
 				if(int i = ChangeGameState(CHARACTER_SELECT) != 0) { return i; }
 				break;
@@ -1537,59 +1522,54 @@ int Main::UpdateMainMenu()
 
 int Main::InitializeCharacterSelect()
 {
-	//demo characters
-	HSObject * newObject;
-	if(int error = objectManager->LoadDefinition("data\\characters\\john\\johnEgbertDemo.xml", &objectManager->fighterObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = CHAR_SELECT_PLAYER_LEFT_POS_X;
-	newObject->pos.y = CHAR_SELECT_PLAYER_TOP_POS_Y;
-	objectManager->focusObject[0] = newObject;
-	objectManager->players[0] = newObject;
-	objectManager->players[0]->SetPalette(selectedPalettes[0]);
+	bool toPlay[MAX_PLAYERS];
 
-	if(int error = objectManager->LoadDefinition("data\\characters\\john\\johnEgbertDemo.xml", &objectManager->fighterObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = CHAR_SELECT_PLAYER_RIGHT_POS_X;
-	newObject->pos.y = CHAR_SELECT_PLAYER_TOP_POS_Y;
-	newObject->hFlip = true;
-	objectManager->focusObject[1] = newObject;
-	objectManager->players[1] = newObject;
-	objectManager->players[1]->SetPalette(selectedPalettes[1]);
+	toPlay[0] = true;
+	toPlay[1] = true;
+	toPlay[2] = false;
+	toPlay[3] = false;
 
 	if(gameType == FREE_FOR_ALL_3 || gameType == FREE_FOR_ALL_4)
 	{
-		if(int error = objectManager->LoadDefinition("data\\characters\\john\\johnEgbertDemo.xml", &objectManager->fighterObjects, &newObject) != 0) { return error; }
-		newObject->pos.x = CHAR_SELECT_PLAYER_LEFT_POS_X;
-		newObject->pos.y = CHAR_SELECT_PLAYER_BOTTOM_POS_Y;
-		objectManager->focusObject[2] = newObject;
-		objectManager->players[2] = newObject;
-		objectManager->players[2]->SetPalette(selectedPalettes[2]);
+		toPlay[2] = true;
 	}
 
 	if(gameType == FREE_FOR_ALL_4)
 	{
-		if(int error = objectManager->LoadDefinition("data\\characters\\john\\johnEgbertDemo.xml", &objectManager->fighterObjects, &newObject) != 0) { return error; }
-		newObject->pos.x = CHAR_SELECT_PLAYER_RIGHT_POS_X;
-		newObject->pos.y = CHAR_SELECT_PLAYER_BOTTOM_POS_Y;
-		newObject->hFlip = true;
-		objectManager->focusObject[3] = newObject;
-		objectManager->players[3] = newObject;
-		objectManager->players[3]->SetPalette(selectedPalettes[1]);
+		toPlay[3] = true;
 	}
-
-	//hud
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\characterSelect\\characterSelect.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = CHARACTER_SELECT_POS_X;
-	newObject->pos.y = CHARACTER_SELECT_POS_Y;
+	
+	objectManager->LoadPlayableCharacters(toPlay);
+	objectManager->LoadPlayableStages();
 
 	float hudYOffset = 0;
 	if(gameType == FREE_FOR_ALL_2)
 	{
 		hudYOffset = 350;
 	}
+
+	//hud
+	HSObject * newObject;
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\characterSelect\\characterSelect.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	newObject->pos.x = CHARACTER_SELECT_POS_X;
+	newObject->pos.y = CHARACTER_SELECT_POS_Y;
 	
 	//player 1 hud
+	list<PlayableCharacter>::iterator pcIt;
+	for(pcIt = objectManager->characterList[0].begin(); pcIt != objectManager->characterList[0].end(); pcIt++)
+	{
+		pcIt->demoObject->pos.x = CHAR_SELECT_PLAYER_LEFT_POS_X;
+		pcIt->demoObject->pos.y = CHAR_SELECT_PLAYER_TOP_POS_Y + hudYOffset;
+	}
+
 	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player1.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = PLAYER_LEFT_POS_X;
 	newObject->pos.y = PLAYER_TOP_POS_Y + hudYOffset;
+
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\selectCharacter\\selectCharacter.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	newObject->pos.x = SELECT_CHARACTER_LEFT_POS_X;
+	newObject->pos.y = SELECT_PALETTE_TOP_POS_Y + hudYOffset;
+	objectManager->selectCharacterOne = newObject;
 
 	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\selectPalette\\selectPalette.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = SELECT_PALETTE_LEFT_POS_X;
@@ -1597,12 +1577,12 @@ int Main::InitializeCharacterSelect()
 	objectManager->selectPaletteOne = newObject;
 	
 	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\leftArrow\\leftArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = SELECT_PALETTE_LEFT_POS_X - 55;
+	newObject->pos.x = SELECT_CHARACTER_LEFT_POS_X - 55;
 	newObject->pos.y = SELECT_PALETTE_TOP_POS_Y + hudYOffset;
 	objectManager->selectPaletteLeftOne = newObject;
 	
 	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\rightArrow\\rightArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = SELECT_PALETTE_LEFT_POS_X + 305;
+	newObject->pos.x = SELECT_CHARACTER_LEFT_POS_X + 363;
 	newObject->pos.y = SELECT_PALETTE_TOP_POS_Y + hudYOffset;
 	objectManager->selectPaletteRightOne = newObject;
 	
@@ -1612,9 +1592,21 @@ int Main::InitializeCharacterSelect()
 	objectManager->readyOne = newObject;
 	
 	//player 2 hud
+	for(pcIt = objectManager->characterList[1].begin(); pcIt != objectManager->characterList[1].end(); pcIt++)
+	{
+		pcIt->demoObject->pos.x = CHAR_SELECT_PLAYER_RIGHT_POS_X;
+		pcIt->demoObject->pos.y = CHAR_SELECT_PLAYER_TOP_POS_Y + hudYOffset;
+		pcIt->demoObject->hFlip = true;
+	}
+
 	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player2.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = PLAYER_RIGHT_POS_X;
 	newObject->pos.y = PLAYER_TOP_POS_Y + hudYOffset;
+
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\selectCharacter\\selectCharacter.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	newObject->pos.x = SELECT_CHARACTER_RIGHT_POS_X;
+	newObject->pos.y = SELECT_PALETTE_TOP_POS_Y + hudYOffset;
+	objectManager->selectCharacterTwo = newObject;
 
 	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\selectPalette\\selectPalette.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = SELECT_PALETTE_RIGHT_POS_X;
@@ -1622,12 +1614,12 @@ int Main::InitializeCharacterSelect()
 	objectManager->selectPaletteTwo = newObject;
 	
 	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\leftArrow\\leftArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = SELECT_PALETTE_RIGHT_POS_X - 55;
+	newObject->pos.x = SELECT_CHARACTER_RIGHT_POS_X - 55;
 	newObject->pos.y = SELECT_PALETTE_TOP_POS_Y + hudYOffset;
 	objectManager->selectPaletteLeftTwo = newObject;
 	
 	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\rightArrow\\rightArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = SELECT_PALETTE_RIGHT_POS_X + 305;
+	newObject->pos.x = SELECT_CHARACTER_RIGHT_POS_X + 363;
 	newObject->pos.y = SELECT_PALETTE_TOP_POS_Y + hudYOffset;
 	objectManager->selectPaletteRightTwo = newObject;
 	
@@ -1639,9 +1631,20 @@ int Main::InitializeCharacterSelect()
 	//player 3 hud
 	if(gameType == FREE_FOR_ALL_3 || gameType == FREE_FOR_ALL_4)
 	{
+		for(pcIt = objectManager->characterList[2].begin(); pcIt != objectManager->characterList[2].end(); pcIt++)
+		{
+			pcIt->demoObject->pos.x = CHAR_SELECT_PLAYER_LEFT_POS_X;
+			pcIt->demoObject->pos.y = CHAR_SELECT_PLAYER_BOTTOM_POS_Y;
+		}
+
 		if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player3.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 		newObject->pos.x = PLAYER_LEFT_POS_X;
 		newObject->pos.y = PLAYER_BOTTOM_POS_Y;
+
+		if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\selectCharacter\\selectCharacter.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+		newObject->pos.x = SELECT_CHARACTER_LEFT_POS_X;
+		newObject->pos.y = SELECT_PALETTE_BOTTOM_POS_Y;
+		objectManager->selectCharacterThree = newObject;
 
 		if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\selectPalette\\selectPalette.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 		newObject->pos.x = SELECT_PALETTE_LEFT_POS_X;
@@ -1649,12 +1652,12 @@ int Main::InitializeCharacterSelect()
 		objectManager->selectPaletteThree = newObject;
 	
 		if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\leftArrow\\leftArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-		newObject->pos.x = SELECT_PALETTE_LEFT_POS_X - 55;
+		newObject->pos.x = SELECT_CHARACTER_LEFT_POS_X - 55;
 		newObject->pos.y = SELECT_PALETTE_BOTTOM_POS_Y;
 		objectManager->selectPaletteLeftThree = newObject;
 	
 		if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\rightArrow\\rightArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-		newObject->pos.x = SELECT_PALETTE_LEFT_POS_X + 305;
+		newObject->pos.x = SELECT_CHARACTER_LEFT_POS_X + 363;
 		newObject->pos.y = SELECT_PALETTE_BOTTOM_POS_Y;
 		objectManager->selectPaletteRightThree = newObject;
 	
@@ -1667,9 +1670,21 @@ int Main::InitializeCharacterSelect()
 	//player 4 hud
 	if(gameType == FREE_FOR_ALL_4)
 	{
+		for(pcIt = objectManager->characterList[3].begin(); pcIt != objectManager->characterList[3].end(); pcIt++)
+		{
+			pcIt->demoObject->pos.x = CHAR_SELECT_PLAYER_RIGHT_POS_X;
+			pcIt->demoObject->pos.y = CHAR_SELECT_PLAYER_BOTTOM_POS_Y;
+			pcIt->demoObject->hFlip = true;
+		}
+
 		if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player4.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 		newObject->pos.x = PLAYER_RIGHT_POS_X;
 		newObject->pos.y = PLAYER_BOTTOM_POS_Y;
+
+		if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\selectCharacter\\selectCharacter.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+		newObject->pos.x = SELECT_CHARACTER_RIGHT_POS_X;
+		newObject->pos.y = SELECT_PALETTE_BOTTOM_POS_Y;
+		objectManager->selectCharacterFour = newObject;
 
 		if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\selectPalette\\selectPalette.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 		newObject->pos.x = SELECT_PALETTE_RIGHT_POS_X;
@@ -1677,12 +1692,12 @@ int Main::InitializeCharacterSelect()
 		objectManager->selectPaletteFour = newObject;
 	
 		if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\leftArrow\\leftArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-		newObject->pos.x = SELECT_PALETTE_RIGHT_POS_X - 55;
+		newObject->pos.x = SELECT_CHARACTER_RIGHT_POS_X - 55;
 		newObject->pos.y = SELECT_PALETTE_BOTTOM_POS_Y;
 		objectManager->selectPaletteLeftFour = newObject;
 	
 		if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\rightArrow\\rightArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-		newObject->pos.x = SELECT_PALETTE_RIGHT_POS_X + 305;
+		newObject->pos.x = SELECT_CHARACTER_RIGHT_POS_X + 363;
 		newObject->pos.y = SELECT_PALETTE_BOTTOM_POS_Y;
 		objectManager->selectPaletteRightFour = newObject;
 	
@@ -1694,10 +1709,10 @@ int Main::InitializeCharacterSelect()
 
 	ChangeCharacterSelectState(PLAYERS_SELECTING);
 
-	for(int i = 0; i < MAX_PLAYERS; i++)
-	{
-		ChangeCharacterSelectPlayerState(SELECTING_PALETTE, i);
-	}
+	if(toPlay[0]) { ChangeCharacterSelectPlayerState(SELECTING_CHARACTER, 0); }
+	if(toPlay[1]) { ChangeCharacterSelectPlayerState(SELECTING_CHARACTER, 1); }
+	if(toPlay[2]) { ChangeCharacterSelectPlayerState(SELECTING_CHARACTER, 2); }
+	if(toPlay[3]) { ChangeCharacterSelectPlayerState(SELECTING_CHARACTER, 3); }
 
 	return 0;
 }
@@ -1715,6 +1730,47 @@ int Main::ChangeCharacterSelectPlayerState(CharacterSelectPlayerState newState, 
 
 	switch(characterSelectPlayerState[player])
 	{
+	case SELECTING_CHARACTER:
+		objectManager->selectedPalettes[player] = 0;
+		objectManager->selectedCharacters[player].demoObject->SetPalette(0);
+		switch(player)
+		{
+		case 0:
+			objectManager->readyOne->visible = false;
+			objectManager->selectPaletteLeftOne->visible = true;
+			objectManager->selectPaletteRightOne->visible = true;
+			objectManager->selectCharacterOne->visible = true;
+			objectManager->selectPaletteOne->visible = false;
+			break;
+		case 1:
+			objectManager->readyTwo->visible = false;
+			objectManager->selectPaletteLeftTwo->visible = true;
+			objectManager->selectPaletteRightTwo->visible = true;
+			objectManager->selectCharacterTwo->visible = true;
+			objectManager->selectPaletteTwo->visible = false;
+			break;
+		case 2:
+			if(objectManager->players[2] != NULL)
+			{
+				objectManager->readyThree->visible = false;
+				objectManager->selectPaletteLeftThree->visible = true;
+				objectManager->selectPaletteRightThree->visible = true;
+				objectManager->selectCharacterThree->visible = true;
+				objectManager->selectPaletteThree->visible = false;
+			}
+			break;
+		case 3:
+			if(objectManager->players[3] != NULL)
+			{
+				objectManager->readyFour->visible = false;
+				objectManager->selectPaletteLeftFour->visible = true;
+				objectManager->selectPaletteRightFour->visible = true;
+				objectManager->selectCharacterFour->visible = true;
+				objectManager->selectPaletteFour->visible = false;
+			}
+			break;
+		}
+		break;
 	case SELECTING_PALETTE:
 		switch(player)
 		{
@@ -1722,12 +1778,14 @@ int Main::ChangeCharacterSelectPlayerState(CharacterSelectPlayerState newState, 
 			objectManager->readyOne->visible = false;
 			objectManager->selectPaletteLeftOne->visible = true;
 			objectManager->selectPaletteRightOne->visible = true;
+			objectManager->selectCharacterOne->visible = false;
 			objectManager->selectPaletteOne->visible = true;
 			break;
 		case 1:
 			objectManager->readyTwo->visible = false;
 			objectManager->selectPaletteLeftTwo->visible = true;
 			objectManager->selectPaletteRightTwo->visible = true;
+			objectManager->selectCharacterTwo->visible = false;
 			objectManager->selectPaletteTwo->visible = true;
 			break;
 		case 2:
@@ -1736,6 +1794,7 @@ int Main::ChangeCharacterSelectPlayerState(CharacterSelectPlayerState newState, 
 				objectManager->readyThree->visible = false;
 				objectManager->selectPaletteLeftThree->visible = true;
 				objectManager->selectPaletteRightThree->visible = true;
+				objectManager->selectCharacterThree->visible = false;
 				objectManager->selectPaletteThree->visible = true;
 			}
 			break;
@@ -1745,6 +1804,7 @@ int Main::ChangeCharacterSelectPlayerState(CharacterSelectPlayerState newState, 
 				objectManager->readyFour->visible = false;
 				objectManager->selectPaletteLeftFour->visible = true;
 				objectManager->selectPaletteRightFour->visible = true;
+				objectManager->selectCharacterFour->visible = false;
 				objectManager->selectPaletteFour->visible = true;
 			}
 			break;
@@ -1757,12 +1817,14 @@ int Main::ChangeCharacterSelectPlayerState(CharacterSelectPlayerState newState, 
 			objectManager->readyOne->visible = true;
 			objectManager->selectPaletteLeftOne->visible = false;
 			objectManager->selectPaletteRightOne->visible = false;
+			objectManager->selectCharacterOne->visible = false;
 			objectManager->selectPaletteOne->visible = false;
 			break;
 		case 1:
 			objectManager->readyTwo->visible = true;
 			objectManager->selectPaletteRightTwo->visible = false;
 			objectManager->selectPaletteLeftTwo->visible = false;
+			objectManager->selectCharacterTwo->visible = false;
 			objectManager->selectPaletteTwo->visible = false;
 			break;
 		case 2:
@@ -1771,6 +1833,7 @@ int Main::ChangeCharacterSelectPlayerState(CharacterSelectPlayerState newState, 
 				objectManager->readyThree->visible = true;
 				objectManager->selectPaletteLeftThree->visible = false;
 				objectManager->selectPaletteRightThree->visible = false;
+				objectManager->selectCharacterThree->visible = false;
 				objectManager->selectPaletteThree->visible = false;
 			}
 			break;
@@ -1780,6 +1843,7 @@ int Main::ChangeCharacterSelectPlayerState(CharacterSelectPlayerState newState, 
 				objectManager->readyFour->visible = true;
 				objectManager->selectPaletteLeftFour->visible = false;
 				objectManager->selectPaletteRightFour->visible = false;
+				objectManager->selectCharacterFour->visible = false;
 				objectManager->selectPaletteFour->visible = false;
 			}
 			break;
@@ -1799,10 +1863,13 @@ int Main::EventCharacterSelect(InputStates * inputHistory, int frame, int player
 		case PLAYERS_SELECTING:
 			switch(characterSelectPlayerState[player])
 			{
+			case SELECTING_CHARACTER:
+				objectManager->PreviousCharacter(player);
+				break;
 			case SELECTING_PALETTE:
-				if(objectManager->players[player] != NULL)
+				if(objectManager->selectedCharacters[player].demoObject != NULL)
 				{
-					objectManager->players[player]->PrevPalette();
+					objectManager->selectedCharacters[player].demoObject->PrevPalette();
 				}
 				break;
 			case READY:
@@ -1818,10 +1885,13 @@ int Main::EventCharacterSelect(InputStates * inputHistory, int frame, int player
 		case PLAYERS_SELECTING:
 			switch(characterSelectPlayerState[player])
 			{
+			case SELECTING_CHARACTER:
+				objectManager->NextCharacter(player);
+				break;
 			case SELECTING_PALETTE:
-				if(objectManager->players[player] != NULL)
+				if(objectManager->selectedCharacters[player].demoObject != NULL)
 				{
-					objectManager->players[player]->NextPalette();
+					objectManager->selectedCharacters[player].demoObject->NextPalette();
 				}
 				break;
 			case READY:
@@ -1838,19 +1908,22 @@ int Main::EventCharacterSelect(InputStates * inputHistory, int frame, int player
 		case PLAYERS_SELECTING:
 			switch(characterSelectPlayerState[player])
 			{
+			case SELECTING_CHARACTER:
+				ChangeCharacterSelectPlayerState(SELECTING_PALETTE, player);
+				break;
 			case SELECTING_PALETTE:
 				{
-					selectedPalettes[player] = objectManager->players[player]->GetPalette();
+					objectManager->selectedPalettes[player] = objectManager->selectedCharacters[player].demoObject->GetPalette();
 					bool searchFailed = true;
 					while(searchFailed)
 					{
 						searchFailed = false;
 						for(int i = 0; i < MAX_PLAYERS; i++)
 						{
-							if(i != player && characterSelectPlayerState[i] == READY && selectedCharacters[player] == selectedCharacters[i] && selectedPalettes[player] == selectedPalettes[i])
+							if(i != player && characterSelectPlayerState[i] == READY && objectManager->selectedCharacters[player].defFilePath == objectManager->selectedCharacters[i].defFilePath && objectManager->selectedPalettes[player] == objectManager->selectedPalettes[i])
 							{
-								objectManager->players[player]->NextPalette();
-								selectedPalettes[player] = objectManager->players[player]->GetPalette();
+								objectManager->selectedCharacters[player].demoObject->NextPalette();
+								objectManager->selectedPalettes[player] = objectManager->selectedCharacters[player].demoObject->GetPalette();
 								searchFailed = true;
 								break;
 							}
@@ -1872,8 +1945,11 @@ int Main::EventCharacterSelect(InputStates * inputHistory, int frame, int player
 		case PLAYERS_SELECTING:
 			switch(characterSelectPlayerState[player])
 			{
-			case SELECTING_PALETTE:
+			case SELECTING_CHARACTER:
 				if(int i = ChangeGameState(MAIN_MENU) != 0) { return i; }
+				break;
+			case SELECTING_PALETTE:
+				ChangeCharacterSelectPlayerState(SELECTING_CHARACTER, player);
 				break;
 			case READY:
 				ChangeCharacterSelectPlayerState(SELECTING_PALETTE, player);
@@ -1920,22 +1996,22 @@ int Main::InitializeMatch()
 
 	//load characters
 	HSObject * fighterOne;
-	if(int error = objectManager->LoadDefinition(selectedCharacters[0], &objectManager->fighterObjects, &fighterOne) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition(objectManager->selectedCharacters[0].defFilePath, &objectManager->fighterObjects, &fighterOne) != 0) { return error; }
 	fighterOne->pos.x = objectManager->spawnPoints[0].x;
 	fighterOne->pos.y = objectManager->spawnPoints[0].y;
 	objectManager->players[0] = fighterOne;
-	fighterOne->SetPalette(selectedPalettes[0]);
+	fighterOne->SetPalette(objectManager->selectedPalettes[0]);
 	((Fighter*)fighterOne)->state = STANDING;
 	((Fighter*)fighterOne)->curHealth = ((Fighter*)fighterOne)->health;
 	fighterOne->ChangeHold(((Fighter*)fighterOne)->fighterEventHolds.standing);
 	objectManager->focusObject[0] = fighterOne;
 	
 	HSObject * fighterTwo;
-	if(int error = objectManager->LoadDefinition(selectedCharacters[1], &objectManager->fighterObjects, &fighterTwo) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition(objectManager->selectedCharacters[1].defFilePath, &objectManager->fighterObjects, &fighterTwo) != 0) { return error; }
 	fighterTwo->pos.x = objectManager->spawnPoints[1].x;
 	fighterTwo->pos.y = objectManager->spawnPoints[1].y;
 	objectManager->players[1] = fighterTwo;
-	fighterTwo->SetPalette(selectedPalettes[1]);
+	fighterTwo->SetPalette(objectManager->selectedPalettes[1]);
 	((Fighter*)fighterTwo)->state = STANDING;
 	((Fighter*)fighterTwo)->facing = LEFT;
 	((Fighter*)fighterTwo)->curHealth = ((Fighter*)fighterTwo)->health;
@@ -1945,11 +2021,11 @@ int Main::InitializeMatch()
 	if(gameType == FREE_FOR_ALL_3 || gameType == FREE_FOR_ALL_4)
 	{
 		HSObject * fighterThree;
-		if(int error = objectManager->LoadDefinition(selectedCharacters[2], &objectManager->fighterObjects, &fighterThree) != 0) { return error; }
+		if(int error = objectManager->LoadDefinition(objectManager->selectedCharacters[2].defFilePath, &objectManager->fighterObjects, &fighterThree) != 0) { return error; }
 		fighterThree->pos.x = objectManager->spawnPoints[2].x;
 		fighterThree->pos.y = objectManager->spawnPoints[2].y;
 		objectManager->players[2] = fighterThree;
-		fighterThree->SetPalette(selectedPalettes[2]);
+		fighterThree->SetPalette(objectManager->selectedPalettes[2]);
 		((Fighter*)fighterThree)->state = STANDING;
 		((Fighter*)fighterThree)->curHealth = ((Fighter*)fighterThree)->health;
 		fighterThree->ChangeHold(((Fighter*)fighterThree)->fighterEventHolds.standing);
@@ -1959,11 +2035,11 @@ int Main::InitializeMatch()
 	if(gameType == FREE_FOR_ALL_4)
 	{
 		HSObject * fighterFour;
-		if(int error = objectManager->LoadDefinition(selectedCharacters[3], &objectManager->fighterObjects, &fighterFour) != 0) { return error; }
+		if(int error = objectManager->LoadDefinition(objectManager->selectedCharacters[3].defFilePath, &objectManager->fighterObjects, &fighterFour) != 0) { return error; }
 		fighterFour->pos.x = objectManager->spawnPoints[3].x;
 		fighterFour->pos.y = objectManager->spawnPoints[3].y;
 		objectManager->players[3] = fighterFour;
-		fighterFour->SetPalette(selectedPalettes[3]);
+		fighterFour->SetPalette(objectManager->selectedPalettes[3]);
 		((Fighter*)fighterFour)->state = STANDING;
 		((Fighter*)fighterFour)->facing = LEFT;
 		((Fighter*)fighterFour)->curHealth = ((Fighter*)fighterFour)->health;

@@ -46,6 +46,8 @@
 #define SELECT_PALETTE_RIGHT_POS_X (READY_RIGHT_POS_X - 80)
 #define SELECT_PALETTE_TOP_POS_Y PLAYER_TOP_POS_Y + 55
 #define SELECT_PALETTE_BOTTOM_POS_Y PLAYER_BOTTOM_POS_Y + 55
+#define SELECT_CHARACTER_LEFT_POS_X (READY_LEFT_POS_X - 109)
+#define SELECT_CHARACTER_RIGHT_POS_X (READY_RIGHT_POS_X - 109)
 
 #define JOYSTICK_UNKNOWN 1000
 #define JOYBUTTON_UNKNOWN 1000
@@ -265,9 +267,6 @@ protected:
 	int ChangeCharacterSelectPlayerState(CharacterSelectPlayerState newState, int player);
 	int EventCharacterSelect(InputStates * inputHistory, int frame, int player);
 	int UpdateCharacterSelect();
-
-	string selectedCharacters[MAX_PLAYERS];
-	int selectedPalettes[MAX_PLAYERS];
 
 	int InitializeMatch();
 	int ChangeMatchState(MatchState newState);

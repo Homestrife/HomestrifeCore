@@ -28,6 +28,7 @@ ObjectManager::ObjectManager()
 		playerHUDs[i] = NULL;
 		players[i] = NULL;
 		focusObject[i] = NULL;
+		characterList[i].clear();
 	}
 
 	loading = NULL;
@@ -42,6 +43,10 @@ ObjectManager::ObjectManager()
 	readyTwo = NULL;
 	readyThree = NULL;
 	readyFour = NULL;
+	selectCharacterOne = NULL;
+	selectCharacterTwo = NULL;
+	selectCharacterThree = NULL;
+	selectCharacterFour = NULL;
 	selectPaletteOne = NULL;
 	selectPaletteTwo = NULL;
 	selectPaletteThree = NULL;
@@ -1297,6 +1302,146 @@ int ObjectManager::LoadStage(string defFilePath)
 	return 0;
 }
 
+int ObjectManager::LoadPlayableCharacters(bool loadPlayer[MAX_PLAYERS])
+{
+	//load selectable characters
+	//get the XML structure from the file
+	XMLDocument * file = new XMLDocument();
+	if(int error = file->LoadFile("data\\characters\\playableCharacters.xml") != 0)
+	{
+		stringstream sstm;
+		sstm << "Error loading definition file. Code: " << error << " File: data\\characters\\playableCharacters.xml";
+		UpdateLog(sstm.str(), true);
+		return error; //couldn't load the file
+	}
+
+	if(strcmp(file->RootElement()->Value(), "PlayableCharacters") != 0)
+	{
+		UpdateLog("XML file is not Homestrife stage definition file: data\\characters\\playableCharacters.xml", true);
+		return -1;
+	}
+
+	XMLElement * root = file->RootElement();
+
+	//loop through all the sections of the playable characters
+	HSObject * newObject;
+	for(XMLElement * i = root->FirstChildElement(); i != NULL; i = i->NextSiblingElement())
+	{
+		if(strcmp(i->Value(), "Character") != 0)
+		{
+			continue;
+		}
+
+		const char * defFilePath = i->Attribute("defFilePath");
+		const char * demoFilePath = i->Attribute("demoFilePath");
+
+		for(int j = 0; j < MAX_PLAYERS; j++)
+		{
+			if(!loadPlayer[j]) { continue; }
+
+			selectedCharacters[j].defFilePath = "";
+			selectedCharacters[j].demoObject = NULL;
+			selectedPalettes[j] = 0;
+
+			if(int error = LoadDefinition(demoFilePath, &fighterObjects, &newObject) != 0) { return error; }
+			PlayableCharacter character;
+			character.defFilePath = defFilePath;
+			character.demoObject = newObject;
+			characterList[j].push_back(character);
+			newObject->visible = false;
+			if(selectedCharacters[j].demoObject == NULL)
+			{
+				focusObject[j] = newObject;
+				newObject->visible = true;
+				selectedCharacters[j] = character;
+			}
+		}
+	}
+
+	return 0;
+}
+
+void ObjectManager::PreviousCharacter(int player)
+{
+	if(characterList[player].empty()) { return; }
+
+	if(selectedCharacters[player].demoObject == NULL) { selectedCharacters[player] = characterList[player].front(); return; }
+
+	PlayableCharacter curPC;
+	curPC.defFilePath = "";
+	curPC.demoObject = NULL;
+	list<PlayableCharacter>::iterator pcIt;
+	for ( pcIt=characterList[player].begin(); pcIt != characterList[player].end(); pcIt++)
+	{
+		if(selectedCharacters[player].demoObject == pcIt->demoObject)
+		{
+			if(curPC.demoObject == NULL)
+			{
+				//the current character is at the start of the list. go to the last one
+				selectedPalettes[player] = 0;
+				selectedCharacters[player].demoObject->visible = false;
+				selectedCharacters[player] = characterList[player].back();
+				focusObject[player] = selectedCharacters[player].demoObject;
+				selectedCharacters[player].demoObject->visible = true;
+				return;
+			}
+			
+			selectedPalettes[player] = 0;
+			selectedCharacters[player].demoObject->visible = false;
+			selectedCharacters[player] = curPC;
+			focusObject[player] = selectedCharacters[player].demoObject;
+			selectedCharacters[player].demoObject->visible = true;
+			return;
+		}
+
+		curPC = *pcIt;
+	}
+}
+
+void ObjectManager::NextCharacter(int player)
+{
+	if(characterList[player].empty()) { return; }
+
+	if(selectedCharacters[player].demoObject == NULL) { selectedCharacters[player] = characterList[player].front(); return; }
+
+	//switch to the palette following the current one
+	bool curCharFound = false;
+	bool nextCharSet = false;
+	list<PlayableCharacter>::iterator pcIt;
+	for ( pcIt=characterList[player].begin(); pcIt != characterList[player].end(); pcIt++)
+	{
+		if(!curCharFound && selectedCharacters[player].demoObject == pcIt->demoObject)
+		{
+			curCharFound = true;
+		}
+		else if(curCharFound)
+		{
+			selectedCharacters[player].demoObject->visible = false;
+			selectedPalettes[player] = 0;
+			selectedCharacters[player] = *pcIt;
+			focusObject[player] = selectedCharacters[player].demoObject;
+			selectedCharacters[player].demoObject->visible = true;
+			nextCharSet = true;
+			break;
+		}
+	}
+
+	if(!nextCharSet)
+	{
+		//the current character must have been at the end of the list. go to the first one
+		selectedCharacters[player].demoObject->visible = false;
+		selectedPalettes[player] = 0;
+		selectedCharacters[player] = characterList[player].front();
+		focusObject[player] = selectedCharacters[player].demoObject;
+		selectedCharacters[player].demoObject->visible = true;
+	}
+}
+
+int ObjectManager::LoadPlayableStages()
+{
+	return 0;
+}
+
 int ObjectManager::CloneObject(SpawnObject * objectToClone, list<HSObject*> * objects, HSObject ** returnValue)
 {
 	if(objectToClone == NULL) { return 0; }
@@ -1998,6 +2143,7 @@ int ObjectManager::ClearAllObjects()
 		players[i] = NULL;
 		playerHUDs[i] = NULL;
 		focusObject[i] = NULL;
+		characterList[i].clear();
 	}
 
 	delete menuManager;
@@ -2014,6 +2160,10 @@ int ObjectManager::ClearAllObjects()
 	readyTwo = NULL;
 	readyThree = NULL;
 	readyFour = NULL;
+	selectCharacterOne = NULL;
+	selectCharacterTwo = NULL;
+	selectCharacterThree = NULL;
+	selectCharacterFour = NULL;
 	selectPaletteOne = NULL;
 	selectPaletteTwo = NULL;
 	selectPaletteThree = NULL;

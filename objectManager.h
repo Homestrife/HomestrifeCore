@@ -19,6 +19,12 @@ struct CurrentAudioEntry
 	bool exclusive; //whether or not the object can be cut off by other exclusive sounds from the same object
 };
 
+struct PlayableCharacter
+{
+	string defFilePath;
+	HSObject * demoObject;
+};
+
 extern list<CurrentAudioEntry*> currentAudio;
 
 class ObjectManager
@@ -51,8 +57,12 @@ public:
 	HSObject * players[MAX_PLAYERS];
 	HSObject * focusObject[MAX_PLAYERS];
 
+	PlayableCharacter selectedCharacters[MAX_PLAYERS];
+	int selectedPalettes[MAX_PLAYERS];
+
 	MenuManager * menuManager;
 
+	list<PlayableCharacter> characterList[MAX_PLAYERS];
 	HSObject * loading;
 	HSObject * playerOne;
 	HSObject * playerTwo;
@@ -64,6 +74,10 @@ public:
 	HSObject * readyTwo;
 	HSObject * readyThree;
 	HSObject * readyFour;
+	HSObject * selectCharacterOne;
+	HSObject * selectCharacterTwo;
+	HSObject * selectCharacterThree;
+	HSObject * selectCharacterFour;
 	HSObject * selectPaletteOne;
 	HSObject * selectPaletteTwo;
 	HSObject * selectPaletteThree;
@@ -78,9 +92,13 @@ public:
 	HSObject * selectPaletteRightFour;
 
 	void SortAllObjects();
-	
+
 	int LoadDefinition(string defFilePath, list<HSObject*> * objects, HSObject ** returnValue = NULL);
 	int LoadStage(string defFilePath);
+	int LoadPlayableCharacters(bool loadPlayer[MAX_PLAYERS]);
+	void PreviousCharacter(int player);
+	void NextCharacter(int player);
+	int LoadPlayableStages();
 
 	int CloneObject(SpawnObject * objectToClone, list<HSObject*> * objects, HSObject ** returnValue = NULL);
 	int CloneObject(HSObject * objectToClone, list<HSObject*> * objects, HSObject ** returnValue = NULL);
