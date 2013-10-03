@@ -29,7 +29,13 @@ ObjectManager::ObjectManager()
 		players[i] = NULL;
 		focusObject[i] = NULL;
 		characterList[i].clear();
+		selectedCharacters[i].defFilePath = "";
+		selectedCharacters[i].demoObject = NULL;
+		selectedPalettes[i] = 0;
 	}
+	stageList.clear();
+	selectedStage.defFilePath = "";
+	selectedStage.demoObject = NULL;
 
 	loading = NULL;
 	menuManager = NULL;
@@ -1317,11 +1323,18 @@ int ObjectManager::LoadPlayableCharacters(bool loadPlayer[MAX_PLAYERS])
 
 	if(strcmp(file->RootElement()->Value(), "PlayableCharacters") != 0)
 	{
-		UpdateLog("XML file is not Homestrife stage definition file: data\\characters\\playableCharacters.xml", true);
+		UpdateLog("XML file is not Homestrife character list definition file: data\\characters\\playableCharacters.xml", true);
 		return -1;
 	}
 
 	XMLElement * root = file->RootElement();
+
+	for(int j = 0; j < MAX_PLAYERS; j++)
+	{
+		selectedCharacters[j].defFilePath = "";
+		selectedCharacters[j].demoObject = NULL;
+		selectedPalettes[j] = 0;
+	}
 
 	//loop through all the sections of the playable characters
 	HSObject * newObject;
@@ -1338,10 +1351,6 @@ int ObjectManager::LoadPlayableCharacters(bool loadPlayer[MAX_PLAYERS])
 		for(int j = 0; j < MAX_PLAYERS; j++)
 		{
 			if(!loadPlayer[j]) { continue; }
-
-			selectedCharacters[j].defFilePath = "";
-			selectedCharacters[j].demoObject = NULL;
-			selectedPalettes[j] = 0;
 
 			if(int error = LoadDefinition(demoFilePath, &fighterObjects, &newObject) != 0) { return error; }
 			PlayableCharacter character;
@@ -1439,7 +1448,121 @@ void ObjectManager::NextCharacter(int player)
 
 int ObjectManager::LoadPlayableStages()
 {
+	//load selectable stages
+	//get the XML structure from the file
+	XMLDocument * file = new XMLDocument();
+	if(int error = file->LoadFile("data\\stages\\playableStages.xml") != 0)
+	{
+		stringstream sstm;
+		sstm << "Error loading definition file. Code: " << error << " File: data\\stages\\playableStages.xml";
+		UpdateLog(sstm.str(), true);
+		return error; //couldn't load the file
+	}
+
+	if(strcmp(file->RootElement()->Value(), "PlayableStages") != 0)
+	{
+		UpdateLog("XML file is not Homestrife stage list definition file: data\\stages\\playableStages.xml", true);
+		return -1;
+	}
+
+	selectedStage.defFilePath = "";
+	selectedStage.demoObject = NULL;
+
+	XMLElement * root = file->RootElement();
+
+	//loop through all the sections of the playable characters
+	HSObject * newObject;
+	for(XMLElement * i = root->FirstChildElement(); i != NULL; i = i->NextSiblingElement())
+	{
+		if(strcmp(i->Value(), "Stage") != 0)
+		{
+			continue;
+		}
+
+		const char * defFilePath = i->Attribute("defFilePath");
+		const char * demoFilePath = i->Attribute("demoFilePath");
+
+		if(int error = LoadDefinition(demoFilePath, &HUDObjects, &newObject) != 0) { return error; }
+		PlayableStage stage;
+		stage.defFilePath = defFilePath;
+		stage.demoObject = newObject;
+		stageList.push_back(stage);
+		newObject->visible = false;
+		if(selectedStage.demoObject == NULL)
+		{
+			selectedStage = stage;
+		}
+	}
+
 	return 0;
+}
+
+void ObjectManager::PreviousStage()
+{
+	if(stageList.empty()) { return; }
+
+	if(selectedStage.demoObject == NULL) { selectedStage = stageList.front(); return; }
+
+	PlayableStage curPS;
+	curPS.defFilePath = "";
+	curPS.demoObject = NULL;
+	list<PlayableStage>::iterator psIt;
+	for ( psIt=stageList.begin(); psIt != stageList.end(); psIt++)
+	{
+		if(selectedStage.demoObject == psIt->demoObject)
+		{
+			if(curPS.demoObject == NULL)
+			{
+				//the current character is at the start of the list. go to the last one
+				selectedStage.demoObject->visible = false;
+				selectedStage = stageList.back();
+				selectedStage.demoObject->visible = true;
+				return;
+			}
+			
+			selectedStage.demoObject->visible = false;
+			selectedStage = curPS;
+			selectedStage.demoObject->visible = true;
+			return;
+		}
+
+		curPS = *psIt;
+	}
+}
+
+void ObjectManager::NextStage()
+{
+	if(stageList.empty()) { return; }
+
+	if(selectedStage.demoObject == NULL) { selectedStage = stageList.front(); return; }
+
+	//switch to the palette following the current one
+	bool curStageFound = false;
+	bool nextStageSet = false;
+	list<PlayableStage>::iterator psIt;
+	for ( psIt=stageList.begin(); psIt != stageList.end(); psIt++)
+	{
+		if(!curStageFound && selectedStage.demoObject == psIt->demoObject)
+		{
+			curStageFound = true;
+		}
+		else if(curStageFound)
+		{
+			selectedStage.demoObject->visible = false;
+			selectedStage = *psIt;
+			selectedStage.demoObject->visible = true;
+			nextStageSet = true;
+			break;
+		}
+	}
+
+	if(!nextStageSet)
+	{
+		//the current character must have been at the end of the list. go to the first one
+		selectedStage.demoObject->visible = false;
+		selectedStage = stageList.front();
+		selectedStage.demoObject->visible = true;
+	}
 }
 
 int ObjectManager::CloneObject(SpawnObject * objectToClone, list<HSObject*> * objects, HSObject ** returnValue)

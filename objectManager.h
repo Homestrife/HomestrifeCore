@@ -25,6 +25,12 @@ struct PlayableCharacter
 	HSObject * demoObject;
 };
 
+struct PlayableStage
+{
+	string defFilePath;
+	HSObject * demoObject;
+};
+
 extern list<CurrentAudioEntry*> currentAudio;
 
 class ObjectManager
@@ -59,11 +65,14 @@ public:
 
 	PlayableCharacter selectedCharacters[MAX_PLAYERS];
 	int selectedPalettes[MAX_PLAYERS];
+	PlayableStage selectedStage;
 
 	MenuManager * menuManager;
 
 	list<PlayableCharacter> characterList[MAX_PLAYERS];
+	list<PlayableStage> stageList;
 	HSObject * loading;
+	HSObject * characterSelect;
 	HSObject * playerOne;
 	HSObject * playerTwo;
 	HSObject * playerThree;
@@ -90,6 +99,10 @@ public:
 	HSObject * selectPaletteRightTwo;
 	HSObject * selectPaletteRightThree;
 	HSObject * selectPaletteRightFour;
+	HSObject * stageSelect;
+	HSObject * selectStage;
+	HSObject * selectStageLeft;
+	HSObject * selectStageRight;
 
 	void SortAllObjects();
 
@@ -99,6 +112,8 @@ public:
 	void PreviousCharacter(int player);
 	void NextCharacter(int player);
 	int LoadPlayableStages();
+	void PreviousStage();
+	void NextStage();
 
 	int CloneObject(SpawnObject * objectToClone, list<HSObject*> * objects, HSObject ** returnValue = NULL);
 	int CloneObject(HSObject * objectToClone, list<HSObject*> * objects, HSObject ** returnValue = NULL);
