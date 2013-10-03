@@ -1539,8 +1539,8 @@ int Main::InitializeCharacterSelect()
 		toPlay[3] = true;
 	}
 	
-	objectManager->LoadPlayableCharacters(toPlay);
-	objectManager->LoadPlayableStages();
+	if(int error = objectManager->LoadPlayableCharacters(toPlay) != 0) { return error; }
+	if(int error = objectManager->LoadPlayableStages() != 0) { return error; }
 
 	float hudYOffset = 0;
 	if(gameType == FREE_FOR_ALL_2)
