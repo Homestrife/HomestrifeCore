@@ -339,6 +339,11 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 			holdDef->QueryUnsignedAttribute("id", &(newHold->id));
 			holdDef->QueryUnsignedAttribute("nextHoldId", &(newHold->nextHoldId));
 			holdDef->QueryUnsignedAttribute("duration", &(newHold->duration));
+			holdDef->QueryBoolAttribute("overwriteVelocity", &(newHold->overwriteVelocity));
+			holdDef->QueryFloatAttribute("velocityX", &(newHold->velocity.x));
+			holdDef->QueryFloatAttribute("velocityY", &(newHold->velocity.y));
+			holdDef->QueryFloatAttribute("repositionX", &(newHold->reposition.x));
+			holdDef->QueryFloatAttribute("repositionY", &(newHold->reposition.y));
 
 			//get the event holds
 			unsigned int eventHoldId = 0;
@@ -434,6 +439,30 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 					eventHoldId = 0;
 					eventHoldsDef->QueryUnsignedAttribute("healthDeath", &eventHoldId);
 					if(newHold->id == eventHoldId) { newTObject->terrainEventHolds.healthDeath = newTOHold; }
+				}
+			}
+
+			if(newHold->IsPhysicsObjectHold())
+			{
+				PhysicsObjectHold * newPOHold = (PhysicsObjectHold*)newHold;
+
+				//get changeCancels
+				const char * cpa = holdDef->Attribute("changePhysicsAttributes");
+				string bString;
+				if(cpa != NULL)
+				{
+					bString.assign(cpa);
+					if(bString.compare("true") == 0) { newPOHold->changePhysicsAttributes = true; }
+					else if(bString.compare("false") == 0) { newPOHold->changePhysicsAttributes = false; }
+				}
+				
+				//get ignoreGravity
+				const char * ig = holdDef->Attribute("ignoreGravity");
+				if(ig != NULL)
+				{
+					bString.assign(ig);
+					if(bString.compare("true") == 0) { newPOHold->ignoreGravity = true; }
+					else if(bString.compare("false") == 0) { newPOHold->ignoreGravity = false; }
 				}
 			}
 
@@ -1298,7 +1327,7 @@ int ObjectManager::LoadStage(string defFilePath)
 
 				j->QueryFloatAttribute("posX", &(newObject->pos.x));
 				j->QueryFloatAttribute("posY", &(newObject->pos.y));
-				j->QueryIntAttribute("depth", &(newObject->depth));
+				j->QueryFloatAttribute("depth", &(newObject->depth));
 			}
 		}
 	}
