@@ -1193,6 +1193,14 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 			}
 		}
 
+		if(newObject->firstHold == NULL)
+		{
+			//object has no holds! forget it
+			UpdateLog("Object has no holds: " + defFilePath, false);
+			delete newObject;
+			return 0;
+		}
+
 		//set the next holds
 		for(HSObjectHold * i = newObject->firstHold; i != NULL; i = i->nextListHold)
 		{

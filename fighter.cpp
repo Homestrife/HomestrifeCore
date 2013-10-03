@@ -791,10 +791,10 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 		else if(state == JUMPING)
 		{
 			landingAction = CROUCH;
-			//if(inputHistory->bKeyJump.held || inputHistory->bButtonJump.held)
-			//{
+			if(inputHistory->bKeyJump.held || inputHistory->bButtonJump.held)
+			{
 				ignoreJumpThroughTerrain = true;
-			//}
+			}
 		}
 	}
 	else if(!attacking && state == CROUCHING)
@@ -1791,7 +1791,22 @@ int Fighter::HandleJumpLanding()
 	{
 		case NO_ACTION:
 			state = STANDING;
-			if(blocking || curBlockstun > 0)
+			if(curHitstun > 0)
+			{
+				if(hitstunBlockability == MID || hitstunBlockability == UNBLOCKABLE)
+				{
+					ChangeHold(fighterEventHolds.hitstunLightMidStanding);
+				}
+				else if(hitstunBlockability == HIGH)
+				{
+					ChangeHold(fighterEventHolds.hitstunLightHighStanding);
+				}
+				else if(hitstunBlockability == LOW)
+				{
+					ChangeHold(fighterEventHolds.hitstunLightLowStanding);
+				}
+			}
+			else if(blocking || curBlockstun > 0)
 			{
 				ChangeHold(fighterEventHolds.blockHigh);
 			}
@@ -1812,7 +1827,23 @@ int Fighter::HandleJumpLanding()
 			}
 			break;
 		case MOVE:
-			if(blocking || curBlockstun > 0)
+			if(curHitstun > 0)
+			{
+				state = STANDING;
+				if(hitstunBlockability == MID || hitstunBlockability == UNBLOCKABLE)
+				{
+					ChangeHold(fighterEventHolds.hitstunLightMidStanding);
+				}
+				else if(hitstunBlockability == HIGH)
+				{
+					ChangeHold(fighterEventHolds.hitstunLightHighStanding);
+				}
+				else if(hitstunBlockability == LOW)
+				{
+					ChangeHold(fighterEventHolds.hitstunLightLowStanding);
+				}
+			}
+			else if(blocking || curBlockstun > 0)
 			{
 				state = STANDING;
 				ChangeHold(fighterEventHolds.blockHigh);
@@ -1901,7 +1932,23 @@ int Fighter::HandleJumpLanding()
 			break;
 		case CROUCH:
 			state = CROUCHING;
-			if(blocking || curBlockstun > 0)
+			if(curHitstun > 0)
+			{
+				state = STANDING;
+				if(hitstunBlockability == MID || hitstunBlockability == UNBLOCKABLE)
+				{
+					ChangeHold(fighterEventHolds.hitstunLightMidStanding);
+				}
+				else if(hitstunBlockability == HIGH)
+				{
+					ChangeHold(fighterEventHolds.hitstunLightHighStanding);
+				}
+				else if(hitstunBlockability == LOW)
+				{
+					ChangeHold(fighterEventHolds.hitstunLightLowStanding);
+				}
+			}
+			else if(blocking || curBlockstun > 0)
 			{
 				ChangeHold(fighterEventHolds.blockLow);
 			}
@@ -2574,76 +2621,23 @@ HSObjectHold * Fighter::GetDefaultHold()
 	curAttackAction = NO_ATTACK_ACTION;
 	ignoreGravity = false;
 
-	if(state == KNOCKOUT_AIR)
-	{
-		return fighterEventHolds.hitstunLightAir;
-	}
-	else if(curHitstun > 0)
-	{
-		if(state == STANDING || state == WALKING || state == RUNNING)
-		{
-			if(hitstunBlockability == MID || hitstunBlockability == UNBLOCKABLE)
-			{
-				return fighterEventHolds.hitstunLightMidStanding;
-			}
-			else if(hitstunBlockability == HIGH)
-			{
-				return fighterEventHolds.hitstunLightHighStanding;
-			}
-			else if(hitstunBlockability == LOW)
-			{
-				return fighterEventHolds.hitstunLightLowStanding;
-			}
-			state = STANDING;
-		}
-		else if(state == CROUCHING)
-		{
-			if(hitstunBlockability == MID || hitstunBlockability == UNBLOCKABLE || hitstunBlockability == HIGH)
-			{
-				return fighterEventHolds.hitstunLightMidCrouching;
-			}
-			else
-			{
-				return fighterEventHolds.hitstunLightLowCrouching;
-			}
-		}
-		else if(state == JUMPING)
-		{
-			return fighterEventHolds.hitstunLightAir;
-		}
-	}
-	else if(curBlockstun > 0 || blocking)
-	{
-		if(state == STANDING || state == WALKING || state == RUNNING)
-		{
-			state = STANDING;
-			return fighterEventHolds.blockHigh;
-		}
-		else if(state == CROUCHING)
-		{
-			return fighterEventHolds.blockLow;
-		}
-		else if(state == JUMPING || state == AIR_DASHING)
-		{
-			return fighterEventHolds.blockAir;
-		}
-	}
+	HSObjectHold * returnHold = NULL;
 
 	if(state == STANDING)
 	{
-		return fighterEventHolds.standing;
+		returnHold =  fighterEventHolds.standing;
 	}
 	else if(state == WALKING)
 	{
-		return fighterEventHolds.walking;
+		returnHold =  fighterEventHolds.walking;
 	}
 	else if(state == RUNNING)
 	{
-		return fighterEventHolds.running;
+		returnHold =  fighterEventHolds.running;
 	}
 	else if(state == CROUCHING)
 	{
-		return fighterEventHolds.crouching;
+		returnHold =  fighterEventHolds.crouching;
 	}
 	else if(state == JUMPING)
 	{
@@ -2651,32 +2645,97 @@ HSObjectHold * Fighter::GetDefaultHold()
 		{
 			if((facing == LEFT && vel.x > 0) || (facing == RIGHT && vel.x < 0))
 			{
-				return fighterEventHolds.jumpBackwardRising;
+				returnHold =  fighterEventHolds.jumpBackwardRising;
 			}
 			else
 			{
-				return fighterEventHolds.jumpNeutralRising;
+				returnHold =  fighterEventHolds.jumpNeutralRising;
 			}
 		}
 		else
 		{
-			return fighterEventHolds.jumpNeutralFalling;
+			returnHold =  fighterEventHolds.jumpNeutralFalling;
 		}
 	}
 	else if(state == AIR_DASHING)
 	{
 		if(airDash == FORWARD_AIR_DASH)
 		{
-			return fighterEventHolds.airDashForward;
+			returnHold =  fighterEventHolds.airDashForward;
 		}
 		else if(airDash == BACKWARD_AIR_DASH)
 		{
-			return fighterEventHolds.airDashBackward;
+			returnHold =  fighterEventHolds.airDashBackward;
 		}
 	}
 
-	//default to whatever the base class does
-	return PhysicsObject::GetDefaultHold();
+	if(state == KNOCKOUT_AIR)
+	{
+		returnHold = fighterEventHolds.hitstunLightAir;
+	}
+	else if(curHitstun > 0)
+	{
+		if(state == STANDING || state == WALKING || state == RUNNING)
+		{
+			state = STANDING;
+			if(hitstunBlockability == MID || hitstunBlockability == UNBLOCKABLE)
+			{
+				returnHold =  fighterEventHolds.hitstunLightMidStanding;
+			}
+			else if(hitstunBlockability == HIGH)
+			{
+				returnHold =  fighterEventHolds.hitstunLightHighStanding;
+			}
+			else if(hitstunBlockability == LOW)
+			{
+				returnHold =  fighterEventHolds.hitstunLightLowStanding;
+			}
+		}
+		else if(state == CROUCHING)
+		{
+			if(hitstunBlockability == MID || hitstunBlockability == UNBLOCKABLE || hitstunBlockability == HIGH)
+			{
+				returnHold =  fighterEventHolds.hitstunLightMidCrouching;
+			}
+			else
+			{
+				returnHold =  fighterEventHolds.hitstunLightLowCrouching;
+			}
+		}
+		else if(state == JUMPING)
+		{
+			returnHold =  fighterEventHolds.hitstunLightAir;
+		}
+	}
+	else if(curBlockstun > 0 || blocking)
+	{
+		if(state == STANDING || state == WALKING || state == RUNNING)
+		{
+			state = STANDING;
+			returnHold =  fighterEventHolds.blockHigh;
+		}
+		else if(state == CROUCHING)
+		{
+			returnHold =  fighterEventHolds.blockLow;
+		}
+		else if(state == JUMPING || state == AIR_DASHING)
+		{
+			returnHold =  fighterEventHolds.blockAir;
+		}
+	}
+
+	if(returnHold == NULL)
+	{
+		returnHold = fighterEventHolds.standing; //try to default to standing
+	}
+
+	if(returnHold == NULL)
+	{
+		//default to whatever the base class does
+		return PhysicsObject::GetDefaultHold();
+	}
+
+	return returnHold;
 }
 
 void Fighter::GroundAttackExecuted()

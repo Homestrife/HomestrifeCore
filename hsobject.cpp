@@ -322,6 +322,7 @@ bool HSObject::AdvanceHold(HSObjectHold* hold)
 	if(curHold == NULL)
 	{
 		curHold = GetDefaultHold();
+
 		result = false;
 	}
 

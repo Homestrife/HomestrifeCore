@@ -552,7 +552,7 @@ int Main::SpawnObjects()
 	return 0;
 }
 
-int Main::Render()
+void Main::AdjustCamera(bool adjustInstantly)
 {
 	if(zoomOut < 1) { zoomOut = 1; }
 
@@ -622,44 +622,54 @@ int Main::Render()
 		else { targetZoomOut = targetZoomOutY; }
 	}
 
-	//pan/zoom towards the target values
-	if(focusPos.x != targetFocusPos.x || focusPos.y != targetFocusPos.y)
+	if(adjustInstantly)
 	{
-		HSVect2D posDiff;
-		posDiff.x = targetFocusPos.x - focusPos.x;
-		posDiff.y = targetFocusPos.y - focusPos.y;
-
-		HSVectComp diffLength = sqrt(pow(posDiff.x, 2) + pow(posDiff.y, 2));
-		if(abs(diffLength) <= PAN_SPEED)
-		{
-			//distance is shorter than pan speed, so just move to the target position
-			focusPos.x = targetFocusPos.x;
-			focusPos.y = targetFocusPos.y;
-			zoomOut = targetZoomOut;
-		}
-		else
-		{
-			HSVect2D diffNormal;
-			diffNormal.x = posDiff.x / diffLength;
-			diffNormal.y = posDiff.y / diffLength;
-
-			HSVect2D posChange;
-			posChange.x = diffNormal.x * PAN_SPEED;
-			posChange.y = diffNormal.y * PAN_SPEED;
-
-			focusPos.x += posChange.x;
-			focusPos.y += posChange.y;
-
-			HSVectComp changeLength = sqrt(pow(posChange.x, 2) + pow(posChange.y, 2));
-			float zoomRatio = changeLength / diffLength;
-
-			float zoomDiff = targetZoomOut - zoomOut;
-			zoomOut += zoomDiff * zoomRatio;
-		}
+		//go to the target values instantly
+		zoomOut = targetZoomOut;
+		focusPos.x = targetFocusPos.x;
+		focusPos.y = targetFocusPos.y;
 	}
 	else
 	{
-		zoomOut = targetZoomOut;
+		//pan/zoom towards the target values gradually
+		if(focusPos.x != targetFocusPos.x || focusPos.y != targetFocusPos.y)
+		{
+			HSVect2D posDiff;
+			posDiff.x = targetFocusPos.x - focusPos.x;
+			posDiff.y = targetFocusPos.y - focusPos.y;
+
+			HSVectComp diffLength = sqrt(pow(posDiff.x, 2) + pow(posDiff.y, 2));
+			if(abs(diffLength) <= PAN_SPEED)
+			{
+				//distance is shorter than pan speed, so just move to the target position
+				focusPos.x = targetFocusPos.x;
+				focusPos.y = targetFocusPos.y;
+				zoomOut = targetZoomOut;
+			}
+			else
+			{
+				HSVect2D diffNormal;
+				diffNormal.x = posDiff.x / diffLength;
+				diffNormal.y = posDiff.y / diffLength;
+
+				HSVect2D posChange;
+				posChange.x = diffNormal.x * PAN_SPEED;
+				posChange.y = diffNormal.y * PAN_SPEED;
+
+				focusPos.x += posChange.x;
+				focusPos.y += posChange.y;
+
+				HSVectComp changeLength = sqrt(pow(posChange.x, 2) + pow(posChange.y, 2));
+				float zoomRatio = changeLength / diffLength;
+
+				float zoomDiff = targetZoomOut - zoomOut;
+				zoomOut += zoomDiff * zoomRatio;
+			}
+		}
+		else
+		{
+			zoomOut = targetZoomOut;
+		}
 	}
 
 	if(gameState == MATCH)
@@ -702,7 +712,12 @@ int Main::Render()
 			focusPos.y = (objectManager->stageSize.y / 2) - (viewportSize.y / 2);
 		}
 	}
-	
+}
+
+int Main::Render()
+{
+	AdjustCamera(false);
+
 	ChangeShaderProgram(shader_progIndexed);
 	glUniform2f(indexedFocusPosLoc, focusPos.x, focusPos.y);
 	glUniform1f(indexedZoomOutLoc, zoomOut - 1);
@@ -1740,6 +1755,8 @@ int Main::InitializeCharacterSelect()
 	if(toPlay[2]) { ChangeCharacterSelectPlayerState(SELECTING_CHARACTER, 2); }
 	if(toPlay[3]) { ChangeCharacterSelectPlayerState(SELECTING_CHARACTER, 3); }
 
+	AdjustCamera(true);
+
 	return 0;
 }
 
@@ -2385,6 +2402,8 @@ int Main::InitializeMatch()
 	}
 
 	ChangePauseMenuState(PAUSE_TOP);
+
+	AdjustCamera(true);
 
 	return 0;
 }

@@ -247,6 +247,7 @@ protected:
 	int Update();
 	int Collide();
 	int SpawnObjects();
+	void AdjustCamera(bool adjustInstantly);
 	int Render();
 	int RenderTexture(HSObject * obj, TextureInstance tex); 
 	int PlayAudio();
