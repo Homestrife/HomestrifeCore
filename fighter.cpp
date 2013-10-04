@@ -1068,7 +1068,7 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 				state = CROUCHING;
 				ChangeHold(fighterEventHolds.attackLightDownGround);
 			}
-			else if(CanLightForwardCancel() && fighterEventHolds.attackLightForwardGround != NULL && (bufferedAction == FORWARD_LIGHT))
+			else if(CanLightForwardCancel() && fighterEventHolds.attackLightForwardGround != NULL && (bufferedAction == FORWARD_LIGHT || ((bufferedAction == NEUTRAL_LIGHT || bufferedAction == BACKWARD_LIGHT) && curAttackAction == GROUND_NEUTRAL_LIGHT)))
 			{
 				curAttackAction = GROUND_FORWARD_LIGHT;
 				GroundAttackExecuted();
@@ -1105,7 +1105,7 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 				landingAction = DOWN_LIGHT;
 				ChangeHold(fighterEventHolds.attackLightDownAir);
 			}
-			else if(CanLightForwardCancel() && fighterEventHolds.attackLightForwardAir != NULL && bufferedAction == FORWARD_LIGHT)
+			else if(CanLightForwardCancel() && fighterEventHolds.attackLightForwardAir != NULL && (bufferedAction == FORWARD_LIGHT || (bufferedAction == NEUTRAL_LIGHT && curAttackAction == AIR_NEUTRAL_LIGHT)))
 			{
 				curAttackAction = AIR_FORWARD_LIGHT;
 				AirAttackExecuted();
@@ -1156,7 +1156,7 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 				state = CROUCHING;
 				ChangeHold(fighterEventHolds.attackHeavyDownGround);
 			}
-			else if(CanHeavyForwardCancel() && fighterEventHolds.attackHeavyForwardGround != NULL && (bufferedAction == FORWARD_HEAVY))
+			else if(CanHeavyForwardCancel() && fighterEventHolds.attackHeavyForwardGround != NULL && (bufferedAction == FORWARD_HEAVY || ((bufferedAction == NEUTRAL_HEAVY || bufferedAction == BACKWARD_HEAVY) && curAttackAction == GROUND_NEUTRAL_HEAVY)))
 			{
 				curAttackAction = GROUND_FORWARD_HEAVY;
 				GroundAttackExecuted();
@@ -1193,7 +1193,7 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 				landingAction = DOWN_HEAVY;
 				ChangeHold(fighterEventHolds.attackHeavyDownAir);
 			}
-			else if(CanHeavyForwardCancel() && fighterEventHolds.attackHeavyForwardAir != NULL && bufferedAction == FORWARD_HEAVY)
+			else if(CanHeavyForwardCancel() && fighterEventHolds.attackHeavyForwardAir != NULL && (bufferedAction == FORWARD_HEAVY || (bufferedAction == NEUTRAL_HEAVY && curAttackAction == AIR_NEUTRAL_HEAVY)))
 			{
 				curAttackAction = AIR_FORWARD_HEAVY;
 				AirAttackExecuted();
