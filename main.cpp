@@ -2122,7 +2122,7 @@ int Main::EventCharacterSelect(InputStates * inputHistory, int frame, int player
 			}
 			break;
 		case STAGE_SELECT:
-			ChangeGameState(MATCH);
+			if(int i = ChangeGameState(MATCH) != 0) { return i; }
 			break;
 		}
 	}
@@ -2545,7 +2545,7 @@ int Main::EventMatch(InputStates * inputHistory, int frame, int player)
 					ChangePauseMenuState(PAUSE_KEY_CONFIG);
 					break;
 				case 2:
-					ChangeGameState(MAIN_MENU);
+					if(int i = ChangeGameState(MAIN_MENU) != 0) { return i; }
 					break;
 				}
 				break;

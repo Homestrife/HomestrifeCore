@@ -1072,7 +1072,7 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 				state = CROUCHING;
 				ChangeHold(fighterEventHolds.attackLightDownGround);
 			}
-			else if(CanLightForwardCancel() && fighterEventHolds.attackLightForwardGround != NULL && (bufferedAction == FORWARD_LIGHT || ((bufferedAction == NEUTRAL_LIGHT || bufferedAction == BACKWARD_LIGHT) && curAttackAction == GROUND_NEUTRAL_LIGHT)))
+			else if(CanLightForwardCancel() && fighterEventHolds.attackLightForwardGround != NULL && (bufferedAction == FORWARD_LIGHT || ((bufferedAction == NEUTRAL_LIGHT || bufferedAction == BACKWARD_LIGHT) && (curAttackAction == GROUND_NEUTRAL_LIGHT || curAttackAction == GROUND_DOWN_LIGHT))))
 			{
 				curAttackAction = GROUND_FORWARD_LIGHT;
 				GroundAttackExecuted();
