@@ -1042,7 +1042,11 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 		}
 	}
 
-	if(curBlockstun > 0 || jumpStartup) { return 0; }
+	if(curBlockstun > 0 || jumpStartup || jumpStartupJustEnded)
+	{
+		jumpStartupJustEnded = false;
+		return 0;
+	}
 
 	//light attacks
 	if(bufferedAction >= NEUTRAL_LIGHT && bufferedAction <= QCF_LIGHT)
@@ -1217,8 +1221,6 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 			bufferedAction = NO_ACTION;
 		}
 	}
-
-	jumpStartupJustEnded = false;
 
 	return 0;
 }
@@ -2268,6 +2270,26 @@ void Fighter::ApplyAttackResults()
 		return;
 	}
 
+	if(state == JUMPING && jumpStartup)
+	{
+		state = STANDING;
+	}
+
+	jump = NO_JUMP;
+	airDash = NO_AIR_DASH;
+	jumpStartup = false;
+	jumpStartupJustEnded = false;
+	shortHop = false;
+	runStopping = false;
+	turning = false;
+	attacking = false;
+	walkAfterTurning = false;
+	runAfterTurning = false;
+	airControl = NO_AIR_CONTROL;
+	landingAction = NO_ACTION;
+	turnUponLanding = false;
+	curAttackAction = NO_ATTACK_ACTION;
+
 	if(attackResults.hFlip) { facing = LEFT; hFlip = true; }
 	else { facing = RIGHT; hFlip = false; }
 
@@ -2282,23 +2304,10 @@ void Fighter::ApplyAttackResults()
 			curHealth = 0;
 
 			blocking = false;
-			jump = NO_JUMP;
-			airDash = NO_AIR_DASH;
-			jumpStartup = false;
-			shortHop = false;
-			runStopping = false;
-			turning = false;
-			attacking = false;
-			walkAfterTurning = false;
-			runAfterTurning = false;
-			airControl = NO_AIR_CONTROL;
-			landingAction = NO_ACTION;
-			turnUponLanding = false;
 			hitSomething = false;
 			wasBlocked = false;
 			curHitstun = 0;
 			curBlockstun = 0;
-			curAttackAction = NO_ATTACK_ACTION;
 			comboTrack.clear();
 			
 			vel.x = attackResults.force.x * -facing;
