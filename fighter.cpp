@@ -2448,25 +2448,55 @@ void Fighter::HandleHurtCollision(TerrainObject * attacker)
 		attackResults.hFlip = false;
 	}
 
-	if(facing == reqBlockDirection && attacker->blockability != UNBLOCKABLE &&
-		((attacker->blockability == MID && blocking) ||
-		(state == JUMPING && blocking) ||
-		(attacker->blockability == HIGH && state == STANDING && blocking) ||
-		(attacker->blockability == LOW && state == CROUCHING && blocking)))
+	if(blocking && facing == reqBlockDirection && attacker->blockability != UNBLOCKABLE)
 	{
-		attackResults.damage += attacker->damage / 10;
-		attackResults.hitstop = attacker->victimHitstop;
-		attackResults.blockstun = attacker->blockstun;
-		attackResults.force.x = attacker->force.x;
-		attackResults.force.y = 0;
-		attacker->numBlockedByThisFrame++;
-		
-		if(attacker->IsFighter())
+		Blockability effectiveBlockability = attacker->blockability;
+		bool blocked = false;
+		if(state == JUMPING)
 		{
-			((Fighter*)attacker)->wasBlocked = true;
+			blocked = true;
+		}
+		else if((attacker->blockability == HIGH && attacker->pos.y > pos.y)
+			|| (attacker->blockability == LOW && attacker->pos.y < pos.y))
+		{
+			effectiveBlockability = MID;
+		}
+		else if(attacker->blockability == MID)
+		{
+			if(attacker->pos.y < pos.y && attacker->vel.y >= 0)
+			{
+				effectiveBlockability = HIGH;
+			}
+			else if(attacker->pos.y > pos.y && attacker->vel.y <= 0)
+			{
+				effectiveBlockability = LOW;
+			}
 		}
 
-		return;
+		if(!blocked
+			&& ((effectiveBlockability == MID)
+			|| (effectiveBlockability == HIGH && state == STANDING) 
+			|| (effectiveBlockability == LOW && state == CROUCHING)))
+		{
+			blocked = true;
+		}
+
+		if(blocked)
+		{
+			attackResults.damage += attacker->damage / 10;
+			attackResults.hitstop = attacker->victimHitstop;
+			attackResults.blockstun = attacker->blockstun;
+			attackResults.force.x = attacker->force.x;
+			attackResults.force.y = 0;
+			attacker->numBlockedByThisFrame++;
+		
+			if(attacker->IsFighter())
+			{
+				((Fighter*)attacker)->wasBlocked = true;
+			}
+
+			return;
+		}
 	}
 
 	attackResults.damage += attacker->damage;
