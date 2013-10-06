@@ -479,7 +479,7 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 	if(inputHistory->bKeyLeft.held || inputHistory->bButtonLeft.held || inputHistory->bHatLeft.held || inputHistory->bStickLeft.held)
 	{
 		//air control
-		if(!disableAirControl && state == JUMPING && !jumpStartup && !jumpStartupJustEnded)
+		if(state == JUMPING && !jumpStartup && !jumpStartupJustEnded)
 		{
 			airControl = CONTROL_LEFT;
 			landingAction = MOVE;
@@ -599,7 +599,7 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 	else if(inputHistory->bKeyRight.held || inputHistory->bButtonRight.held || inputHistory->bHatRight.held || inputHistory->bStickRight.held)
 	{
 		//air control
-		if(!disableAirControl && state == JUMPING && !jumpStartup && !jumpStartupJustEnded)
+		if(state == JUMPING && !jumpStartup && !jumpStartupJustEnded)
 		{
 			airControl = CONTROL_RIGHT;
 			landingAction = MOVE;
@@ -1276,6 +1276,8 @@ int Fighter::Update()
 		falls = false;
 	}
 
+	bool returnToPreviousVelocity = !overwriteVelocity;
+
 	if(int error = PhysicsObject::Update() != 0) { return error; } //there was an error in the base update
 
 	//reapply velocity after ignoring it during hitstop
@@ -1287,7 +1289,7 @@ int Fighter::Update()
 
 	//return to velocity before push
 	prevVel.x = prevVelX;
-	vel.x = prevVelX;
+	if(returnToPreviousVelocity) { vel.x = prevVelX; }
 
 	//handle facing direction
 	if(facing == LEFT)
@@ -1382,25 +1384,32 @@ int Fighter::Update()
 	if(state == JUMPING && !jumpStartup)
 	{
 		//air control
-		if(airControl != NO_AIR_CONTROL)
+		if(disableAirControl)
 		{
-			if(airControl == CONTROL_LEFT &&  vel.x > -maxAirControlSpeed)
-			{
-				vel.x -= airControlAccel;
-				if(vel.x < -maxAirControlSpeed)
-				{
-					vel.x = -maxAirControlSpeed;
-				}
-			}
-			else if(airControl == CONTROL_RIGHT &&  vel.x < maxAirControlSpeed)
-			{
-				vel.x += airControlAccel;
-				if(vel.x > maxAirControlSpeed)
-				{
-					vel.x = maxAirControlSpeed;
-				}
-			}
 			airControl = NO_AIR_CONTROL;
+		}
+		else
+		{
+			if(airControl != NO_AIR_CONTROL)
+			{
+				if(airControl == CONTROL_LEFT &&  vel.x > -maxAirControlSpeed)
+				{
+					vel.x -= airControlAccel;
+					if(vel.x < -maxAirControlSpeed)
+					{
+						vel.x = -maxAirControlSpeed;
+					}
+				}
+				else if(airControl == CONTROL_RIGHT &&  vel.x < maxAirControlSpeed)
+				{
+					vel.x += airControlAccel;
+					if(vel.x > maxAirControlSpeed)
+					{
+						vel.x = maxAirControlSpeed;
+					}
+				}
+				airControl = NO_AIR_CONTROL;
+			}
 		}
 
 		//make jump happen
