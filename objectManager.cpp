@@ -489,6 +489,15 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 					else if(bString.compare("false") == 0) { newFHold->disableAirControl = false; }
 				}
 
+				//get endAirDash
+				const char * ead = holdDef->Attribute("endAirDash");
+				if(ead != NULL)
+				{
+					bString.assign(ead);
+					if(bString.compare("true") == 0) { newFHold->endAirDash = true; }
+					else if(bString.compare("false") == 0) { newFHold->endAirDash = false; }
+				}
+
 				//get changeCancels
 				const char * cc = holdDef->Attribute("changeCancels");
 				if(cc != NULL)

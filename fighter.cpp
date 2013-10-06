@@ -7,6 +7,7 @@
 FighterHold::FighterHold() : PhysicsObjectHold()
 {
 	disableAirControl = false;
+	endAirDash = false;
 	changeCancels = false;
 	cancels.dash = NEVER;
 	cancels.heavyBackward = NEVER;
@@ -86,6 +87,7 @@ Fighter::Fighter() : PhysicsObject()
 	wasBlocked = false;
 	fighterPushXAccel = 0;
 	disableAirControl = false;
+	endAirDash = false;
 
 	defaultCancels.jump = NEVER;
 	defaultCancels.dash = NEVER;
@@ -380,7 +382,7 @@ int Fighter::Event(InputStates * inputHistory, int frame)
 	{
 		if(QCFInput(inputHistory, frame, frame - COMMAND_INPUT_THRESHOLD) &&
 			((fighterEventHolds.attackLightQCFGround != NULL && (state == STANDING || state == CROUCHING || state == WALKING || state == RUNNING || (state == JUMPING && jumpStartup))) ||
-			(fighterEventHolds.attackLightQCFAir != NULL && state == JUMPING)))
+			(fighterEventHolds.attackLightQCFAir != NULL && (state == JUMPING || state == AIR_DASHING))))
 		{
 			bufferedAction = QCF_LIGHT;
 			bufferedActionAge = 0;
@@ -417,7 +419,7 @@ int Fighter::Event(InputStates * inputHistory, int frame)
 	{
 		if(QCFInput(inputHistory, frame, frame - COMMAND_INPUT_THRESHOLD) &&
 			((fighterEventHolds.attackHeavyQCFGround != NULL && (state == STANDING || state == CROUCHING || state == WALKING || state == RUNNING || (state == JUMPING && jumpStartup))) ||
-			(fighterEventHolds.attackHeavyQCFAir != NULL && state == JUMPING)))
+			(fighterEventHolds.attackHeavyQCFAir != NULL && (state == JUMPING || state == AIR_DASHING))))
 		{
 			bufferedAction = QCF_HEAVY;
 			bufferedActionAge = 0;
@@ -1300,6 +1302,15 @@ int Fighter::Update()
 	{
 		hFlip = false;
 	}
+
+	if(endAirDash && state == AIR_DASHING)
+	{
+		state = JUMPING;
+		falls = true;
+		airDash = NO_AIR_DASH;
+		curAirDashDuration = 0;
+	}
+	endAirDash = false;
 
 	//handle terrain boxes
 	if(state == STANDING || state == WALKING || state == RUNNING || state == JUMPING)
@@ -2656,6 +2667,7 @@ bool Fighter::AdvanceHold(HSObjectHold* hold)
 		if(fHold->changeFighterAttributes)
 		{
 			disableAirControl = fHold->disableAirControl;
+			endAirDash = fHold->endAirDash;
 		}
 
 		return true;

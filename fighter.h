@@ -163,6 +163,9 @@ public:
 	//whether or not to disable left/right air control
 	bool disableAirControl;
 
+	//whether or not to immediately leave the airdash state upon reaching this hold
+	bool endAirDash;
+
 	FighterHold();
 	~FighterHold();
 
@@ -335,6 +338,7 @@ public:
 	bool wasBlocked;
 	HSVectComp fighterPushXAccel;
 	bool disableAirControl;
+	bool endAirDash;
 
 	Cancels defaultCancels;
 
