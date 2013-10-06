@@ -20,9 +20,9 @@
 #define STICK_THRESHOLD 18000 //how far a stick must be tilted before it actually registers as a direction being "pressed"
 #define STICK_HARD_THRESHOLD 32700 //how far a stick must be tilted before it actually registers as a direction being pressed hard
 
-#define PAN_SPEED 200
-#define ZOOM_BOUNDARY_X_THRESHOLD 450
-#define ZOOM_BOUNDARY_Y_THRESHOLD 450
+#define PAN_DIVIDER 5
+#define ZOOM_BOUNDARY_X_THRESHOLD 768
+#define ZOOM_BOUNDARY_Y_THRESHOLD 432
 
 #define MAIN_MENU_HEADER_HEIGHT 43
 #define MAIN_MENU_CURSOR_WIDTH 35

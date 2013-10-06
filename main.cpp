@@ -639,26 +639,41 @@ void Main::AdjustCamera(bool adjustInstantly)
 			posDiff.y = targetFocusPos.y - focusPos.y;
 
 			HSVectComp diffLength = sqrt(pow(posDiff.x, 2) + pow(posDiff.y, 2));
-			if(abs(diffLength) <= PAN_SPEED)
+			HSVect2D diffNormal;
+			diffNormal.x = posDiff.x / diffLength;
+			diffNormal.y = posDiff.y / diffLength;
+			HSVectComp panLength = diffLength / PAN_DIVIDER;
+
+			HSVect2D posChange;
+			posChange.x = diffNormal.x * panLength;
+			posChange.y = diffNormal.y * panLength;
+
+			if((focusPos.x < targetFocusPos.x && focusPos.x + posChange.x > targetFocusPos.x) ||
+				(focusPos.x > targetFocusPos.x && focusPos.x + posChange.x < targetFocusPos.x))
 			{
-				//distance is shorter than pan speed, so just move to the target position
 				focusPos.x = targetFocusPos.x;
+			}
+			else
+			{
+				focusPos.x += posChange.x;
+			}
+			
+			if((focusPos.y < targetFocusPos.y && focusPos.y + posChange.y > targetFocusPos.y) ||
+				(focusPos.y > targetFocusPos.y && focusPos.y + posChange.y < targetFocusPos.y))
+			{
 				focusPos.y = targetFocusPos.y;
+			}
+			else
+			{
+				focusPos.y += posChange.y;
+			}
+
+			if(focusPos.x == targetFocusPos.x && focusPos.y == targetFocusPos.y)
+			{
 				zoomOut = targetZoomOut;
 			}
 			else
 			{
-				HSVect2D diffNormal;
-				diffNormal.x = posDiff.x / diffLength;
-				diffNormal.y = posDiff.y / diffLength;
-
-				HSVect2D posChange;
-				posChange.x = diffNormal.x * PAN_SPEED;
-				posChange.y = diffNormal.y * PAN_SPEED;
-
-				focusPos.x += posChange.x;
-				focusPos.y += posChange.y;
-
 				HSVectComp changeLength = sqrt(pow(posChange.x, 2) + pow(posChange.y, 2));
 				float zoomRatio = changeLength / diffLength;
 
