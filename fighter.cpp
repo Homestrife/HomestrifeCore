@@ -2678,6 +2678,9 @@ bool Fighter::AdvanceHold(HSObjectHold* hold)
 
 bool Fighter::ChangeHold(HSObjectHold* hold)
 {
+	disableAirControl = false;
+	endAirDash = false;
+
 	return PhysicsObject::ChangeHold(hold);
 }
 
@@ -2706,6 +2709,7 @@ HSObjectHold * Fighter::GetDefaultHold()
 	curAttackAction = NO_ATTACK_ACTION;
 	ignoreGravity = false;
 	disableAirControl = false;
+	endAirDash = false;
 
 	HSObjectHold * returnHold = NULL;
 
