@@ -1248,7 +1248,7 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 int Fighter::Update()
 {
 	//apply facing to reposition
-	reposition.x += reposition.x * facing;
+	reposition.x = reposition.x * facing;
 
 	//apply facing to overwrite velocity
 	if(overwriteVelocity)
