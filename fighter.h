@@ -157,6 +157,12 @@ public:
 	//whether or not previously set cancels should be overwritten
 	bool changeCancels;
 
+	//whether or not to change general fighter attributes
+	bool changeFighterAttributes;
+
+	//whether or not to disable left/right air control
+	bool disableAirControl;
+
 	FighterHold();
 	~FighterHold();
 
@@ -328,6 +334,7 @@ public:
 	bool hitSomething;
 	bool wasBlocked;
 	HSVectComp fighterPushXAccel;
+	bool disableAirControl;
 
 	Cancels defaultCancels;
 

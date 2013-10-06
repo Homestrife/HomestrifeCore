@@ -6,14 +6,33 @@
 
 FighterHold::FighterHold() : PhysicsObjectHold()
 {
+	disableAirControl = false;
+	changeCancels = false;
+	cancels.dash = NEVER;
+	cancels.heavyBackward = NEVER;
+	cancels.heavyDown = NEVER;
+	cancels.heavyForward = NEVER;
+	cancels.heavyNeutral = NEVER;
+	cancels.heavyQCF = NEVER;
+	cancels.heavyUp = NEVER;
+	cancels.jump = NEVER;
+	cancels.lightBackward = NEVER;
+	cancels.lightDown = NEVER;
+	cancels.lightForward = NEVER;
+	cancels.lightNeutral = NEVER;
+	cancels.lightQCF = NEVER;
+	cancels.lightUp = NEVER;
+	changeFighterAttributes = false;
 }
 
 FighterHold::~FighterHold()
 {
+
 }
 
 bool FighterHold::IsFighterHold()
 {
+
 	return true;
 }
 
@@ -66,6 +85,7 @@ Fighter::Fighter() : PhysicsObject()
 	hitSomething = false;
 	wasBlocked = false;
 	fighterPushXAccel = 0;
+	disableAirControl = false;
 
 	defaultCancels.jump = NEVER;
 	defaultCancels.dash = NEVER;
@@ -459,7 +479,7 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 	if(inputHistory->bKeyLeft.held || inputHistory->bButtonLeft.held || inputHistory->bHatLeft.held || inputHistory->bStickLeft.held)
 	{
 		//air control
-		if(state == JUMPING && !jumpStartup && !jumpStartupJustEnded)
+		if(!disableAirControl && state == JUMPING && !jumpStartup && !jumpStartupJustEnded)
 		{
 			airControl = CONTROL_LEFT;
 			landingAction = MOVE;
@@ -579,7 +599,7 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 	else if(inputHistory->bKeyRight.held || inputHistory->bButtonRight.held || inputHistory->bHatRight.held || inputHistory->bStickRight.held)
 	{
 		//air control
-		if(state == JUMPING && !jumpStartup && !jumpStartupJustEnded)
+		if(!disableAirControl && state == JUMPING && !jumpStartup && !jumpStartupJustEnded)
 		{
 			airControl = CONTROL_RIGHT;
 			landingAction = MOVE;
@@ -2624,6 +2644,11 @@ bool Fighter::AdvanceHold(HSObjectHold* hold)
 			cancels = fHold->cancels;
 		}
 
+		if(fHold->changeFighterAttributes)
+		{
+			disableAirControl = fHold->disableAirControl;
+		}
+
 		return true;
 	}
 
@@ -2659,6 +2684,7 @@ HSObjectHold * Fighter::GetDefaultHold()
 	inComboString = false;
 	curAttackAction = NO_ATTACK_ACTION;
 	ignoreGravity = false;
+	disableAirControl = false;
 
 	HSObjectHold * returnHold = NULL;
 

@@ -446,7 +446,7 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 			{
 				PhysicsObjectHold * newPOHold = (PhysicsObjectHold*)newHold;
 
-				//get changeCancels
+				//get changePhysicsAttributes
 				const char * cpa = holdDef->Attribute("changePhysicsAttributes");
 				string bString;
 				if(cpa != NULL)
@@ -469,6 +469,25 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 			if(newHold->IsFighterHold())
 			{
 				FighterHold * newFHold = (FighterHold*)newHold;
+
+				//get changeFighterAttributes
+				const char * cfa = holdDef->Attribute("changeFighterAttributes");
+				string bString;
+				if(cfa != NULL)
+				{
+					bString.assign(cfa);
+					if(bString.compare("true") == 0) { newFHold->changeFighterAttributes = true; }
+					else if(bString.compare("false") == 0) { newFHold->changeFighterAttributes = false; }
+				}
+
+				//get disableAirControl
+				const char * dac = holdDef->Attribute("disableAirControl");
+				if(dac != NULL)
+				{
+					bString.assign(dac);
+					if(bString.compare("true") == 0) { newFHold->disableAirControl = true; }
+					else if(bString.compare("false") == 0) { newFHold->disableAirControl = false; }
+				}
 
 				//get changeCancels
 				const char * cc = holdDef->Attribute("changeCancels");
