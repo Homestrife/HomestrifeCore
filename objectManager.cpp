@@ -491,7 +491,6 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 
 				//get changeCancels
 				const char * cc = holdDef->Attribute("changeCancels");
-				string bString;
 				if(cc != NULL)
 				{
 					bString.assign(cc);
