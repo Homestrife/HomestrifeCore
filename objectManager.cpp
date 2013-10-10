@@ -146,7 +146,7 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 		//get the parts of the object definition
 		XMLElement * holdsDef = NULL;
 		XMLElement * eventHoldsDef = NULL;
-		XMLElement * terrainBoxDef = NULL;
+		XMLElement * terrainBoxesDef = NULL;
 		XMLElement * uprightTerrainBoxDef = NULL;
 		XMLElement * crouchingTerrainBoxDef = NULL;
 		XMLElement * proneTerrainBoxDef = NULL;
@@ -156,7 +156,7 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 		{
 			if(strcmp(partDef->Value(), "Holds") == 0) { holdsDef = partDef; }
 			else if(strcmp(partDef->Value(), "EventHolds") == 0) { eventHoldsDef = partDef; }
-			else if(strcmp(partDef->Value(), "TerrainBox") == 0) { terrainBoxDef = partDef; }
+			else if(strcmp(partDef->Value(), "TerrainBoxes") == 0) { terrainBoxesDef = partDef; }
 			else if(strcmp(partDef->Value(), "UprightTerrainBox") == 0) { uprightTerrainBoxDef = partDef; }
 			else if(strcmp(partDef->Value(), "CrouchingTerrainBox") == 0) { crouchingTerrainBoxDef = partDef; }
 			else if(strcmp(partDef->Value(), "ProneTerrainBox") == 0) { proneTerrainBoxDef = partDef; }
@@ -201,9 +201,36 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 			objDef->QueryBoolAttribute("takesTerrainDamage", &newTObject->takesTerrainDamage);
 			objDef->QueryBoolAttribute("fragile", &newTObject->fragile);
 
-			HSBox * newBox = new HSBox();
-			DefineBox(terrainBoxDef, newBox);
-			newTObject->firstTerrainBox = newBox;
+			if(terrainBoxesDef != NULL)
+			{
+				for(XMLElement * terrainBoxDef = terrainBoxesDef->FirstChildElement(); terrainBoxDef != NULL; terrainBoxDef = terrainBoxDef->NextSiblingElement())
+				{
+					if(strcmp(terrainBoxDef->Value(), "TerrainBox") != 0)
+					{
+						continue;
+					}
+
+					HSBox * newTerrainBox = new HSBox();
+					
+					if(int error = DefineBox(terrainBoxDef, newTerrainBox) != 0)
+					{
+						return error; //there was an error defining the box
+					}
+
+					if(newTObject->firstTerrainBox == NULL)
+					{
+						//just make the new hit box the first hit box
+						newTObject->firstTerrainBox = newTerrainBox;
+						newTObject->lastTerrainBox = newTerrainBox;
+					}
+					else
+					{
+						//put the new hit box at the end of the list
+						newTObject->lastTerrainBox->nextBox = newTerrainBox;
+						newTObject->lastTerrainBox = newTerrainBox;
+					}
+				}
+			}
 		}
 
 		if(newObject->IsPhysicsObject())
