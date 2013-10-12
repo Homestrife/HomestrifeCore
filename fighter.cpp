@@ -834,7 +834,7 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 	}
 
 	//jump
-	if(CanJumpCancel() && !jumpStartup && !blocking && curBlockstun <= 0 && bufferedAction == JUMP)
+	if(CanJumpCancel() && !jumpStartup && !jumpStartupJustEnded && !blocking && curBlockstun <= 0 && bufferedAction == JUMP)
 	{
 		if(state != JUMPING && state != AIRBORN && state != AIR_DASHING)
 		{
@@ -904,7 +904,7 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 				ChangeHold(fighterEventHolds.jumpNeutralStart);
 			}
 		}
-		else if(state == JUMPING)// && !(inputHistory->bKeyDown.held || inputHistory->bButtonDown.held || inputHistory->bHatDown.held || inputHistory->bStickDown.held))
+		else if(state == JUMPING && !(inputHistory->bKeyDown.held || inputHistory->bButtonDown.held || inputHistory->bHatDown.held || inputHistory->bStickDown.held))
 		{
 			bufferedAction = NO_ACTION;
 			//air jump
@@ -981,7 +981,7 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 	}
 
 	//short hop
-	if(jumpStartup && !inputHistory->bKeyJump.held && !inputHistory->bButtonJump.held)
+	if((jumpStartup || jumpStartupJustEnded) && !inputHistory->bKeyJump.held && !inputHistory->bButtonJump.held)
 	{
 		shortHop = true;
 	}
