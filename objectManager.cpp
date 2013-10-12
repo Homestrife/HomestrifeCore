@@ -942,8 +942,6 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 							newTex->usingCount = 1;
 							newTex->textureFilePath = textureFilePath;
 							newTex->ownPalette = NULL;
-							newTex->bufferID = 0;
-							newTex->vaoID = 0;
 
 							if(int error = LoadTGAToTexture(newTex, openGL3, newObject->useTGAPalettes) != 0) //load the texture
 							{
@@ -2301,20 +2299,25 @@ int ObjectManager::ClearAllObjects()
 	list<HSTexture*>::iterator texIt;
 	for ( texIt=textureRegistry.begin(); texIt != textureRegistry.end(); texIt++)
 	{
-		if((*texIt)->bufferID != 0)
+		list<HSTextureSlice*>::iterator tsIt;
+		for ( tsIt=(*texIt)->textureSlices.begin(); tsIt != (*texIt)->textureSlices.end(); tsIt++)
 		{
-			glDeleteBuffers(1, &(*texIt)->bufferID);
-			(*texIt)->bufferID = 0;
-		}
-		if((*texIt)->vaoID != 0)
-		{
-			glDeleteVertexArrays(1, &(*texIt)->vaoID);
-			(*texIt)->vaoID = 0;
-		}
-		if((*texIt)->textureID != 0)
-		{
-			glDeleteTextures(1, &(*texIt)->textureID);
-			(*texIt)->textureID = 0;
+			if((*tsIt)->bufferID != 0)
+			{
+				glDeleteBuffers(1, &(*tsIt)->bufferID);
+				(*tsIt)->bufferID = 0;
+			}
+			if((*tsIt)->vaoID != 0)
+			{
+				glDeleteVertexArrays(1, &(*tsIt)->vaoID);
+				(*tsIt)->vaoID = 0;
+			}
+			if((*tsIt)->textureID != 0)
+			{
+				glDeleteTextures(1, &(*tsIt)->textureID);
+				(*tsIt)->textureID = 0;
+			}
+			delete (*tsIt);
 		}
 		delete (*texIt);
 	}

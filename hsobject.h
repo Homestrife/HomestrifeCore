@@ -5,12 +5,10 @@
 #include <direct.h>
 #define GetCurrentWorkingDirectory _getcwd
 
-#include <list>
 #include "texture.h"
 #include "audio.h"
 #include "tinyxml2.h"
 using namespace tinyxml2;
-using std::list;
 
 struct TextureInstance
 {

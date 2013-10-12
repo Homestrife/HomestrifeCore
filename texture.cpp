@@ -8,6 +8,8 @@ GLenum positionLocIndexed = 0;
 GLenum texCoordInLocNonIndexed = 0;
 GLenum texCoordInLocIndexed = 0;
 
+GLint maxTexDimension = 64;
+
 int fseekError(GLubyte error, string texFilePath)
 {
 	stringstream sstm;
@@ -150,7 +152,7 @@ int LoadTGAToTexture(HSTexture * hsTex, bool openGL3, bool useTGAPalette)
 	{
 		if(GLubyte error = fseek(file, (long)(colorMapLength * bytesPerColorMapEntry), SEEK_CUR) != 0) {return fseekError(error, texFilePath);} //skip the color map
 	}
-	
+
 	//okay, time for the fun part: picking through the image data.
 	//it's ALWAYS going to be in RLE format so we can't just grab the raw data.
 	//we need to take the compressed data and turn it into a 32bit BGRA format to pass to opengl
@@ -169,15 +171,6 @@ int LoadTGAToTexture(HSTexture * hsTex, bool openGL3, bool useTGAPalette)
 	imageData = (GLubyte*)malloc(maxPixels * GLbytesPerPixel); //set up our image data buffer
 	color = (GLubyte*)malloc(colorBytesPerPixel); //create a buffer to hold color data before it gets passed to the imageData
 	GLubyte repCount; //this'll hold each repetition count field
-	//if(imageType == 9)
-	//{
-	//	//open the palette file, if this is an indexed image
-	//	if(GLuint error = fopen_s(&palFile, palFilePath.data(), "rb") != 0)
-	//	{
-	//		UpdateLog("Could not open palette file: " + texFilePath, true);
-	//		return error; //couldn't open the file
-	//	}
-	//}
 	while(curPixels < maxPixels)
 	{
 		if(fread(&repCount, 1, 1, file) != 1) { return freadError(file, texFilePath);} //get the repetition count field
@@ -267,116 +260,169 @@ int LoadTGAToTexture(HSTexture * hsTex, bool openGL3, bool useTGAPalette)
 
 	delete(color);
 
-	//create and bind the texture
-	glActiveTexture(GL_TEXTURE0);
-	glGenTextures(1, &textureID);
-	glBindTexture(GL_TEXTURE_2D, textureID);
-	
-	//set some options
-	//glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-
-	GLint internalFormat;
-	GLint format;
-	if(imageType == 9)
-	{
-		if(openGL3)
-		{
-			internalFormat = GL_R8;
-			format = GL_RED;
-		}
-		else
-		{
-			internalFormat = GL_ALPHA8;
-			format = GL_ALPHA;
-		}
-		glPixelStorei(GL_PACK_ALIGNMENT, 1);
-		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-	}
-	else if(imageType == 10)
-	{
-		internalFormat = GL_RGBA8;
-		format = GL_BGRA;
-		glPixelStorei(GL_PACK_ALIGNMENT, 4);
-		glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-	}
-	
-	//just... just jam it in!
-	glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, imageWidth, imageHeight, 0, format, GL_UNSIGNED_BYTE, imageData);
-
-	delete(imageData);
-	glBindTexture(GL_TEXTURE_2D, 0);
-
 	//save whether or not this is indexed
 	if(imageType == 9) { hsTex->indexed = true; }
 	else if(imageType == 10) { hsTex->indexed = false; }
+	hsTex->rightAlign = rightAlign;
+	hsTex->topAlign = topAlign;
 
-	//make a buffer object
-	if(hsTex->bufferID == 0)
+	//divide the image data into slices if necessary.
+	GLint hSlices = (imageWidth / maxTexDimension) + 1;
+	GLint vSlices = (imageHeight / maxTexDimension) + 1;
+	GLubyte * sliceData = NULL;
+	GLuint maxSlicePixels = 0;
+	GLuint startPixel = 0;
+	GLuint sliceWidth = 0;
+	GLuint sliceHeight = 0;
+	for(int vSlice = 0; vSlice < vSlices; vSlice++)
 	{
-		//make an array of coordinates based on the texture dimensions
-		GLfloat * dim = new GLfloat[12];
-
-		dim[0] = 0.0f;					dim[1]  = 0.0f;					dim[2]  = 0.0f;
-		dim[3] = (GLfloat)imageWidth;	dim[4]  = 0.0f;					dim[5]  = 0.0f;
-		dim[6] = (GLfloat)imageWidth;	dim[7]  = (GLfloat)imageHeight;	dim[8]  = 0.0f;
-		dim[9] = 0.0f;					dim[10] = (GLfloat)imageHeight;	dim[11] = 0.0f;
-
-		//make and save the coordinates to a buffer
-		glGenBuffers(1, &bufferID);
-		glBindBuffer(GL_ARRAY_BUFFER, bufferID);
-		glBufferData(GL_ARRAY_BUFFER, 12*sizeof(GLfloat), dim, GL_STATIC_DRAW);
-
-		delete[] dim;
-
-		if(openGL3)
+		for(int hSlice = 0; hSlice < hSlices; hSlice++)
 		{
-			//get the position and texCoordIn positions
-			GLenum positionLoc;
-			GLenum texCoordInLoc;
-
-			if(hsTex->indexed)
+			if(imageWidth <= maxTexDimension && imageHeight <= maxTexDimension)
 			{
-				positionLoc = positionLocIndexed;
-				texCoordInLoc = texCoordInLocIndexed;
+				sliceData = imageData;
+				sliceWidth = imageWidth;
+				sliceHeight = imageHeight;
 			}
 			else
 			{
-				positionLoc = positionLocNonIndexed;
-				texCoordInLoc = texCoordInLocNonIndexed;
+				sliceWidth = maxTexDimension;
+				if(hSlice >= hSlices - 1) { sliceWidth = imageWidth % maxTexDimension; }
+			
+				sliceHeight = maxTexDimension;
+				if(vSlice >= vSlices - 1) { sliceHeight = imageHeight % maxTexDimension; }
+
+				maxSlicePixels = sliceWidth * sliceHeight;
+				sliceData = (GLubyte*)malloc(maxSlicePixels * GLbytesPerPixel);
+
+				startPixel = imageWidth * vSlice * maxTexDimension;
+				startPixel += hSlice * maxTexDimension;
+
+				for(int row = 0; row < sliceHeight; row++)
+				{
+					memcpy(sliceData + row * sliceWidth, imageData + startPixel + row * imageWidth, sliceWidth * GLbytesPerPixel);
+				}
 			}
 
-			//make a vertex array object, and put stuff in it
-			GLuint vaoID;
-			glGenVertexArrays(1, &vaoID);
+			//create and bind the texture
+			glActiveTexture(GL_TEXTURE0);
+			glGenTextures(1, &textureID);
+			glBindTexture(GL_TEXTURE_2D, textureID);
+	
+			//set some options
+			//glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
 
-			glBindVertexArray(vaoID);
-			glEnableVertexAttribArray(positionLoc);
-			glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, 0, (void*)0); //the buffer object we just made goes here, representing the actual coordinates/dimensions
+			GLint internalFormat;
+			GLint format;
+			if(imageType == 9)
+			{
+				if(openGL3)
+				{
+					internalFormat = GL_R8;
+					format = GL_RED;
+				}
+				else
+				{
+					internalFormat = GL_ALPHA8;
+					format = GL_ALPHA;
+				}
+				glPixelStorei(GL_PACK_ALIGNMENT, 1);
+				glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+			}
+			else if(imageType == 10)
+			{
+				internalFormat = GL_RGBA8;
+				format = GL_BGRA;
+				glPixelStorei(GL_PACK_ALIGNMENT, 4);
+				glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+			}
+	
+			//just... just jam it in!
+			glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, sliceWidth, sliceHeight, 0, format, GL_UNSIGNED_BYTE, sliceData);
 
-			glBindBuffer(GL_ARRAY_BUFFER, texCoordBufferID);
-			glEnableVertexAttribArray(texCoordInLoc);
-			glVertexAttribPointer(texCoordInLoc, 2, GL_FLOAT, GL_FALSE, 0, (void*)0); //put the texture coordinates here
+			if(imageWidth > maxTexDimension || imageHeight > maxTexDimension)
+			{
+				delete(sliceData);
+			}
+			glBindTexture(GL_TEXTURE_2D, 0);
 
-			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementArrayBufferID); //put in the element array
+			//make a new texture slice
+			HSTextureSlice * hsTexSlice = new HSTextureSlice();
+			hsTexSlice->offset.x = hSlice * maxTexDimension;
+			hsTexSlice->offset.y = (vSlices - vSlice - 1) * maxTexDimension;
 
-			//unbind and save the array object
-			glBindVertexArray(0);
-			hsTex->vaoID = vaoID;
+			if(vSlices > 1 && vSlice < vSlices - 1) { hsTexSlice->offset.y -= maxTexDimension - (imageHeight % maxTexDimension); }
+
+			//make a buffer object
+			if(hsTexSlice->bufferID == 0)
+			{
+				//make an array of coordinates based on the texture dimensions
+				GLfloat * dim = new GLfloat[12];
+
+				dim[0] = 0.0f;					dim[1]  = 0.0f;					dim[2]  = 0.0f;
+				dim[3] = (GLfloat)sliceWidth;	dim[4]  = 0.0f;					dim[5]  = 0.0f;
+				dim[6] = (GLfloat)sliceWidth;	dim[7]  = (GLfloat)sliceHeight;	dim[8]  = 0.0f;
+				dim[9] = 0.0f;					dim[10] = (GLfloat)sliceHeight;	dim[11] = 0.0f;
+
+				//make and save the coordinates to a buffer
+				glGenBuffers(1, &bufferID);
+				glBindBuffer(GL_ARRAY_BUFFER, bufferID);
+				glBufferData(GL_ARRAY_BUFFER, 12*sizeof(GLfloat), dim, GL_STATIC_DRAW);
+
+				delete[] dim;
+
+				if(openGL3)
+				{
+					//get the position and texCoordIn positions
+					GLenum positionLoc;
+					GLenum texCoordInLoc;
+
+					if(hsTex->indexed)
+					{
+						positionLoc = positionLocIndexed;
+						texCoordInLoc = texCoordInLocIndexed;
+					}
+					else
+					{
+						positionLoc = positionLocNonIndexed;
+						texCoordInLoc = texCoordInLocNonIndexed;
+					}
+
+					//make a vertex array object, and put stuff in it
+					GLuint vaoID;
+					glGenVertexArrays(1, &vaoID);
+
+					glBindVertexArray(vaoID);
+					glEnableVertexAttribArray(positionLoc);
+					glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, 0, (void*)0); //the buffer object we just made goes here, representing the actual coordinates/dimensions
+
+					glBindBuffer(GL_ARRAY_BUFFER, texCoordBufferID);
+					glEnableVertexAttribArray(texCoordInLoc);
+					glVertexAttribPointer(texCoordInLoc, 2, GL_FLOAT, GL_FALSE, 0, (void*)0); //put the texture coordinates here
+
+					glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementArrayBufferID); //put in the element array
+
+					//unbind and save the array object
+					glBindVertexArray(0);
+					hsTexSlice->vaoID = vaoID;
+				}
+
+				//unbind and save the buffer
+				glBindBuffer(GL_ARRAY_BUFFER, 0);
+				hsTexSlice->bufferID = bufferID;
+			}
+
+			hsTexSlice->textureID = textureID;
+
+			hsTex->textureSlices.push_back(hsTexSlice);
 		}
-
-		//unbind and save the buffer
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-		hsTex->bufferID = bufferID;
 	}
 
-	//now, put all the results in the texture struct
-	hsTex->textureID = textureID;
-	hsTex->rightAlign = rightAlign;
-	hsTex->topAlign = topAlign;
+	delete imageData;
 	
 	GLenum glError = glGetError();
 	if(glError != GL_NO_ERROR)

@@ -2,7 +2,9 @@
 #define __TEXTURE_H_
 
 #include <sstream>
+#include <list>
 using namespace std;
+using std::list;
 #include <stdio.h>
 #include "hslog.h"
 #include "glextused.h"
@@ -27,6 +29,8 @@ extern GLenum positionLocIndexed;
 extern GLenum texCoordInLocNonIndexed;
 extern GLenum texCoordInLocIndexed;
 
+extern GLint maxTexDimension;
+
 struct HSVect2D //a two-dimensional vector
 {
 	HSVectComp x;
@@ -40,17 +44,23 @@ struct HSPalette
 	int usingCount; //number of objects using this
 };
 
-struct HSTexture
+struct HSTextureSlice
 {
 	GLuint textureID; //OpenGL's internal texture ID
 	GLuint bufferID; //OpenGL's internal vertex buffer ID
 	GLuint vaoID; //OpenGL's internal vertex array object ID
+	HSVect2D offset; //inherent offset of the texture
+};
+
+struct HSTexture
+{
+	string textureFilePath;
+	list<HSTextureSlice*> textureSlices;
+	int usingCount; //number of holds using this
+	HSPalette * ownPalette; //the palette data contained within the tga file
 	bool indexed; //whether or not the texture is indexed
 	bool rightAlign; //whether or not drawing should start from the right
 	bool topAlign; //whether or not drawing should start from the top
-	string textureFilePath; //needed for reloading and registry handling
-	int usingCount; //number of holds using this
-	HSPalette * ownPalette; //the palette data contained within the tga file
 };
 
 int fseekError(GLubyte error, string texFilePath);

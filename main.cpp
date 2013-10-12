@@ -867,14 +867,6 @@ int Main::RenderTexture(HSObject * obj, TextureInstance tex)
 		{
 			ChangeShaderProgram(shader_progIndexed);
 		}
-		glUniform2f(indexedPosOffsetLoc, offsetX, offsetY);
-		glUniform2f(indexedScaleLoc, hScale, vScale);
-		glUniform1f(indexedDepthLoc, obj->depth);
-		glActiveTexture(GL_TEXTURE0);
-		glUniform1i(indexedTexLoc, 0);
-		glBindTexture(GL_TEXTURE_2D, tex.hsTex->textureID);
-		glPixelStorei(GL_PACK_ALIGNMENT, 1);
-		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
 		//set up the palette
 		glActiveTexture(GL_TEXTURE1);
@@ -889,6 +881,14 @@ int Main::RenderTexture(HSObject * obj, TextureInstance tex)
 		}
 		glPixelStorei(GL_PACK_ALIGNMENT, 4);
 		glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+
+		//set up the general texture settings
+		glUniform2f(indexedScaleLoc, hScale, vScale);
+		glUniform1f(indexedDepthLoc, obj->depth);
+		glActiveTexture(GL_TEXTURE0);
+		glUniform1i(indexedTexLoc, 0);
+		glPixelStorei(GL_PACK_ALIGNMENT, 1);
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 	}
 	else
 	{
@@ -896,57 +896,72 @@ int Main::RenderTexture(HSObject * obj, TextureInstance tex)
 		{
 			ChangeShaderProgram(shader_progNonIndexed);
 		}
-		glUniform2f(nonIndexedPosOffsetLoc, offsetX, offsetY);
+
+		//set up the general texture settings
 		glUniform2f(nonIndexedScaleLoc, hScale, vScale);
 		glUniform1f(nonIndexedDepthLoc, obj->depth);
 		glActiveTexture(GL_TEXTURE0);
 		glUniform1i(nonIndexedTexLoc, 0);
-		glBindTexture(GL_TEXTURE_2D, tex.hsTex->textureID);
 		glPixelStorei(GL_PACK_ALIGNMENT, 4);
 		glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 	}
 	
-	//glLoadIdentity();
-	//glTranslatef(offsetX, offsetY, 0.0);
-	//glScalef(hScale, vScale, 1.0);
-	
-	if(objectManager->openGL3)
+	list<HSTextureSlice*>::iterator tsItr;
+	for(tsItr = tex.hsTex->textureSlices.begin(); tsItr != tex.hsTex->textureSlices.end(); tsItr++)
 	{
-		//get the vertex array set up
-		glBindVertexArray(tex.hsTex->vaoID);
-	}
-	else
-	{
-		GLenum positionLoc;
-
+		//loop through the texture slices
+		float sliceOffsetX = (*tsItr)->offset.x;
+		if(obj->hFlip)
+		{
+			sliceOffsetX = sliceOffsetX * -1;
+		}
+		float sliceOffsetY = (*tsItr)->offset.y;
 		if(tex.hsTex->indexed)
 		{
-			positionLoc = positionLocIndexed;
+			glUniform2f(indexedPosOffsetLoc, offsetX + sliceOffsetX, offsetY + sliceOffsetY);
 		}
 		else
 		{
-			positionLoc = positionLocNonIndexed;
+			glUniform2f(nonIndexedPosOffsetLoc, offsetX + sliceOffsetX, offsetY + sliceOffsetY);
+		}
+		glBindTexture(GL_TEXTURE_2D, (*tsItr)->textureID);
+
+		if(objectManager->openGL3)
+		{
+			//get the vertex array set up
+			glBindVertexArray((*tsItr)->vaoID);
+		}
+		else
+		{
+			GLenum positionLoc;
+
+			if(tex.hsTex->indexed)
+			{
+				positionLoc = positionLocIndexed;
+			}
+			else
+			{
+				positionLoc = positionLocNonIndexed;
+			}
+
+			glBindBuffer(GL_ARRAY_BUFFER, (*tsItr)->bufferID);
+			glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
+			glBindBuffer(GL_ARRAY_BUFFER, 0);
 		}
 
-		glBindBuffer(GL_ARRAY_BUFFER, tex.hsTex->bufferID);
-		glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		//draw stuff
+		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, (void*)0);
+
+		//unbind stuff
+		if(objectManager->openGL3)
+		{
+			glBindVertexArray(0);
+		}
+
+		glBindTexture(GL_TEXTURE_2D, 0);
 	}
 
-	//draw stuff
-	//glDrawArrays(GL_QUADS, 0, 4);
-	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, (void*)0);
-
-	//unbind stuff
-	if(objectManager->openGL3)
-	{
-		glBindVertexArray(0);
-	}
-
-	//ChangeShaderProgram(0);
 	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, 0);
-	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, 0);
 
 	return 0;
@@ -5015,11 +5030,15 @@ int Main::InitializeGraphics()
 		list<HSTexture*>::iterator trIt;
 		for ( trIt=objectManager->textureRegistry.begin(); trIt != objectManager->textureRegistry.end(); trIt++)
 		{
-			glDeleteTextures(1, &(*trIt)->textureID);
-			glDeleteBuffers(1, &(*trIt)->bufferID);
+			list<HSTextureSlice*>::iterator tsIt;
+			for ( tsIt=(*trIt)->textureSlices.begin(); tsIt != (*trIt)->textureSlices.end(); tsIt++)
+			{
+				glDeleteTextures(1, &(*tsIt)->textureID);
+				glDeleteBuffers(1, &(*tsIt)->bufferID);
 
-			(*trIt)->textureID = 0;
-			(*trIt)->bufferID = 0;
+				(*tsIt)->textureID = 0;
+				(*tsIt)->bufferID = 0;
+			}
 
 			if((*trIt)->ownPalette != NULL)
 			{
@@ -5120,20 +5139,10 @@ int Main::InitializeGraphics()
 
 	resolutionScale = (float)gameResolutionX / (float)MAX_GAME_RESOLUTION_X;
  
-	//glMatrixMode(GL_PROJECTION);
-	//glLoadIdentity();
- 
-	//glOrtho(0, MAX_GAME_RESOLUTION_X, MAX_GAME_RESOLUTION_Y, 0, 1, -1);
- 
-	//glMatrixMode(GL_MODELVIEW);
- 
 	glEnable(GL_TEXTURE_2D);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glDisable(GL_CULL_FACE);
-	//glEnable(GL_CULL_FACE);
-	//glFrontFace(GL_CCW);
-	//glCullFace(GL_BACK);
  
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glLoadIdentity();
@@ -5564,6 +5573,8 @@ int Main::InitializeGraphics()
 			}
 		}
 	}
+
+	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxTexDimension);
 
 	GLenum glError = glGetError();
 	if(glError != GL_NO_ERROR)
