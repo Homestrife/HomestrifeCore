@@ -3746,6 +3746,97 @@ bool Main::IsReleased(InputState * cur, InputState * prev)
 	return false;
 }
 
+void Main::ClearStickForAllPlayers(Uint8 which)
+{
+	for(int i = 0; i < MAX_PLAYERS; i++)
+	{
+		if(mappings[i].stick == which)
+		{
+			mappings[i].stick = JOYSTICK_UNKNOWN;
+		}
+	}
+}
+
+void Main::ClearHatForAllPlayers(Uint8 which)
+{
+	for(int i = 0; i < MAX_PLAYERS; i++)
+	{
+		if(mappings[i].hat == which)
+		{
+			mappings[i].hat = JOYSTICK_UNKNOWN;
+		}
+	}
+}
+
+void Main::ClearButtonForAllPlayers(Uint8 which, Uint8 button)
+{
+	for(int i = 0; i < MAX_PLAYERS; i++)
+	{
+		if(mappings[i].buttonUp.joystick == which && mappings[i].buttonUp.button == button)
+		{
+			mappings[i].buttonUp.joystick = JOYSTICK_UNKNOWN; mappings[i].buttonUp.button = JOYBUTTON_UNKNOWN;
+		}
+		if(mappings[i].buttonDown.joystick == which && mappings[i].buttonDown.button == button)
+		{
+			mappings[i].buttonDown.joystick = JOYSTICK_UNKNOWN; mappings[i].buttonDown.button = JOYBUTTON_UNKNOWN;
+		}
+		if(mappings[i].buttonLeft.joystick == which && mappings[i].buttonLeft.button == button)
+		{
+			mappings[i].buttonLeft.joystick = JOYSTICK_UNKNOWN; mappings[i].buttonLeft.button = JOYBUTTON_UNKNOWN;
+		}
+		if(mappings[i].buttonRight.joystick == which && mappings[i].buttonRight.button == button)
+		{
+			mappings[i].buttonRight.joystick = JOYSTICK_UNKNOWN; mappings[i].buttonRight.button = JOYBUTTON_UNKNOWN;
+		}
+		if(mappings[i].buttonJump.joystick == which && mappings[i].buttonJump.button == button)
+		{
+			mappings[i].buttonJump.joystick = JOYSTICK_UNKNOWN; mappings[i].buttonJump.button = JOYBUTTON_UNKNOWN;
+		}
+		if(mappings[i].buttonLight.joystick == which && mappings[i].buttonLight.button == button)
+		{
+			mappings[i].buttonLight.joystick = JOYSTICK_UNKNOWN; mappings[i].buttonLight.button = JOYBUTTON_UNKNOWN;
+		}
+		if(mappings[i].buttonHeavy.joystick == which && mappings[i].buttonHeavy.button == button)
+		{
+			mappings[i].buttonHeavy.joystick = JOYSTICK_UNKNOWN; mappings[i].buttonHeavy.button = JOYBUTTON_UNKNOWN;
+		}
+		if(mappings[i].buttonBlock.joystick == which && mappings[i].buttonBlock.button == button)
+		{
+			mappings[i].buttonBlock.joystick = JOYSTICK_UNKNOWN; mappings[i].buttonBlock.button = JOYBUTTON_UNKNOWN;
+		}
+		if(mappings[i].buttonStart.joystick == which && mappings[i].buttonStart.button == button)
+		{
+			mappings[i].buttonStart.joystick = JOYSTICK_UNKNOWN; mappings[i].buttonStart.button = JOYBUTTON_UNKNOWN;
+		}
+		if(mappings[i].buttonMenuConfirm.joystick == which && mappings[i].buttonMenuConfirm.button == button)
+		{
+			mappings[i].buttonMenuConfirm.joystick = JOYSTICK_UNKNOWN; mappings[i].buttonMenuConfirm.button = JOYBUTTON_UNKNOWN;
+		}
+		if(mappings[i].buttonMenuBack.joystick == which && mappings[i].buttonMenuBack.button == button)
+		{
+			mappings[i].buttonMenuBack.joystick = JOYSTICK_UNKNOWN; mappings[i].buttonMenuBack.button = JOYBUTTON_UNKNOWN;
+		}
+	}
+}
+
+void Main::ClearKeyForAllPlayers(SDL_Keycode sym)
+{
+	for(int i = 0; i < MAX_PLAYERS; i++)
+	{
+		if(mappings[i].keyUp == sym) { mappings[i].keyUp = SDLK_UNKNOWN; }
+		if(mappings[i].keyDown == sym) { mappings[i].keyDown = SDLK_UNKNOWN; }
+		if(mappings[i].keyLeft == sym) { mappings[i].keyLeft = SDLK_UNKNOWN; }
+		if(mappings[i].keyRight == sym) { mappings[i].keyRight = SDLK_UNKNOWN; }
+		if(mappings[i].keyJump == sym) { mappings[i].keyJump = SDLK_UNKNOWN; }
+		if(mappings[i].keyLight == sym) { mappings[i].keyLight = SDLK_UNKNOWN; }
+		if(mappings[i].keyHeavy == sym) { mappings[i].keyHeavy = SDLK_UNKNOWN; }
+		if(mappings[i].keyBlock == sym) { mappings[i].keyBlock = SDLK_UNKNOWN; }
+		if(mappings[i].keyStart == sym) { mappings[i].keyStart = SDLK_UNKNOWN; }
+		if(mappings[i].keyMenuConfirm == sym) { mappings[i].keyMenuConfirm = SDLK_UNKNOWN; }
+		if(mappings[i].keyMenuBack == sym) { mappings[i].keyMenuBack = SDLK_UNKNOWN; }
+	}
+}
+
 void Main::ClearControls(int player)
 {
 	if(player < 0 || player >= MAX_PLAYERS) { return; }
@@ -3782,7 +3873,7 @@ void Main::ClearControls(int player)
 	mappings[player].keyBlock = SDLK_UNKNOWN;
 	mappings[player].keyStart = SDLK_UNKNOWN;
 	mappings[player].keyMenuConfirm = SDLK_UNKNOWN;
-	mappings[player].keyMenuBack= SDLK_UNKNOWN;
+	mappings[player].keyMenuBack = SDLK_UNKNOWN;
 
 	mappings[player].hat = JOYSTICK_UNKNOWN;
 	mappings[player].stick = JOYSTICK_UNKNOWN;
@@ -3956,6 +4047,7 @@ void Main::KeyDown(SDL_Keycode sym)
 {
 	if(mainMenuState == INPUT_KEY || pauseMenuState == PAUSE_INPUT_KEY)
 	{
+		ClearKeyForAllPlayers(sym);
 		switch(keyToSetUp)
 		{
 		case 0: //up
@@ -4359,6 +4451,7 @@ void Main::JoyAxis(Uint8 which,Uint8 axis,Sint16 value)
 		case 2: //left
 			objectManager->menuManager->CursorNext();
 		case 3: //right
+			ClearStickForAllPlayers(which);
 			mappings[playerToSetUp].stick = which;
 			mappings[playerToSetUp].hat = -1;
 			mappings[playerToSetUp].keyUp = SDLK_UNKNOWN;
@@ -4513,6 +4606,7 @@ void Main::JoyHat(Uint8 which,Uint8 hat,Uint8 value)
 		case 2: //left
 			objectManager->menuManager->CursorNext();
 		case 3: //right
+			ClearHatForAllPlayers(which);
 			mappings[playerToSetUp].hat = which;
 			mappings[playerToSetUp].stick = -1;
 			mappings[playerToSetUp].keyUp = SDLK_UNKNOWN;
@@ -4638,6 +4732,7 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 {
 	if(mainMenuState == INPUT_KEY || pauseMenuState == PAUSE_INPUT_KEY)
 	{
+		ClearButtonForAllPlayers(which, button);
 		switch(keyToSetUp)
 		{
 		case 0: //up

@@ -309,6 +309,10 @@ protected:
 	string GetHatConfigString(Uint8 hat);
 	string GetStickConfigString(Uint8 stick);
 
+	void ClearStickForAllPlayers(Uint8 which);
+	void ClearHatForAllPlayers(Uint8 which);
+	void ClearButtonForAllPlayers(Uint8 which, Uint8 button);
+	void ClearKeyForAllPlayers(SDL_Keycode sym);
 	void ClearControls(int player);
 
 	void ChangePlayerPalette(int player);
