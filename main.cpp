@@ -1939,7 +1939,7 @@ int Main::ChangeCharacterSelectPlayerState(CharacterSelectPlayerState newState, 
 			objectManager->selectPaletteTwo->visible = false;
 			break;
 		case 2:
-			if(objectManager->players[2] != NULL)
+			if(objectManager->selectedCharacters[2].demoObject != NULL)
 			{
 				objectManager->readyThree->visible = false;
 				objectManager->selectPaletteLeftThree->visible = true;
@@ -1949,7 +1949,7 @@ int Main::ChangeCharacterSelectPlayerState(CharacterSelectPlayerState newState, 
 			}
 			break;
 		case 3:
-			if(objectManager->players[3] != NULL)
+			if(objectManager->selectedCharacters[3].demoObject != NULL)
 			{
 				objectManager->readyFour->visible = false;
 				objectManager->selectPaletteLeftFour->visible = true;
@@ -1978,7 +1978,7 @@ int Main::ChangeCharacterSelectPlayerState(CharacterSelectPlayerState newState, 
 			objectManager->selectPaletteTwo->visible = true;
 			break;
 		case 2:
-			if(objectManager->players[2] != NULL)
+			if(objectManager->selectedCharacters[2].demoObject != NULL)
 			{
 				objectManager->readyThree->visible = false;
 				objectManager->selectPaletteLeftThree->visible = true;
@@ -1988,7 +1988,7 @@ int Main::ChangeCharacterSelectPlayerState(CharacterSelectPlayerState newState, 
 			}
 			break;
 		case 3:
-			if(objectManager->players[3] != NULL)
+			if(objectManager->selectedCharacters[3].demoObject != NULL)
 			{
 				objectManager->readyFour->visible = false;
 				objectManager->selectPaletteLeftFour->visible = true;
@@ -2017,7 +2017,7 @@ int Main::ChangeCharacterSelectPlayerState(CharacterSelectPlayerState newState, 
 			objectManager->selectPaletteTwo->visible = false;
 			break;
 		case 2:
-			if(objectManager->players[2] != NULL)
+			if(objectManager->selectedCharacters[2].demoObject != NULL)
 			{
 				objectManager->readyThree->visible = true;
 				objectManager->selectPaletteLeftThree->visible = false;
@@ -2027,7 +2027,7 @@ int Main::ChangeCharacterSelectPlayerState(CharacterSelectPlayerState newState, 
 			}
 			break;
 		case 3:
-			if(objectManager->players[3] != NULL)
+			if(objectManager->selectedCharacters[3].demoObject != NULL)
 			{
 				objectManager->readyFour->visible = true;
 				objectManager->selectPaletteLeftFour->visible = false;
