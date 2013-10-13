@@ -731,6 +731,8 @@ void Main::AdjustCamera(bool adjustInstantly)
 
 int Main::Render()
 {
+	glGetError();
+
 	AdjustCamera(false);
 
 	ChangeShaderProgram(shader_progIndexed);
@@ -831,7 +833,7 @@ int Main::Render()
 	GLenum glError = glGetError();
 	if(glError != GL_NO_ERROR)
 	{
-		string glErrorString = "OpenGL error in Render().";
+		string glErrorString = "OpenGL error in Render(): " + GetGLErrorText(glError);
 		UpdateLog(glErrorString, true);
 	}
 
@@ -5025,6 +5027,8 @@ int Main::SetFullScreen(bool newFullScreen)
 
 int Main::InitializeGraphics()
 {
+	glGetError();
+
 	if(objectManager->textureRegistry.size() > 0)
 	{
 		list<HSTexture*>::iterator trIt;
@@ -5579,7 +5583,7 @@ int Main::InitializeGraphics()
 	GLenum glError = glGetError();
 	if(glError != GL_NO_ERROR)
 	{
-		string glErrorString = "OpenGL error in SetFullScreen().";
+		string glErrorString = "OpenGL error in SetFullScreen(): " + GetGLErrorText(glError);
 		UpdateLog(glErrorString, true);
 	}
 

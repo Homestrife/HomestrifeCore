@@ -10,6 +10,19 @@ GLenum texCoordInLocIndexed = 0;
 
 GLint maxTexDimension = 64;
 
+string GetGLErrorText(GLenum error)
+{
+	if(error == GL_INVALID_ENUM) { return "Invalid enum"; }
+	if(error == GL_INVALID_VALUE) { return "Invalid value"; }
+	if(error == GL_INVALID_OPERATION) { return "Invalid operation"; }
+	if(error == GL_INVALID_FRAMEBUFFER_OPERATION) { return "Invalid framebuffer operation"; }
+	if(error == GL_OUT_OF_MEMORY) { return "Out of memeory"; }
+	if(error == GL_STACK_UNDERFLOW) { return "Stack underflow"; }
+	if(error == GL_STACK_OVERFLOW) { return "Stack overflow"; }
+
+	return "Unknown";
+}
+
 int fseekError(GLubyte error, string texFilePath)
 {
 	stringstream sstm;
@@ -38,6 +51,8 @@ int freadError(FILE * file, string texFilePath)
 
 int LoadTGAToTexture(HSTexture * hsTex, bool openGL3, bool useTGAPalette)
 {
+	glGetError();
+
 	if(hsTex == NULL)
 	{
 		UpdateLog("HSTexture object is null.", true);
@@ -427,7 +442,7 @@ int LoadTGAToTexture(HSTexture * hsTex, bool openGL3, bool useTGAPalette)
 	GLenum glError = glGetError();
 	if(glError != GL_NO_ERROR)
 	{
-		string glErrorString = "OpenGL error in LoadTGAToTexture().";
+		string glErrorString = "OpenGL error in LoadTGAToTexture(): " + GetGLErrorText(glError);
 		UpdateLog(glErrorString, true);
 	}
 
@@ -466,6 +481,8 @@ int LoadHSPToPalette(HSPalette * hsPal)
 
 int StorePaletteData(HSPalette * hsPal, GLubyte * paletteData)
 {
+	glGetError();
+
 	GLuint textureID;
 
 	glActiveTexture(GL_TEXTURE1);
@@ -505,7 +522,7 @@ int StorePaletteData(HSPalette * hsPal, GLubyte * paletteData)
 	GLenum glError = glGetError();
 	if(glError != GL_NO_ERROR)
 	{
-		string glErrorString = "OpenGL error in StorePaletteData().";
+		string glErrorString = "OpenGL error in StorePaletteData(): " + GetGLErrorText(glError);
 		UpdateLog(glErrorString, true);
 	}
 

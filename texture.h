@@ -63,6 +63,7 @@ struct HSTexture
 	bool topAlign; //whether or not drawing should start from the top
 };
 
+string GetGLErrorText(GLenum error);
 int fseekError(GLubyte error, string texFilePath);
 int freadError(FILE * file, string texFilePath);
 int LoadTGAToTexture(HSTexture * hsTex, bool openGL3, bool useTGAPalette);
