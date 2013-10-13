@@ -311,8 +311,8 @@ protected:
 
 	void ClearStickForAllPlayers(Uint8 which);
 	void ClearHatForAllPlayers(Uint8 which);
-	void ClearButtonForAllPlayers(Uint8 which, Uint8 button);
-	void ClearKeyForAllPlayers(SDL_Keycode sym);
+	void ClearButtonForAllPlayers(Uint8 which, Uint8 button, int playerToIgnore);
+	void ClearKeyForAllPlayers(SDL_Keycode sym, int playerToIgnore);
 	void ClearControls(int player);
 
 	void ChangePlayerPalette(int player);

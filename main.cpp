@@ -3768,10 +3768,12 @@ void Main::ClearHatForAllPlayers(Uint8 which)
 	}
 }
 
-void Main::ClearButtonForAllPlayers(Uint8 which, Uint8 button)
+void Main::ClearButtonForAllPlayers(Uint8 which, Uint8 button, int playerToIgnore)
 {
 	for(int i = 0; i < MAX_PLAYERS; i++)
 	{
+		if(i == playerToIgnore) { continue; }
+
 		if(mappings[i].buttonUp.joystick == which && mappings[i].buttonUp.button == button)
 		{
 			mappings[i].buttonUp.joystick = JOYSTICK_UNKNOWN; mappings[i].buttonUp.button = JOYBUTTON_UNKNOWN;
@@ -3819,10 +3821,12 @@ void Main::ClearButtonForAllPlayers(Uint8 which, Uint8 button)
 	}
 }
 
-void Main::ClearKeyForAllPlayers(SDL_Keycode sym)
+void Main::ClearKeyForAllPlayers(SDL_Keycode sym, int playerToIgnore)
 {
 	for(int i = 0; i < MAX_PLAYERS; i++)
 	{
+		if(i == playerToIgnore) { continue; }
+
 		if(mappings[i].keyUp == sym) { mappings[i].keyUp = SDLK_UNKNOWN; }
 		if(mappings[i].keyDown == sym) { mappings[i].keyDown = SDLK_UNKNOWN; }
 		if(mappings[i].keyLeft == sym) { mappings[i].keyLeft = SDLK_UNKNOWN; }
@@ -4047,7 +4051,7 @@ void Main::KeyDown(SDL_Keycode sym)
 {
 	if(mainMenuState == INPUT_KEY || pauseMenuState == PAUSE_INPUT_KEY)
 	{
-		ClearKeyForAllPlayers(sym);
+		ClearKeyForAllPlayers(sym, playerToSetUp);
 		switch(keyToSetUp)
 		{
 		case 0: //up
@@ -4732,7 +4736,7 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 {
 	if(mainMenuState == INPUT_KEY || pauseMenuState == PAUSE_INPUT_KEY)
 	{
-		ClearButtonForAllPlayers(which, button);
+		ClearButtonForAllPlayers(which, button, playerToSetUp);
 		switch(keyToSetUp)
 		{
 		case 0: //up
