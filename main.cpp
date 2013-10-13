@@ -615,8 +615,13 @@ void Main::AdjustCamera(bool adjustInstantly)
 	}
 	else
 	{
-		float targetZoomOutX = (right - left) / (MAX_GAME_RESOLUTION_X - ZOOM_BOUNDARY_X_THRESHOLD);
-		float targetZoomOutY = (bottom - top) / (MAX_GAME_RESOLUTION_Y - ZOOM_BOUNDARY_Y_THRESHOLD);
+		float targetZoomOutX;
+		if(MAX_GAME_RESOLUTION_X - ZOOM_BOUNDARY_X_THRESHOLD <= 0) { targetZoomOutX = objectManager->stageSize.x / MAX_GAME_RESOLUTION_X; }
+		else { targetZoomOutX = (right - left) / (MAX_GAME_RESOLUTION_X - ZOOM_BOUNDARY_X_THRESHOLD); }
+
+		float targetZoomOutY;
+		if(MAX_GAME_RESOLUTION_Y - ZOOM_BOUNDARY_Y_THRESHOLD <= 0) { targetZoomOutY = objectManager->stageSize.y / MAX_GAME_RESOLUTION_Y; }
+		else { targetZoomOutY = (bottom - top) / (MAX_GAME_RESOLUTION_Y - ZOOM_BOUNDARY_Y_THRESHOLD); }
 
 		if(targetZoomOutX > targetZoomOutY) { targetZoomOut = targetZoomOutX; }
 		else { targetZoomOut = targetZoomOutY; }
