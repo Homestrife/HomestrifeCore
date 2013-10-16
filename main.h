@@ -29,6 +29,7 @@
 #define MAIN_MENU_ITEM_HEIGHT 35
 #define MAIN_MENU_ITEM_SPACING 20
 #define PRESS_DESIRED_BUTTON_OFFSET_X 400
+#define VIDEO_SETTING_OFFSET_X 600
 
 #define CHAR_SELECT_PLAYER_LEFT_POS_X -400
 #define CHAR_SELECT_PLAYER_RIGHT_POS_X CHAR_SELECT_PLAYER_LEFT_POS_X*-1
@@ -111,6 +112,7 @@ enum MatchPlayerState
 enum PauseMenuState
 {
 	PAUSE_TOP,
+	PAUSE_VIDEO,
 	PAUSE_KEY_CONFIG,
 	PAUSE_PLAYER_KEY_CONFIG,
 	PAUSE_INPUT_KEY
@@ -170,17 +172,6 @@ struct PreviousJoystickStates
 	bool stickHeldHardRight;
 };
 
-enum CurrentSettingMapping
-{
-	SETTING_UP,
-	SETTING_DOWN,
-	SETTING_LEFT,
-	SETTING_RIGHT,
-	SETTING_JUMP,
-	SETTING_LIGHT,
-	SETTING_BLOCK
-};
-
 class Main
 {
 public:
@@ -221,12 +212,21 @@ protected:
 	int paletteLoc;
 	bool notDone;
 	SDL_Window* surf_display;
-	int screenResolutionX;
-	int screenResolutionY;
-	int gameResolutionX;
-	int gameResolutionY;
+	SDL_DisplayMode startDisplayMode;
+	SDL_DisplayMode curDisplayMode;
 	float resolutionScale;
 	bool fullScreen;
+	bool fullScreenToApply;
+	bool stretchScreen;
+	bool stretchScreenToApply;
+	int windowedResolutionX;
+	int windowedResolutionY;
+	int windowedResolutionXToApply;
+	int windowedResolutionYToApply;
+	int fullscreenResolutionX;
+	int fullscreenResolutionY;
+	int fullscreenResolutionXToApply;
+	int fullscreenResolutionYToApply;
 
 	list<SDL_Joystick*> sticks;
 
@@ -236,7 +236,11 @@ protected:
 	unsigned int lastFrameTicks;
 	unsigned int frame;
 
+	int DropToHighestValidFullscreenResolution();
+	int DropToHighestValidWindowedResolution();
 	int SetBestGameResolution();
+	int SetBestDisplayMode();
+	int ReturnToStartDisplayMode();
 	void ChangeShaderProgram(GLuint programID);
 
 	int Initialize();
@@ -265,6 +269,13 @@ protected:
 	int ChangeMainMenuState(MainMenuState newState);
 	int EventMainMenu(InputStates * inputHistory, int frame);
 	int UpdateMainMenu();
+	void MakeVideoSettingsInvisible();
+	void SetVideoSettingVisibility();
+	void NextFullscreenResolution();
+	void PrevFullscreenResolution();
+	void NextWindowedResolution();
+	void PrevWindowedResolution();
+	int ApplyVideoSettings();
 
 	int InitializeCharacterSelect();
 	int ChangeCharacterSelectState(CharacterSelectState newState);
@@ -292,7 +303,6 @@ protected:
 
 	int playerToSetUp;
 	int keyToSetUp;
-	CurrentSettingMapping currentSettingMapping;
 
 	void DefaultConfig();
 	int LoadConfig();

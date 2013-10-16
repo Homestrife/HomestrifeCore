@@ -65,6 +65,34 @@ ObjectManager::ObjectManager()
 	selectPaletteRightTwo = NULL;
 	selectPaletteRightThree = NULL;
 	selectPaletteRightFour = NULL;
+	fullscreenYes = NULL;
+	fullscreenNo = NULL;
+	stretchYes = NULL;
+	stretchNo = NULL;
+	fullscreen640x360 = NULL;
+	fullscreen800x450 = NULL;
+	fullscreen1024x576 = NULL;
+	fullscreen1152x648 = NULL;
+	fullscreen1280x720 = NULL;
+	fullscreen1360x765 = NULL;
+	fullscreen1366x768 = NULL;
+	fullscreen1400x787 = NULL;
+	fullscreen1440x810 = NULL;
+	fullscreen1600x900 = NULL;
+	fullscreen1680x945 = NULL;
+	fullscreen1920x1080 = NULL;
+	windowed640x360 = NULL;
+	windowed800x450 = NULL;
+	windowed1024x576 = NULL;
+	windowed1152x648 = NULL;
+	windowed1280x720 = NULL;
+	windowed1360x765 = NULL;
+	windowed1366x768 = NULL;
+	windowed1400x787 = NULL;
+	windowed1440x810 = NULL;
+	windowed1600x900 = NULL;
+	windowed1680x945 = NULL;
+	windowed1920x1080 = NULL;
 }
 
 bool ObjectSort(HSObject * first, HSObject * second)
@@ -2393,6 +2421,34 @@ int ObjectManager::ClearAllObjects()
 	selectPaletteRightTwo = NULL;
 	selectPaletteRightThree = NULL;
 	selectPaletteRightFour = NULL;
+	fullscreenYes = NULL;
+	fullscreenNo = NULL;
+	stretchYes = NULL;
+	stretchNo = NULL;
+	fullscreen640x360 = NULL;
+	fullscreen800x450 = NULL;
+	fullscreen1024x576 = NULL;
+	fullscreen1152x648 = NULL;
+	fullscreen1280x720 = NULL;
+	fullscreen1360x765 = NULL;
+	fullscreen1366x768 = NULL;
+	fullscreen1400x787 = NULL;
+	fullscreen1440x810 = NULL;
+	fullscreen1600x900 = NULL;
+	fullscreen1680x945 = NULL;
+	fullscreen1920x1080 = NULL;
+	windowed640x360 = NULL;
+	windowed800x450 = NULL;
+	windowed1024x576 = NULL;
+	windowed1152x648 = NULL;
+	windowed1280x720 = NULL;
+	windowed1360x765 = NULL;
+	windowed1366x768 = NULL;
+	windowed1400x787 = NULL;
+	windowed1440x810 = NULL;
+	windowed1600x900 = NULL;
+	windowed1680x945 = NULL;
+	windowed1920x1080 = NULL;
 
 	return 0;
 }

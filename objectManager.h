@@ -103,6 +103,34 @@ public:
 	HSObject * selectStage;
 	HSObject * selectStageLeft;
 	HSObject * selectStageRight;
+	HSObject * fullscreenYes;
+	HSObject * fullscreenNo;
+	HSObject * stretchYes;
+	HSObject * stretchNo;
+	HSObject * fullscreen640x360;
+	HSObject * fullscreen800x450;
+	HSObject * fullscreen1024x576;
+	HSObject * fullscreen1152x648;
+	HSObject * fullscreen1280x720;
+	HSObject * fullscreen1360x765;
+	HSObject * fullscreen1366x768;
+	HSObject * fullscreen1400x787;
+	HSObject * fullscreen1440x810;
+	HSObject * fullscreen1600x900;
+	HSObject * fullscreen1680x945;
+	HSObject * fullscreen1920x1080;
+	HSObject * windowed640x360;
+	HSObject * windowed800x450;
+	HSObject * windowed1024x576;
+	HSObject * windowed1152x648;
+	HSObject * windowed1280x720;
+	HSObject * windowed1360x765;
+	HSObject * windowed1366x768;
+	HSObject * windowed1400x787;
+	HSObject * windowed1440x810;
+	HSObject * windowed1600x900;
+	HSObject * windowed1680x945;
+	HSObject * windowed1920x1080;
 
 	void SortAllObjects();
 

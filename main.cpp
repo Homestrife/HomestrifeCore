@@ -37,11 +37,18 @@ Main::Main()
 	paletteLoc = 0;
 	notDone = true;
 	surf_display = NULL;
-	screenResolutionX = MAX_GAME_RESOLUTION_X;
-	screenResolutionY = MAX_GAME_RESOLUTION_Y;
-	gameResolutionX = screenResolutionX;
-	gameResolutionY = screenResolutionY;
 	fullScreen = false;
+	fullScreenToApply = false;
+	stretchScreen = false;
+	stretchScreenToApply = false;
+	windowedResolutionX = 0;
+	windowedResolutionY = 0;
+	windowedResolutionXToApply = 0;
+	windowedResolutionYToApply = 0;
+	fullscreenResolutionX = 0;
+	fullscreenResolutionY = 0;
+	fullscreenResolutionXToApply = 0;
+	fullscreenResolutionYToApply = 0;
 
 	zoomOut = 1;
 	focusPos.x = 0;
@@ -52,7 +59,6 @@ Main::Main()
 
 	playerToSetUp = -1;
 	keyToSetUp = -1;
-	currentSettingMapping = SETTING_UP;
 
 	//set up the default input states
 	defaultInputs.bKeyUp.held = false; defaultInputs.bKeyUp.pressed = false; defaultInputs.bKeyUp.released = false;
@@ -200,33 +206,132 @@ void Main::DebugOutput()
 	cout << endl;
 }
 
+int Main::DropToHighestValidFullscreenResolution()
+{
+	//pick a viable 16:9 resolution that's equal to or smaller than the screen resolution
+	while(fullscreenResolutionXToApply > curDisplayMode.w || fullscreenResolutionYToApply > curDisplayMode.h)
+	{
+		if(fullscreenResolutionXToApply == 640)
+		{
+			UpdateLog("DropToHighestValidFullscreenResolution(): Display mode too small.", true);
+			return -1;
+		}
+
+		PrevFullscreenResolution();
+	}
+
+	return 0;
+}
+
+int Main::DropToHighestValidWindowedResolution()
+{
+	//pick a viable 16:9 resolution that's equal to or smaller than the screen resolution
+	while(windowedResolutionXToApply >= startDisplayMode.w || windowedResolutionYToApply >= startDisplayMode.h)
+	{
+		if(windowedResolutionXToApply == 640)
+		{
+			UpdateLog("DropToHighestValidWindowedResolution(): Display mode too small.", true);
+			return -1;
+		}
+
+		PrevWindowedResolution();
+	}
+
+	return 0;
+}
+
 int Main::SetBestGameResolution()
 {
-	//get the current screen resolution
-	SDL_DisplayMode vidInfo;
-	SDL_GetDesktopDisplayMode(0, &vidInfo);
-	screenResolutionX = vidInfo.w;
-	screenResolutionY = vidInfo.h;
-	gameResolutionX = MAX_GAME_RESOLUTION_X;
-	gameResolutionY = MAX_GAME_RESOLUTION_Y;
+	fullscreenResolutionXToApply = MAX_GAME_RESOLUTION_X;
+	fullscreenResolutionYToApply = MAX_GAME_RESOLUTION_Y;
+	windowedResolutionXToApply = MAX_GAME_RESOLUTION_X;
+	windowedResolutionYToApply = MAX_GAME_RESOLUTION_Y;
 
-	//if the current screen resolution is larger than or equal to the max possible resolution, then just use the max resolution
-	if(screenResolutionX >= MAX_GAME_RESOLUTION_X && screenResolutionY >= MAX_GAME_RESOLUTION_Y)
+	if(int i = DropToHighestValidFullscreenResolution() != 0) { return i; }
+	if(int i = DropToHighestValidWindowedResolution() != 0) { return i; }
+
+	fullscreenResolutionX = fullscreenResolutionXToApply;
+	fullscreenResolutionY = fullscreenResolutionYToApply;
+	windowedResolutionX = windowedResolutionXToApply;
+	windowedResolutionY = windowedResolutionYToApply;
+
+	return 0;
+}
+
+int Main::SetBestDisplayMode()
+{
+	if(!fullScreen || !stretchScreen) { return 0; }
+	
+	SDL_DisplayMode modeToUse;
+	SDL_DisplayMode highestDisplayMode;
+	highestDisplayMode.w = 0;
+	highestDisplayMode.h = 0;
+	highestDisplayMode.refresh_rate = 0;
+
+	//get the highest display mode
+	int numModes = SDL_GetNumDisplayModes(0);
+	for(int i = 0; i < numModes; i++)
 	{
+		SDL_DisplayMode curMode;
+		SDL_GetDisplayMode(0, i, &curMode);
+
+		if(curMode.w >= highestDisplayMode.w && curMode.h >= highestDisplayMode.h)
+		{
+			if(curMode.w != highestDisplayMode.w || curMode.h != highestDisplayMode.h ||
+				(curMode.w == highestDisplayMode.w && curMode.h == highestDisplayMode.h && curMode.refresh_rate > highestDisplayMode.refresh_rate))
+			{
+				highestDisplayMode = curMode;
+			}
+		}
+	}
+
+	if(highestDisplayMode.w < fullscreenResolutionX || highestDisplayMode.h < fullscreenResolutionY)
+	{
+		curDisplayMode = highestDisplayMode;
+		fullscreenResolutionXToApply = MAX_GAME_RESOLUTION_X;
+		fullscreenResolutionYToApply = MAX_GAME_RESOLUTION_Y;
+		if(int error = DropToHighestValidFullscreenResolution() != 0) { return error; }
+		fullscreenResolutionX = fullscreenResolutionXToApply;
+		fullscreenResolutionY = fullscreenResolutionYToApply;
+		if(int error = SaveConfig() != 0) { return error; }
 		return 0;
 	}
 
-	//pick a viable 16:9 resolution that's equal to or smaller than the screen resolution
-	while(gameResolutionX > screenResolutionX || gameResolutionY > screenResolutionY)
-	{
-		gameResolutionX -= GAME_ASPECT_RATIO_X;
-		gameResolutionY -= GAME_ASPECT_RATIO_Y;
+	modeToUse = highestDisplayMode;
 
-		if(gameResolutionX < MIN_GAME_RESOLUTION_X || gameResolutionY < MIN_GAME_RESOLUTION_Y)
+	//find the closest display mode to the fullscreen resolution, moving downward from the highest resolution
+	for(int i = 0; i < numModes; i++)
+	{
+		SDL_DisplayMode curMode;
+		if(int error = SDL_GetDisplayMode(0, i, &curMode) != 0) { return error; }
+
+		if(curMode.w < fullscreenResolutionX || curMode.h < fullscreenResolutionY)
 		{
-			UpdateLog("Screen resolution too small.", true);
-			return -1;
+			continue;
 		}
+
+		if(curMode.w <= modeToUse.w && curMode.h <= modeToUse.h)
+		{
+			if(curMode.w != modeToUse.w || curMode.h != modeToUse.w ||
+				(curMode.w == modeToUse.w && curMode.h == modeToUse.h && curMode.refresh_rate > modeToUse.refresh_rate))
+			{
+				modeToUse = curMode;
+			}
+		}
+	}
+
+	curDisplayMode = modeToUse;
+
+	return 0;
+}
+
+int Main::ReturnToStartDisplayMode()
+{
+	curDisplayMode = startDisplayMode;
+
+	if(fullscreenResolutionX > curDisplayMode.w || fullscreenResolutionY > curDisplayMode.h)
+	{
+		if(int error = SetBestDisplayMode() != 0) { return error; }
 	}
 
 	return 0;
@@ -296,12 +401,16 @@ int Main::Initialize()
 	SDL_GL_SetAttribute(SDL_GL_ACCUM_BLUE_SIZE,    8);
 	SDL_GL_SetAttribute(SDL_GL_ACCUM_ALPHA_SIZE,    8);
  
-	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS,  1);
-	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES,  2);
+	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS,  0);
+	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES,  0);
 
 	SDL_ShowCursor(SDL_DISABLE);
 
 	UpdateLog("SDL attributes set.", false);
+	
+	SDL_DisplayMode vidInfo;
+	SDL_GetDesktopDisplayMode(0, &startDisplayMode);
+	curDisplayMode = startDisplayMode;
 
 	//load configuration
 	if(int error = LoadConfig() != 0)
@@ -1228,11 +1337,163 @@ int Main::InitializeMainMenu()
 	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\video\\video.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	videoMenu->SetHeader(newObject);
 	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\toggleFullscreen\\toggleFullscreen.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\fullscreen\\fullscreen.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	videoMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\stretchScreen\\stretchScreen.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	videoMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\resolution\\fullscreenResolution.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	videoMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\resolution\\windowedResolution.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	videoMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\apply\\apply.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	videoMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
 	
 	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\back\\back.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	videoMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\yes\\yes.xml", &objectManager->HUDObjects, &objectManager->fullscreenYes) != 0) { return error; }
+	objectManager->fullscreenYes->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->fullscreenYes->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING;
+	objectManager->fullscreenYes->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\no\\no.xml", &objectManager->HUDObjects, &objectManager->fullscreenNo) != 0) { return error; }
+	objectManager->fullscreenNo->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->fullscreenNo->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING;
+	objectManager->fullscreenNo->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\yes\\yes.xml", &objectManager->HUDObjects, &objectManager->stretchYes) != 0) { return error; }
+	objectManager->stretchYes->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->stretchYes->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 2 + MAIN_MENU_ITEM_HEIGHT;
+	objectManager->stretchYes->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\no\\no.xml", &objectManager->HUDObjects, &objectManager->stretchNo) != 0) { return error; }
+	objectManager->stretchNo->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->stretchNo->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 2 + MAIN_MENU_ITEM_HEIGHT;
+	objectManager->stretchNo->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\640x360\\640x360.xml", &objectManager->HUDObjects, &objectManager->fullscreen640x360) != 0) { return error; }
+	objectManager->fullscreen640x360->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->fullscreen640x360->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
+	objectManager->fullscreen640x360->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\800x450\\800x450.xml", &objectManager->HUDObjects, &objectManager->fullscreen800x450) != 0) { return error; }
+	objectManager->fullscreen800x450->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->fullscreen800x450->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
+	objectManager->fullscreen800x450->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1024x576\\1024x576.xml", &objectManager->HUDObjects, &objectManager->fullscreen1024x576) != 0) { return error; }
+	objectManager->fullscreen1024x576->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->fullscreen1024x576->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
+	objectManager->fullscreen1024x576->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1152x648\\1152x648.xml", &objectManager->HUDObjects, &objectManager->fullscreen1152x648) != 0) { return error; }
+	objectManager->fullscreen1152x648->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->fullscreen1152x648->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
+	objectManager->fullscreen1152x648->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1280x720\\1280x720.xml", &objectManager->HUDObjects, &objectManager->fullscreen1280x720) != 0) { return error; }
+	objectManager->fullscreen1280x720->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->fullscreen1280x720->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
+	objectManager->fullscreen1280x720->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1360x765\\1360x765.xml", &objectManager->HUDObjects, &objectManager->fullscreen1360x765) != 0) { return error; }
+	objectManager->fullscreen1360x765->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->fullscreen1360x765->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
+	objectManager->fullscreen1360x765->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1366x768\\1366x768.xml", &objectManager->HUDObjects, &objectManager->fullscreen1366x768) != 0) { return error; }
+	objectManager->fullscreen1366x768->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->fullscreen1366x768->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
+	objectManager->fullscreen1366x768->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1400x787\\1400x787.xml", &objectManager->HUDObjects, &objectManager->fullscreen1400x787) != 0) { return error; }
+	objectManager->fullscreen1400x787->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->fullscreen1400x787->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
+	objectManager->fullscreen1400x787->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1440x810\\1440x810.xml", &objectManager->HUDObjects, &objectManager->fullscreen1440x810) != 0) { return error; }
+	objectManager->fullscreen1440x810->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->fullscreen1440x810->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
+	objectManager->fullscreen1440x810->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1600x900\\1600x900.xml", &objectManager->HUDObjects, &objectManager->fullscreen1600x900) != 0) { return error; }
+	objectManager->fullscreen1600x900->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->fullscreen1600x900->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
+	objectManager->fullscreen1600x900->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1680x945\\1680x945.xml", &objectManager->HUDObjects, &objectManager->fullscreen1680x945) != 0) { return error; }
+	objectManager->fullscreen1680x945->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->fullscreen1680x945->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
+	objectManager->fullscreen1680x945->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1920x1080\\1920x1080.xml", &objectManager->HUDObjects, &objectManager->fullscreen1920x1080) != 0) { return error; }
+	objectManager->fullscreen1920x1080->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->fullscreen1920x1080->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
+	objectManager->fullscreen1920x1080->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\640x360\\640x360.xml", &objectManager->HUDObjects, &objectManager->windowed640x360) != 0) { return error; }
+	objectManager->windowed640x360->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->windowed640x360->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
+	objectManager->windowed640x360->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\800x450\\800x450.xml", &objectManager->HUDObjects, &objectManager->windowed800x450) != 0) { return error; }
+	objectManager->windowed800x450->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->windowed800x450->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
+	objectManager->windowed800x450->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1024x576\\1024x576.xml", &objectManager->HUDObjects, &objectManager->windowed1024x576) != 0) { return error; }
+	objectManager->windowed1024x576->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->windowed1024x576->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
+	objectManager->windowed1024x576->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1152x648\\1152x648.xml", &objectManager->HUDObjects, &objectManager->windowed1152x648) != 0) { return error; }
+	objectManager->windowed1152x648->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->windowed1152x648->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
+	objectManager->windowed1152x648->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1280x720\\1280x720.xml", &objectManager->HUDObjects, &objectManager->windowed1280x720) != 0) { return error; }
+	objectManager->windowed1280x720->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->windowed1280x720->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
+	objectManager->windowed1280x720->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1360x765\\1360x765.xml", &objectManager->HUDObjects, &objectManager->windowed1360x765) != 0) { return error; }
+	objectManager->windowed1360x765->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->windowed1360x765->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
+	objectManager->windowed1360x765->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1366x768\\1366x768.xml", &objectManager->HUDObjects, &objectManager->windowed1366x768) != 0) { return error; }
+	objectManager->windowed1366x768->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->windowed1366x768->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
+	objectManager->windowed1366x768->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1400x787\\1400x787.xml", &objectManager->HUDObjects, &objectManager->windowed1400x787) != 0) { return error; }
+	objectManager->windowed1400x787->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->windowed1400x787->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
+	objectManager->windowed1400x787->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1440x810\\1440x810.xml", &objectManager->HUDObjects, &objectManager->windowed1440x810) != 0) { return error; }
+	objectManager->windowed1440x810->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->windowed1440x810->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
+	objectManager->windowed1440x810->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1600x900\\1600x900.xml", &objectManager->HUDObjects, &objectManager->windowed1600x900) != 0) { return error; }
+	objectManager->windowed1600x900->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->windowed1600x900->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
+	objectManager->windowed1600x900->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1680x945\\1680x945.xml", &objectManager->HUDObjects, &objectManager->windowed1680x945) != 0) { return error; }
+	objectManager->windowed1680x945->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->windowed1680x945->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
+	objectManager->windowed1680x945->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1920x1080\\1920x1080.xml", &objectManager->HUDObjects, &objectManager->windowed1920x1080) != 0) { return error; }
+	objectManager->windowed1920x1080->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->windowed1920x1080->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
+	objectManager->windowed1920x1080->visible = false;
 	
 	Menu * keyConfigMenu = new Menu(MAIN_MENU_HEADER_HEIGHT, MAIN_MENU_CURSOR_WIDTH, MAIN_MENU_ITEM_HEIGHT, MAIN_MENU_ITEM_SPACING);
 	keyConfigMenu->pos.x = (MAX_GAME_RESOLUTION_X / -2) + MAIN_MENU_ITEM_SPACING;
@@ -1359,8 +1620,17 @@ int Main::ChangeMainMenuState(MainMenuState newState)
 	case FREE_FOR_ALL:
 		break;
 	case OPTIONS:
+		MakeVideoSettingsInvisible();
 		break;
 	case VIDEO:
+		fullScreenToApply = fullScreen;
+		stretchScreenToApply = stretchScreen;
+		fullscreenResolutionXToApply = fullscreenResolutionX;
+		fullscreenResolutionYToApply = fullscreenResolutionY;
+		windowedResolutionXToApply = windowedResolutionX;
+		windowedResolutionYToApply = windowedResolutionY;
+
+		SetVideoSettingVisibility();
 		break;
 	case KEY_CONFIG:
 		break;
@@ -1401,6 +1671,65 @@ int Main::EventMainMenu(InputStates * inputHistory, int frame)
 	else if(inputHistory->frame == frame && (inputHistory->bButtonUp.pressed || inputHistory->bHatUp.pressed || inputHistory->bKeyUp.pressed || inputHistory->bStickUp.pressed))
 	{
 		objectManager->menuManager->CursorPrev();
+	}
+	
+	if(inputHistory->frame == frame && (inputHistory->bButtonLeft.pressed || inputHistory->bHatLeft.pressed || inputHistory->bKeyLeft.pressed || inputHistory->bStickLeft.pressed))
+	{
+		switch(mainMenuState)
+		{
+		case VIDEO:
+			switch(objectManager->menuManager->GetCursorIndex())
+			{
+			case 0:
+				if(fullScreenToApply) { fullScreenToApply = false; }
+				else { fullScreenToApply = true; }
+				SetVideoSettingVisibility();
+				break;
+			case 1:
+				if(stretchScreenToApply) { stretchScreenToApply = false; }
+				else { stretchScreenToApply = true; }
+				SetVideoSettingVisibility();
+				break;
+			case 2:
+				PrevFullscreenResolution();
+				SetVideoSettingVisibility();
+				break;
+			case 3:
+				PrevWindowedResolution();
+				SetVideoSettingVisibility();
+				break;
+			}
+			break;
+		}
+	}
+	else if(inputHistory->frame == frame && (inputHistory->bButtonRight.pressed || inputHistory->bHatRight.pressed || inputHistory->bKeyRight.pressed || inputHistory->bStickRight.pressed))
+	{
+		switch(mainMenuState)
+		{
+		case VIDEO:
+			switch(objectManager->menuManager->GetCursorIndex())
+			{
+			case 0:
+				if(fullScreenToApply) { fullScreenToApply = false; }
+				else { fullScreenToApply = true; }
+				SetVideoSettingVisibility();
+				break;
+			case 1:
+				if(stretchScreenToApply) { stretchScreenToApply = false; }
+				else { stretchScreenToApply = true; }
+				SetVideoSettingVisibility();
+				break;
+			case 2:
+				NextFullscreenResolution();
+				SetVideoSettingVisibility();
+				break;
+			case 3:
+				NextWindowedResolution();
+				SetVideoSettingVisibility();
+				break;
+			}
+			break;
+		}
 	}
 
 	if(inputHistory->frame == frame && (inputHistory->buttonMenuConfirm.pressed || inputHistory->keyMenuConfirm.pressed))
@@ -1478,9 +1807,28 @@ int Main::EventMainMenu(InputStates * inputHistory, int frame)
 			switch(objectManager->menuManager->GetCursorIndex())
 			{
 			case 0:
-				ToggleFullScreen();
+				if(fullScreenToApply) { fullScreenToApply = false; }
+				else { fullScreenToApply = true; }
+				SetVideoSettingVisibility();
 				break;
 			case 1:
+				if(stretchScreenToApply) { stretchScreenToApply = false; }
+				else { stretchScreenToApply = true; }
+				SetVideoSettingVisibility();
+				break;
+			case 2:
+				NextFullscreenResolution();
+				SetVideoSettingVisibility();
+				break;
+			case 3:
+				NextWindowedResolution();
+				SetVideoSettingVisibility();
+				break;
+			case 4:
+				if(int error = ApplyVideoSettings() != 0) { return error; }
+				SetVideoSettingVisibility();
+				break;
+			case 5:
 				objectManager->menuManager->ToParent();
 				ChangeMainMenuState(OPTIONS);
 				break;
@@ -1570,6 +1918,291 @@ int Main::EventMainMenu(InputStates * inputHistory, int frame)
 int Main::UpdateMainMenu()
 {
 	return 0;
+}
+
+void Main::MakeVideoSettingsInvisible()
+{
+	objectManager->fullscreenYes->visible = false;
+	objectManager->fullscreenNo->visible = false;
+	objectManager->stretchYes->visible = false;
+	objectManager->stretchNo->visible = false;
+	objectManager->fullscreen640x360->visible = false;
+	objectManager->fullscreen800x450->visible = false;
+	objectManager->fullscreen1024x576->visible = false;
+	objectManager->fullscreen1152x648->visible = false;
+	objectManager->fullscreen1280x720->visible = false;
+	objectManager->fullscreen1360x765->visible = false;
+	objectManager->fullscreen1366x768->visible = false;
+	objectManager->fullscreen1400x787->visible = false;
+	objectManager->fullscreen1440x810->visible = false;
+	objectManager->fullscreen1600x900->visible = false;
+	objectManager->fullscreen1680x945->visible = false;
+	objectManager->fullscreen1920x1080->visible = false;
+	objectManager->windowed640x360->visible = false;
+	objectManager->windowed800x450->visible = false;
+	objectManager->windowed1024x576->visible = false;
+	objectManager->windowed1152x648->visible = false;
+	objectManager->windowed1280x720->visible = false;
+	objectManager->windowed1360x765->visible = false;
+	objectManager->windowed1366x768->visible = false;
+	objectManager->windowed1400x787->visible = false;
+	objectManager->windowed1440x810->visible = false;
+	objectManager->windowed1600x900->visible = false;
+	objectManager->windowed1680x945->visible = false;
+	objectManager->windowed1920x1080->visible = false;
+}
+
+void Main::SetVideoSettingVisibility()
+{
+	MakeVideoSettingsInvisible();
+
+	if(fullScreenToApply) { objectManager->fullscreenYes->visible = true; }
+	else { objectManager->fullscreenNo->visible = true; }
+	if(stretchScreenToApply) { objectManager->stretchYes->visible = true; }
+	else { objectManager->stretchNo->visible = true; }
+	if(fullscreenResolutionXToApply == 640) { objectManager->fullscreen640x360->visible = true; }
+	else if(fullscreenResolutionXToApply == 800) { objectManager->fullscreen800x450->visible = true; }
+	else if(fullscreenResolutionXToApply == 1024) { objectManager->fullscreen1024x576->visible = true; }
+	else if(fullscreenResolutionXToApply == 1152) { objectManager->fullscreen1152x648->visible = true; }
+	else if(fullscreenResolutionXToApply == 1280) { objectManager->fullscreen1280x720->visible = true; }
+	else if(fullscreenResolutionXToApply == 1360) { objectManager->fullscreen1360x765->visible = true; }
+	else if(fullscreenResolutionXToApply == 1366) { objectManager->fullscreen1366x768->visible = true; }
+	else if(fullscreenResolutionXToApply == 1400) { objectManager->fullscreen1400x787->visible = true; }
+	else if(fullscreenResolutionXToApply == 1440) { objectManager->fullscreen1440x810->visible = true; }
+	else if(fullscreenResolutionXToApply == 1600) { objectManager->fullscreen1600x900->visible = true; }
+	else if(fullscreenResolutionXToApply == 1680) { objectManager->fullscreen1680x945->visible = true; }
+	else if(fullscreenResolutionXToApply == 1920) { objectManager->fullscreen1920x1080->visible = true; }
+	if(windowedResolutionXToApply == 640) { objectManager->windowed640x360->visible = true; }
+	else if(windowedResolutionXToApply == 800) { objectManager->windowed800x450->visible = true; }
+	else if(windowedResolutionXToApply == 1024) { objectManager->windowed1024x576->visible = true; }
+	else if(windowedResolutionXToApply == 1152) { objectManager->windowed1152x648->visible = true; }
+	else if(windowedResolutionXToApply == 1280) { objectManager->windowed1280x720->visible = true; }
+	else if(windowedResolutionXToApply == 1360) { objectManager->windowed1360x765->visible = true; }
+	else if(windowedResolutionXToApply == 1366) { objectManager->windowed1366x768->visible = true; }
+	else if(windowedResolutionXToApply == 1400) { objectManager->windowed1400x787->visible = true; }
+	else if(windowedResolutionXToApply == 1440) { objectManager->windowed1440x810->visible = true; }
+	else if(windowedResolutionXToApply == 1600) { objectManager->windowed1600x900->visible = true; }
+	else if(windowedResolutionXToApply == 1680) { objectManager->windowed1680x945->visible = true; }
+	else if(windowedResolutionXToApply == 1920) { objectManager->windowed1920x1080->visible = true; }
+}
+
+void Main::NextFullscreenResolution()
+{
+	if(fullscreenResolutionXToApply == 1920)
+	{
+		fullscreenResolutionXToApply = 640; fullscreenResolutionYToApply = 360;
+	}
+	else if(fullscreenResolutionXToApply == 1680)
+	{
+		fullscreenResolutionXToApply = 1920; fullscreenResolutionYToApply = 1080;
+	}
+	else if(fullscreenResolutionXToApply == 1600)
+	{
+		fullscreenResolutionXToApply = 1680; fullscreenResolutionYToApply = 945;
+	}
+	else if(fullscreenResolutionXToApply == 1440)
+	{
+		fullscreenResolutionXToApply = 1600; fullscreenResolutionYToApply = 900;
+	}
+	else if(fullscreenResolutionXToApply == 1400)
+	{
+		fullscreenResolutionXToApply = 1440; fullscreenResolutionYToApply = 810;
+	}
+	else if(fullscreenResolutionXToApply == 1366)
+	{
+		fullscreenResolutionXToApply = 1400; fullscreenResolutionYToApply = 787;
+	}
+	else if(fullscreenResolutionXToApply == 1360)
+	{
+		fullscreenResolutionXToApply = 1366; fullscreenResolutionYToApply = 768;
+	}
+	else if(fullscreenResolutionXToApply == 1280)
+	{
+		fullscreenResolutionXToApply = 1360; fullscreenResolutionYToApply = 765;
+	}
+	else if(fullscreenResolutionXToApply == 1152)
+	{
+		fullscreenResolutionXToApply = 1280; fullscreenResolutionYToApply = 720;
+	}
+	else if(fullscreenResolutionXToApply == 1024)
+	{
+		fullscreenResolutionXToApply = 1152; fullscreenResolutionYToApply = 648;
+	}
+	else if(fullscreenResolutionXToApply == 800)
+	{
+		fullscreenResolutionXToApply = 1024; fullscreenResolutionYToApply = 576;
+	}
+	else if(fullscreenResolutionXToApply == 640)
+	{
+		fullscreenResolutionXToApply = 800; fullscreenResolutionYToApply = 450;
+	}
+}
+
+void Main::PrevFullscreenResolution()
+{
+	if(fullscreenResolutionXToApply == 1920)
+	{
+		fullscreenResolutionXToApply = 1680; fullscreenResolutionYToApply = 945;
+	}
+	else if(fullscreenResolutionXToApply == 1680)
+	{
+		fullscreenResolutionXToApply = 1600; fullscreenResolutionYToApply = 900;
+	}
+	else if(fullscreenResolutionXToApply == 1600)
+	{
+		fullscreenResolutionXToApply = 1440; fullscreenResolutionYToApply = 810;
+	}
+	else if(fullscreenResolutionXToApply == 1440)
+	{
+		fullscreenResolutionXToApply = 1400; fullscreenResolutionYToApply = 787;
+	}
+	else if(fullscreenResolutionXToApply == 1400)
+	{
+		fullscreenResolutionXToApply = 1366; fullscreenResolutionYToApply = 768;
+	}
+	else if(fullscreenResolutionXToApply == 1366)
+	{
+		fullscreenResolutionXToApply = 1360; fullscreenResolutionYToApply = 765;
+	}
+	else if(fullscreenResolutionXToApply == 1360)
+	{
+		fullscreenResolutionXToApply = 1280; fullscreenResolutionYToApply = 720;
+	}
+	else if(fullscreenResolutionXToApply == 1280)
+	{
+		fullscreenResolutionXToApply = 1152; fullscreenResolutionYToApply = 648;
+	}
+	else if(fullscreenResolutionXToApply == 1152)
+	{
+		fullscreenResolutionXToApply = 1024; fullscreenResolutionYToApply = 576;
+	}
+	else if(fullscreenResolutionXToApply == 1024)
+	{
+		fullscreenResolutionXToApply = 800; fullscreenResolutionYToApply = 450;
+	}
+	else if(fullscreenResolutionXToApply == 800)
+	{
+		fullscreenResolutionXToApply = 640; fullscreenResolutionYToApply = 360;
+	}
+	else if(fullscreenResolutionXToApply == 640)
+	{
+		fullscreenResolutionXToApply = 1920; fullscreenResolutionYToApply = 1080;
+	}
+}
+
+void Main::NextWindowedResolution()
+{
+	if(windowedResolutionXToApply == 1920)
+	{
+		windowedResolutionXToApply = 640; windowedResolutionYToApply = 360;
+	}
+	else if(windowedResolutionXToApply == 1680)
+	{
+		windowedResolutionXToApply = 1920; windowedResolutionYToApply = 1080;
+	}
+	else if(windowedResolutionXToApply == 1600)
+	{
+		windowedResolutionXToApply = 1680; windowedResolutionYToApply = 945;
+	}
+	else if(windowedResolutionXToApply == 1440)
+	{
+		windowedResolutionXToApply = 1600; windowedResolutionYToApply = 900;
+	}
+	else if(windowedResolutionXToApply == 1400)
+	{
+		windowedResolutionXToApply = 1440; windowedResolutionYToApply = 810;
+	}
+	else if(windowedResolutionXToApply == 1366)
+	{
+		windowedResolutionXToApply = 1400; windowedResolutionYToApply = 787;
+	}
+	else if(windowedResolutionXToApply == 1360)
+	{
+		windowedResolutionXToApply = 1366; windowedResolutionYToApply = 768;
+	}
+	else if(windowedResolutionXToApply == 1280)
+	{
+		windowedResolutionXToApply = 1360; windowedResolutionYToApply = 765;
+	}
+	else if(windowedResolutionXToApply == 1152)
+	{
+		windowedResolutionXToApply = 1280; windowedResolutionYToApply = 720;
+	}
+	else if(windowedResolutionXToApply == 1024)
+	{
+		windowedResolutionXToApply = 1152; windowedResolutionYToApply = 648;
+	}
+	else if(windowedResolutionXToApply == 800)
+	{
+		windowedResolutionXToApply = 1024; windowedResolutionYToApply = 576;
+	}
+	else if(windowedResolutionXToApply == 640)
+	{
+		windowedResolutionXToApply = 800; windowedResolutionYToApply = 450;
+	}
+}
+
+void Main::PrevWindowedResolution()
+{
+	if(windowedResolutionXToApply == 1920)
+	{
+		windowedResolutionXToApply = 1680; windowedResolutionYToApply = 945;
+	}
+	else if(windowedResolutionXToApply == 1680)
+	{
+		windowedResolutionXToApply = 1600; windowedResolutionYToApply = 900;
+	}
+	else if(windowedResolutionXToApply == 1600)
+	{
+		windowedResolutionXToApply = 1440; windowedResolutionYToApply = 810;
+	}
+	else if(windowedResolutionXToApply == 1440)
+	{
+		windowedResolutionXToApply = 1400; windowedResolutionYToApply = 787;
+	}
+	else if(windowedResolutionXToApply == 1400)
+	{
+		windowedResolutionXToApply = 1366; windowedResolutionYToApply = 768;
+	}
+	else if(windowedResolutionXToApply == 1366)
+	{
+		windowedResolutionXToApply = 1360; windowedResolutionYToApply = 765;
+	}
+	else if(windowedResolutionXToApply == 1360)
+	{
+		windowedResolutionXToApply = 1280; windowedResolutionYToApply = 720;
+	}
+	else if(windowedResolutionXToApply == 1280)
+	{
+		windowedResolutionXToApply = 1152; windowedResolutionYToApply = 648;
+	}
+	else if(windowedResolutionXToApply == 1152)
+	{
+		windowedResolutionXToApply = 1024; windowedResolutionYToApply = 576;
+	}
+	else if(windowedResolutionXToApply == 1024)
+	{
+		windowedResolutionXToApply = 800; windowedResolutionYToApply = 450;
+	}
+	else if(windowedResolutionXToApply == 800)
+	{
+		windowedResolutionXToApply = 640; windowedResolutionYToApply = 360;
+	}
+	else if(windowedResolutionXToApply == 640)
+	{
+		windowedResolutionXToApply = 1920; windowedResolutionYToApply = 1080;
+	}
+}
+
+int Main::ApplyVideoSettings()
+{
+	stretchScreen = stretchScreenToApply;
+	fullscreenResolutionX = fullscreenResolutionXToApply;
+	fullscreenResolutionY = fullscreenResolutionYToApply;
+	windowedResolutionX = windowedResolutionXToApply;
+	windowedResolutionY = windowedResolutionYToApply;
+
+	return SetFullScreen(fullScreenToApply);
 }
 
 int Main::InitializeCharacterSelect()
@@ -2348,6 +2981,174 @@ int Main::InitializeMatch()
 	
 	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\back\\back.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
+
+	Menu * videoMenu = new Menu(MAIN_MENU_HEADER_HEIGHT, MAIN_MENU_CURSOR_WIDTH, MAIN_MENU_ITEM_HEIGHT, MAIN_MENU_ITEM_SPACING);
+	videoMenu->pos.x = -382;
+	videoMenu->pos.y = -352;
+
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\cursor\\cursor.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	videoMenu->SetCursor(newObject);
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\video\\video.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	videoMenu->SetHeader(newObject);
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\fullscreen\\fullscreen.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	videoMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\stretchScreen\\stretchScreen.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	videoMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\resolution\\fullscreenResolution.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	videoMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\resolution\\windowedResolution.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	videoMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\apply\\apply.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	videoMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\back\\back.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	videoMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\yes\\yes.xml", &objectManager->HUDObjects, &objectManager->fullscreenYes) != 0) { return error; }
+	objectManager->fullscreenYes->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->fullscreenYes->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING;
+	objectManager->fullscreenYes->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\no\\no.xml", &objectManager->HUDObjects, &objectManager->fullscreenNo) != 0) { return error; }
+	objectManager->fullscreenNo->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->fullscreenNo->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING;
+	objectManager->fullscreenNo->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\yes\\yes.xml", &objectManager->HUDObjects, &objectManager->stretchYes) != 0) { return error; }
+	objectManager->stretchYes->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->stretchYes->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 2 + MAIN_MENU_ITEM_HEIGHT;
+	objectManager->stretchYes->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\no\\no.xml", &objectManager->HUDObjects, &objectManager->stretchNo) != 0) { return error; }
+	objectManager->stretchNo->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->stretchNo->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 2 + MAIN_MENU_ITEM_HEIGHT;
+	objectManager->stretchNo->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\640x360\\640x360.xml", &objectManager->HUDObjects, &objectManager->fullscreen640x360) != 0) { return error; }
+	objectManager->fullscreen640x360->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->fullscreen640x360->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
+	objectManager->fullscreen640x360->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\800x450\\800x450.xml", &objectManager->HUDObjects, &objectManager->fullscreen800x450) != 0) { return error; }
+	objectManager->fullscreen800x450->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->fullscreen800x450->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
+	objectManager->fullscreen800x450->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1024x576\\1024x576.xml", &objectManager->HUDObjects, &objectManager->fullscreen1024x576) != 0) { return error; }
+	objectManager->fullscreen1024x576->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->fullscreen1024x576->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
+	objectManager->fullscreen1024x576->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1152x648\\1152x648.xml", &objectManager->HUDObjects, &objectManager->fullscreen1152x648) != 0) { return error; }
+	objectManager->fullscreen1152x648->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->fullscreen1152x648->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
+	objectManager->fullscreen1152x648->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1280x720\\1280x720.xml", &objectManager->HUDObjects, &objectManager->fullscreen1280x720) != 0) { return error; }
+	objectManager->fullscreen1280x720->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->fullscreen1280x720->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
+	objectManager->fullscreen1280x720->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1360x765\\1360x765.xml", &objectManager->HUDObjects, &objectManager->fullscreen1360x765) != 0) { return error; }
+	objectManager->fullscreen1360x765->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->fullscreen1360x765->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
+	objectManager->fullscreen1360x765->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1366x768\\1366x768.xml", &objectManager->HUDObjects, &objectManager->fullscreen1366x768) != 0) { return error; }
+	objectManager->fullscreen1366x768->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->fullscreen1366x768->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
+	objectManager->fullscreen1366x768->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1400x787\\1400x787.xml", &objectManager->HUDObjects, &objectManager->fullscreen1400x787) != 0) { return error; }
+	objectManager->fullscreen1400x787->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->fullscreen1400x787->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
+	objectManager->fullscreen1400x787->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1440x810\\1440x810.xml", &objectManager->HUDObjects, &objectManager->fullscreen1440x810) != 0) { return error; }
+	objectManager->fullscreen1440x810->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->fullscreen1440x810->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
+	objectManager->fullscreen1440x810->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1600x900\\1600x900.xml", &objectManager->HUDObjects, &objectManager->fullscreen1600x900) != 0) { return error; }
+	objectManager->fullscreen1600x900->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->fullscreen1600x900->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
+	objectManager->fullscreen1600x900->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1680x945\\1680x945.xml", &objectManager->HUDObjects, &objectManager->fullscreen1680x945) != 0) { return error; }
+	objectManager->fullscreen1680x945->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->fullscreen1680x945->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
+	objectManager->fullscreen1680x945->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1920x1080\\1920x1080.xml", &objectManager->HUDObjects, &objectManager->fullscreen1920x1080) != 0) { return error; }
+	objectManager->fullscreen1920x1080->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->fullscreen1920x1080->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
+	objectManager->fullscreen1920x1080->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\640x360\\640x360.xml", &objectManager->HUDObjects, &objectManager->windowed640x360) != 0) { return error; }
+	objectManager->windowed640x360->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->windowed640x360->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
+	objectManager->windowed640x360->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\800x450\\800x450.xml", &objectManager->HUDObjects, &objectManager->windowed800x450) != 0) { return error; }
+	objectManager->windowed800x450->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->windowed800x450->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
+	objectManager->windowed800x450->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1024x576\\1024x576.xml", &objectManager->HUDObjects, &objectManager->windowed1024x576) != 0) { return error; }
+	objectManager->windowed1024x576->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->windowed1024x576->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
+	objectManager->windowed1024x576->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1152x648\\1152x648.xml", &objectManager->HUDObjects, &objectManager->windowed1152x648) != 0) { return error; }
+	objectManager->windowed1152x648->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->windowed1152x648->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
+	objectManager->windowed1152x648->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1280x720\\1280x720.xml", &objectManager->HUDObjects, &objectManager->windowed1280x720) != 0) { return error; }
+	objectManager->windowed1280x720->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->windowed1280x720->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
+	objectManager->windowed1280x720->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1360x765\\1360x765.xml", &objectManager->HUDObjects, &objectManager->windowed1360x765) != 0) { return error; }
+	objectManager->windowed1360x765->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->windowed1360x765->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
+	objectManager->windowed1360x765->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1366x768\\1366x768.xml", &objectManager->HUDObjects, &objectManager->windowed1366x768) != 0) { return error; }
+	objectManager->windowed1366x768->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->windowed1366x768->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
+	objectManager->windowed1366x768->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1400x787\\1400x787.xml", &objectManager->HUDObjects, &objectManager->windowed1400x787) != 0) { return error; }
+	objectManager->windowed1400x787->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->windowed1400x787->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
+	objectManager->windowed1400x787->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1440x810\\1440x810.xml", &objectManager->HUDObjects, &objectManager->windowed1440x810) != 0) { return error; }
+	objectManager->windowed1440x810->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->windowed1440x810->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
+	objectManager->windowed1440x810->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1600x900\\1600x900.xml", &objectManager->HUDObjects, &objectManager->windowed1600x900) != 0) { return error; }
+	objectManager->windowed1600x900->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->windowed1600x900->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
+	objectManager->windowed1600x900->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1680x945\\1680x945.xml", &objectManager->HUDObjects, &objectManager->windowed1680x945) != 0) { return error; }
+	objectManager->windowed1680x945->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->windowed1680x945->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
+	objectManager->windowed1680x945->visible = false;
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1920x1080\\1920x1080.xml", &objectManager->HUDObjects, &objectManager->windowed1920x1080) != 0) { return error; }
+	objectManager->windowed1920x1080->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
+	objectManager->windowed1920x1080->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
+	objectManager->windowed1920x1080->visible = false;
 	
 	Menu * keyConfigMenu = new Menu(MAIN_MENU_HEADER_HEIGHT, MAIN_MENU_CURSOR_WIDTH, MAIN_MENU_ITEM_HEIGHT, MAIN_MENU_ITEM_SPACING);
 	keyConfigMenu->pos.x = -382;
@@ -2386,6 +3187,9 @@ int Main::InitializeMatch()
 	
 	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\resume\\resumeMatch.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	pauseMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
+	
+	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\video\\video.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	pauseMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject, videoMenu));
 	
 	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\keyConfig\\keyConfig.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	pauseMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject, keyConfigMenu));
@@ -2508,6 +3312,17 @@ int Main::ChangePauseMenuState(PauseMenuState newState)
 	switch(newState)
 	{
 	case PAUSE_TOP:
+		MakeVideoSettingsInvisible();
+		break;
+	case PAUSE_VIDEO:
+		fullScreenToApply = fullScreen;
+		stretchScreenToApply = stretchScreen;
+		fullscreenResolutionXToApply = fullscreenResolutionX;
+		fullscreenResolutionYToApply = fullscreenResolutionY;
+		windowedResolutionXToApply = windowedResolutionX;
+		windowedResolutionYToApply = windowedResolutionY;
+
+		SetVideoSettingVisibility();
 		break;
 	case PAUSE_KEY_CONFIG:
 		break;
@@ -2562,6 +3377,65 @@ int Main::EventMatch(InputStates * inputHistory, int frame, int player)
 		{
 			objectManager->menuManager->CursorPrev();
 		}
+	
+		if(inputHistory->frame == frame && (inputHistory->bButtonLeft.pressed || inputHistory->bHatLeft.pressed || inputHistory->bKeyLeft.pressed || inputHistory->bStickLeft.pressed))
+		{
+			switch(pauseMenuState)
+			{
+			case PAUSE_VIDEO:
+				switch(objectManager->menuManager->GetCursorIndex())
+				{
+				case 0:
+					if(fullScreenToApply) { fullScreenToApply = false; }
+					else { fullScreenToApply = true; }
+					SetVideoSettingVisibility();
+					break;
+				case 1:
+					if(stretchScreenToApply) { stretchScreenToApply = false; }
+					else { stretchScreenToApply = true; }
+					SetVideoSettingVisibility();
+					break;
+				case 2:
+					PrevFullscreenResolution();
+					SetVideoSettingVisibility();
+					break;
+				case 3:
+					PrevWindowedResolution();
+					SetVideoSettingVisibility();
+					break;
+				}
+				break;
+			}
+		}
+		else if(inputHistory->frame == frame && (inputHistory->bButtonRight.pressed || inputHistory->bHatRight.pressed || inputHistory->bKeyRight.pressed || inputHistory->bStickRight.pressed))
+		{
+			switch(pauseMenuState)
+			{
+			case PAUSE_VIDEO:
+				switch(objectManager->menuManager->GetCursorIndex())
+				{
+				case 0:
+					if(fullScreenToApply) { fullScreenToApply = false; }
+					else { fullScreenToApply = true; }
+					SetVideoSettingVisibility();
+					break;
+				case 1:
+					if(stretchScreenToApply) { stretchScreenToApply = false; }
+					else { stretchScreenToApply = true; }
+					SetVideoSettingVisibility();
+					break;
+				case 2:
+					NextFullscreenResolution();
+					SetVideoSettingVisibility();
+					break;
+				case 3:
+					NextWindowedResolution();
+					SetVideoSettingVisibility();
+					break;
+				}
+				break;
+			}
+		}
 
 		if(inputHistory->frame == frame && (inputHistory->bButtonStart.pressed || inputHistory->bKeyStart.pressed))
 		{
@@ -2579,10 +3453,45 @@ int Main::EventMatch(InputStates * inputHistory, int frame, int player)
 					break;
 				case 1:
 					objectManager->menuManager->ToChild();
-					ChangePauseMenuState(PAUSE_KEY_CONFIG);
+					ChangePauseMenuState(PAUSE_VIDEO);
 					break;
 				case 2:
+					objectManager->menuManager->ToChild();
+					ChangePauseMenuState(PAUSE_KEY_CONFIG);
+					break;
+				case 3:
 					if(int i = ChangeGameState(MAIN_MENU) != 0) { return i; }
+					break;
+				}
+				break;
+			case PAUSE_VIDEO:
+				switch(objectManager->menuManager->GetCursorIndex())
+				{
+				case 0:
+					if(fullScreenToApply) { fullScreenToApply = false; }
+					else { fullScreenToApply = true; }
+					SetVideoSettingVisibility();
+					break;
+				case 1:
+					if(stretchScreenToApply) { stretchScreenToApply = false; }
+					else { stretchScreenToApply = true; }
+					SetVideoSettingVisibility();
+					break;
+				case 2:
+					NextFullscreenResolution();
+					SetVideoSettingVisibility();
+					break;
+				case 3:
+					NextWindowedResolution();
+					SetVideoSettingVisibility();
+					break;
+				case 4:
+					if(int error = ApplyVideoSettings() != 0) { return error; }
+					SetVideoSettingVisibility();
+					break;
+				case 5:
+					objectManager->menuManager->ToParent();
+					ChangePauseMenuState(PAUSE_TOP);
 					break;
 				}
 				break;
@@ -2636,6 +3545,9 @@ int Main::EventMatch(InputStates * inputHistory, int frame, int player)
 			case PAUSE_TOP:
 				ChangeMatchState(IN_PROGRESS);
 				break;
+			case PAUSE_VIDEO:
+				objectManager->menuManager->ToParent();
+				ChangePauseMenuState(PAUSE_TOP);
 			case PAUSE_KEY_CONFIG:
 				objectManager->menuManager->ToParent();
 				ChangePauseMenuState(PAUSE_TOP);
@@ -2741,6 +3653,7 @@ int Main::CollideMatch()
 void Main::DefaultConfig()
 {
 	fullScreen = true;
+	stretchScreen = false;
 
 	mappings[0].keyUp = SDLK_w;
 	mappings[0].keyDown = SDLK_s;
@@ -2765,6 +3678,8 @@ void Main::DefaultConfig()
 	mappings[1].keyStart = SDLK_KP_PLUS;
 	mappings[1].keyMenuConfirm = mappings[1].keyLight;
 	mappings[1].keyMenuBack = mappings[1].keyJump;
+	
+	SetBestGameResolution();
 }
 
 int Main::LoadConfig()
@@ -2803,6 +3718,21 @@ int Main::LoadConfig()
 				if(b.compare("true") == 0) { fullScreen = true; }
 				else if(b.compare("false") == 0) { fullScreen = false; }
 			}
+
+			//get stretchScreen
+			const char * ss = i->Attribute("stretchScreen");
+			if(ss != NULL)
+			{
+				b.assign(ss);
+				if(b.compare("true") == 0) { stretchScreen = true; }
+				else if(b.compare("false") == 0) { stretchScreen = false; }
+			}
+
+			//get resolution
+			i->QueryIntAttribute("windowedResolutionX", &windowedResolutionX);
+			i->QueryIntAttribute("windowedResolutionY", &windowedResolutionY);
+			i->QueryIntAttribute("fullscreenResolutionX", &fullscreenResolutionX);
+			i->QueryIntAttribute("fullscreenResolutionY", &fullscreenResolutionY);
 		}
 		else if(strcmp(configSec, "PlayerOne") == 0)
 		{
@@ -2820,6 +3750,15 @@ int Main::LoadConfig()
 		{
 			LoadPlayerConfig(i, 3);
 		}
+	}
+
+	if(windowedResolutionX > MAX_GAME_RESOLUTION_X || windowedResolutionX < MIN_GAME_RESOLUTION_X
+		|| windowedResolutionY > MAX_GAME_RESOLUTION_Y || windowedResolutionY < MIN_GAME_RESOLUTION_Y
+		|| fullscreenResolutionX > MAX_GAME_RESOLUTION_X || fullscreenResolutionX < MIN_GAME_RESOLUTION_X
+		|| fullscreenResolutionY > MAX_GAME_RESOLUTION_Y || fullscreenResolutionY < MIN_GAME_RESOLUTION_Y)
+	{
+		SetBestGameResolution();
+		SaveConfig();
 	}
 
 	return 0;
@@ -3184,6 +4123,20 @@ int Main::SaveConfig()
 	{
 		general->SetAttribute("fullscreen", "false");
 	}
+	
+	if(stretchScreen)
+	{
+		general->SetAttribute("stretchScreen", "true");
+	}
+	else
+	{
+		general->SetAttribute("stretchScreen", "false");
+	}
+
+	general->SetAttribute("windowedResolutionX", windowedResolutionX);
+	general->SetAttribute("windowedResolutionY", windowedResolutionY);
+	general->SetAttribute("fullscreenResolutionX", fullscreenResolutionX);
+	general->SetAttribute("fullscreenResolutionY", fullscreenResolutionY);
 
 	XMLElement * playerOne = file->NewElement("PlayerOne");
 	SetPlayerConfig(playerOne, 0);
@@ -5098,34 +6051,106 @@ int Main::ToggleFullScreen()
 int Main::SetFullScreen(bool newFullScreen)
 {
 	fullScreen = newFullScreen;
-	SaveConfig();
+	if(int error = SaveConfig() != 0) { return error; }
 
-	SetBestGameResolution();
+	int gameResolutionX = fullscreenResolutionX;
+	int gameResolutionY = fullscreenResolutionY;
+	int windowSizeX = curDisplayMode.w;
+	int windowSizeY = curDisplayMode.h;
 
 	if(!fullScreen)
 	{
-		gameResolutionX = gameResolutionX / 2;
-		gameResolutionY = gameResolutionY / 2;
-		screenResolutionX = gameResolutionX;
-		screenResolutionY = gameResolutionY;
+		if(windowedResolutionX >= startDisplayMode.w || windowedResolutionY >= startDisplayMode.h)
+		{
+			windowedResolutionXToApply = MAX_GAME_RESOLUTION_X;
+			windowedResolutionYToApply = MAX_GAME_RESOLUTION_Y;
+			if(int i = DropToHighestValidWindowedResolution() != 0) { return i; }
+			windowedResolutionX = windowedResolutionXToApply;
+			windowedResolutionY = windowedResolutionYToApply;
+			if(int error = SaveConfig() != 0) { return error; }
+		}
+
+		gameResolutionX = windowedResolutionX;
+		gameResolutionY = windowedResolutionY;
+		windowSizeX = gameResolutionX;
+		windowSizeY = gameResolutionY;
+	}
+	else
+	{
+		if(stretchScreen)
+		{
+			if(int i = SetBestDisplayMode() != 0) { return i; }
+			gameResolutionX = fullscreenResolutionX;
+			gameResolutionY = fullscreenResolutionY;
+			windowSizeX = curDisplayMode.w;
+			windowSizeY = curDisplayMode.h;
+
+			if(int i = SDL_SetWindowDisplayMode(surf_display, &curDisplayMode) != 0)
+			{
+				UpdateLog("SDL Error setting display mode after SetBestDisplayMode().", true);
+				return i;
+			}
+
+			UpdateLog("Display mode set.", false);
+			
+			//do this to actually get the display mode change to kick in. it seems dumb but I don't know why SetWindowDisplayMode() isn't working by itself
+			if(int i = SDL_SetWindowFullscreen(surf_display, 0) != 0)
+			{
+				UpdateLog("SDL Error setting windowed.", true);
+				return i;
+			}
+		}
+		else
+		{
+			if(int i = ReturnToStartDisplayMode() != 0) { return i; }
+			gameResolutionX = fullscreenResolutionX;
+			gameResolutionY = fullscreenResolutionY;
+			windowSizeX = curDisplayMode.w;
+			windowSizeY = curDisplayMode.h;
+
+			if(int i = SDL_SetWindowDisplayMode(surf_display, &curDisplayMode) != 0)
+			{
+				UpdateLog("SDL Error setting display mode after ReturnToStartDisplayMode().", true);
+				return i;
+			}
+
+			UpdateLog("Display mode set.", false);
+			
+			//do this to actually get the display mode change to kick in. it seems dumb but I don't know why SetWindowDisplayMode() isn't working by itself
+			if(int i = SDL_SetWindowFullscreen(surf_display, 0) != 0)
+			{
+				UpdateLog("SDL Error setting windowed.", true);
+				return i;
+			}
+		}
 	}
 
-	glViewport((screenResolutionX - gameResolutionX) / 2, (screenResolutionY - gameResolutionY) / 2, gameResolutionX, gameResolutionY);
-
+	glViewport((windowSizeX - gameResolutionX) / 2, (windowSizeY - gameResolutionY) / 2, gameResolutionX, gameResolutionY);
+	
 	resolutionScale = (float)gameResolutionX / (float)MAX_GAME_RESOLUTION_X;
 
 	if(fullScreen)
 	{
-		SDL_SetWindowSize(surf_display, screenResolutionX, screenResolutionY);
-		SDL_SetWindowFullscreen(surf_display, SDL_WINDOW_FULLSCREEN);
+		int options = SDL_WINDOW_FULLSCREEN;
+		SDL_SetWindowSize(surf_display, windowSizeX, windowSizeY);
+		if(int i = SDL_SetWindowFullscreen(surf_display, SDL_WINDOW_FULLSCREEN) != 0)
+		{
+			UpdateLog("SDL Error setting fullscreen.", true);
+			return i;
+		}
 	}
 	else
 	{
-		SDL_SetWindowFullscreen(surf_display, 0);
-		SDL_SetWindowSize(surf_display, screenResolutionX, screenResolutionY);
+		if(int i = SDL_SetWindowFullscreen(surf_display, 0) != 0)
+		{
+			UpdateLog("SDL Error setting windowed.", true);
+			return i;
+		}
+		SDL_SetWindowSize(surf_display, windowSizeX, windowSizeY);
 	}
-	
 
+	SDL_SetWindowPosition(surf_display, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+	
 	return 0;
 }
 
@@ -5205,32 +6230,48 @@ int Main::InitializeGraphics()
 		elementArrayBufferID = 0;
 	}
 
-	if(int error = SetBestGameResolution() != 0)
-	{
-		return error;
-	}
-
-	UpdateLog("Resolution set.", false);
-
 	int options = SDL_WINDOW_OPENGL;
+	int gameResolutionX = fullscreenResolutionX;
+	int gameResolutionY = fullscreenResolutionY;
+	int windowSizeX = curDisplayMode.w;
+	int windowSizeY = curDisplayMode.h;
 
 	if(!fullScreen)
 	{
-		gameResolutionX = gameResolutionX / 2;
-		gameResolutionY = gameResolutionY / 2;
-		screenResolutionX = gameResolutionX;
-		screenResolutionY = gameResolutionY;
+		if(windowedResolutionX >= startDisplayMode.w || windowedResolutionY >= startDisplayMode.h)
+		{
+			windowedResolutionXToApply = MAX_GAME_RESOLUTION_X;
+			windowedResolutionYToApply = MAX_GAME_RESOLUTION_Y;
+			if(int error = DropToHighestValidWindowedResolution() != 0) { return error; }
+			windowedResolutionX = windowedResolutionXToApply;
+			windowedResolutionY = windowedResolutionYToApply;
+			if(int error = SaveConfig() != 0) { return error; }
+		}
+
+		gameResolutionX = windowedResolutionX;
+		gameResolutionY = windowedResolutionY;
+		windowSizeX = gameResolutionX;
+		windowSizeY = gameResolutionY;
 	}
 	else
 	{
 		options = options | SDL_WINDOW_FULLSCREEN;
+
+		if(gameResolutionX > curDisplayMode.w || gameResolutionY > curDisplayMode.h || stretchScreen)
+		{
+			if(int error = SetBestDisplayMode() != 0) { return error; }
+			gameResolutionX = fullscreenResolutionX;
+			gameResolutionY = fullscreenResolutionY;
+			windowSizeX = curDisplayMode.w;
+			windowSizeY = curDisplayMode.h;
+		}
 	}
 
 	if((surf_display = SDL_CreateWindow("Homestrife",
                           SDL_WINDOWPOS_CENTERED,
                           SDL_WINDOWPOS_CENTERED,
-						  screenResolutionX,
-						  screenResolutionY,
+						  windowSizeX,
+						  windowSizeY,
                           options)) == NULL)
 	{
 		UpdateLog("Error setting SDL video mode.", true);
@@ -5240,10 +6281,10 @@ int Main::InitializeGraphics()
 
 	UpdateLog("SDL video mode set.", false);
 
-	glClearColor(0.1f, 0.1f, 0.1f, 0.1f);
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glClearDepth(1.0f);
 
-	glViewport((screenResolutionX - gameResolutionX) / 2, (screenResolutionY - gameResolutionY) / 2, gameResolutionX, gameResolutionY);
+	glViewport((windowSizeX - gameResolutionX) / 2, (windowSizeY - gameResolutionY) / 2, gameResolutionX, gameResolutionY);
 
 	resolutionScale = (float)gameResolutionX / (float)MAX_GAME_RESOLUTION_X;
  
