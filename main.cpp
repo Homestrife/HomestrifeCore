@@ -8,51 +8,12 @@ GLenum shader_progIndexed;
 
 Main::Main()
 {
-	currentWorkingDirectory = GetCurrentWorkingDirectory(NULL, 0);
-
 	objectManager = new ObjectManager();
-
+	renderingManager = new RenderingManager(objectManager);
+	
 	gameState = MAIN_MENU;
 	mainMenuState = TOP;
 	gameType = FREE_FOR_ALL_2;
-	texCoordBufferID = 0;
-	elementArrayBufferID = 0;
-	
-	nonIndexedScaleLoc = 0;
-	indexedScaleLoc = 0;
-	nonIndexedPosOffsetLoc = 0;
-	indexedPosOffsetLoc = 0;
-	nonIndexedResolutionLoc = 0;
-	indexedResolutionLoc = 0;
-	nonIndexedResScaleLoc = 0;
-	indexedResScaleLoc = 0;
-	nonIndexedFocusPosLoc = 0;
-	indexedFocusPosLoc = 0;
-	nonIndexedZoomOutLoc = 0;
-	indexedZoomOutLoc = 0;
-	nonIndexedDepthLoc = 0;
-	indexedDepthLoc = 0;
-	nonIndexedTexLoc = 0;
-	indexedTexLoc = 0;
-	paletteLoc = 0;
-	notDone = true;
-	surf_display = NULL;
-	fullScreen = false;
-	fullScreenToApply = false;
-	stretchScreen = false;
-	stretchScreenToApply = false;
-	windowedResolutionX = 0;
-	windowedResolutionY = 0;
-	windowedResolutionXToApply = 0;
-	windowedResolutionYToApply = 0;
-	fullscreenResolutionX = 0;
-	fullscreenResolutionY = 0;
-	fullscreenResolutionXToApply = 0;
-	fullscreenResolutionYToApply = 0;
-
-	zoomOut = 1;
-	focusPos.x = 0;
-	focusPos.y = 0;
 
 	lastFrameTicks = 0;
 	frame = 0;
@@ -134,8 +95,10 @@ int Main::Execute()
 
 	UpdateLog("Starting main game loop.", false);
 
-	while(notDone)
+	while(objectManager->notDone)
 	{
+		if(objectManager->renderingErrorCode != 0) { return objectManager->renderingErrorCode; }
+
 		int thisFrameTicks = SDL_GetTicks();
 		if(thisFrameTicks - lastFrameTicks >= 1000 / TARGET_FPS)
 		{
@@ -148,7 +111,11 @@ int Main::Execute()
 			if((error = SpawnObjects()) != 0) { return error; }
 			if((error = PlayAudio()) != 0) { return error; }
 			if((error = DeleteObjects()) != 0) { return error; }
-			if((error = Render()) != 0) { return error; }
+			//SDL_mutexV(objectManager->processLock);
+			//SDL_CondSignal(objectManager->processDone);
+			objectManager->doRender = true;
+			if((error = renderingManager->Execute()) != 0) { return error; }
+			//SDL_CondWait( objectManager->renderDone, objectManager->renderLock );
 
 #if _DEBUG
 			//DebugOutput();
@@ -156,6 +123,7 @@ int Main::Execute()
 
 			frame++;
 		}
+
 	}
 
 	UpdateLog("Main game loop exited.", false);
@@ -206,143 +174,6 @@ void Main::DebugOutput()
 	cout << endl;
 }
 
-int Main::DropToHighestValidFullscreenResolution()
-{
-	//pick a viable 16:9 resolution that's equal to or smaller than the screen resolution
-	while(fullscreenResolutionXToApply > curDisplayMode.w || fullscreenResolutionYToApply > curDisplayMode.h)
-	{
-		if(fullscreenResolutionXToApply == 640)
-		{
-			UpdateLog("DropToHighestValidFullscreenResolution(): Display mode too small.", true);
-			return -1;
-		}
-
-		PrevFullscreenResolution();
-	}
-
-	return 0;
-}
-
-int Main::DropToHighestValidWindowedResolution()
-{
-	//pick a viable 16:9 resolution that's equal to or smaller than the screen resolution
-	while(windowedResolutionXToApply >= startDisplayMode.w || windowedResolutionYToApply >= startDisplayMode.h)
-	{
-		if(windowedResolutionXToApply == 640)
-		{
-			UpdateLog("DropToHighestValidWindowedResolution(): Display mode too small.", true);
-			return -1;
-		}
-
-		PrevWindowedResolution();
-	}
-
-	return 0;
-}
-
-int Main::SetBestGameResolution()
-{
-	fullscreenResolutionXToApply = MAX_GAME_RESOLUTION_X;
-	fullscreenResolutionYToApply = MAX_GAME_RESOLUTION_Y;
-	windowedResolutionXToApply = MAX_GAME_RESOLUTION_X;
-	windowedResolutionYToApply = MAX_GAME_RESOLUTION_Y;
-
-	if(int i = DropToHighestValidFullscreenResolution() != 0) { return i; }
-	if(int i = DropToHighestValidWindowedResolution() != 0) { return i; }
-
-	fullscreenResolutionX = fullscreenResolutionXToApply;
-	fullscreenResolutionY = fullscreenResolutionYToApply;
-	windowedResolutionX = windowedResolutionXToApply;
-	windowedResolutionY = windowedResolutionYToApply;
-
-	return 0;
-}
-
-int Main::SetBestDisplayMode()
-{
-	if(!fullScreen || !stretchScreen) { return 0; }
-	
-	SDL_DisplayMode modeToUse;
-	SDL_DisplayMode highestDisplayMode;
-	highestDisplayMode.w = 0;
-	highestDisplayMode.h = 0;
-	highestDisplayMode.refresh_rate = 0;
-
-	//get the highest display mode
-	int numModes = SDL_GetNumDisplayModes(0);
-	for(int i = 0; i < numModes; i++)
-	{
-		SDL_DisplayMode curMode;
-		SDL_GetDisplayMode(0, i, &curMode);
-
-		if(curMode.w >= highestDisplayMode.w && curMode.h >= highestDisplayMode.h)
-		{
-			if(curMode.w != highestDisplayMode.w || curMode.h != highestDisplayMode.h ||
-				(curMode.w == highestDisplayMode.w && curMode.h == highestDisplayMode.h && curMode.refresh_rate > highestDisplayMode.refresh_rate))
-			{
-				highestDisplayMode = curMode;
-			}
-		}
-	}
-
-	if(highestDisplayMode.w < fullscreenResolutionX || highestDisplayMode.h < fullscreenResolutionY)
-	{
-		curDisplayMode = highestDisplayMode;
-		fullscreenResolutionXToApply = MAX_GAME_RESOLUTION_X;
-		fullscreenResolutionYToApply = MAX_GAME_RESOLUTION_Y;
-		if(int error = DropToHighestValidFullscreenResolution() != 0) { return error; }
-		fullscreenResolutionX = fullscreenResolutionXToApply;
-		fullscreenResolutionY = fullscreenResolutionYToApply;
-		if(int error = SaveConfig() != 0) { return error; }
-		return 0;
-	}
-
-	modeToUse = highestDisplayMode;
-
-	//find the closest display mode to the fullscreen resolution, moving downward from the highest resolution
-	for(int i = 0; i < numModes; i++)
-	{
-		SDL_DisplayMode curMode;
-		if(int error = SDL_GetDisplayMode(0, i, &curMode) != 0) { return error; }
-
-		if(curMode.w < fullscreenResolutionX || curMode.h < fullscreenResolutionY)
-		{
-			continue;
-		}
-
-		if(curMode.w <= modeToUse.w && curMode.h <= modeToUse.h)
-		{
-			if(curMode.w != modeToUse.w || curMode.h != modeToUse.w ||
-				(curMode.w == modeToUse.w && curMode.h == modeToUse.h && curMode.refresh_rate > modeToUse.refresh_rate))
-			{
-				modeToUse = curMode;
-			}
-		}
-	}
-
-	curDisplayMode = modeToUse;
-
-	return 0;
-}
-
-int Main::ReturnToStartDisplayMode()
-{
-	curDisplayMode = startDisplayMode;
-
-	if(fullscreenResolutionX > curDisplayMode.w || fullscreenResolutionY > curDisplayMode.h)
-	{
-		if(int error = SetBestDisplayMode() != 0) { return error; }
-	}
-
-	return 0;
-}
-
-void Main::ChangeShaderProgram(GLuint programID)
-{
-	glUseProgram(programID);
-	currentShaderProgramID = programID;
-}
-
 void AudioCallback(void *unused, Uint8 *stream, int len)
 {
 	SDL_memset(stream, 0, len);
@@ -374,7 +205,7 @@ void AudioCallback(void *unused, Uint8 *stream, int len)
 	for ( caIt=toRemove.begin(); caIt != toRemove.end(); caIt++)
 	{
 		currentAudio.remove((*caIt));
-		delete((*caIt));
+		delete (*caIt);
 	}
 }
 
@@ -407,24 +238,39 @@ int Main::Initialize()
 	SDL_ShowCursor(SDL_DISABLE);
 
 	UpdateLog("SDL attributes set.", false);
-	
-	SDL_DisplayMode vidInfo;
-	SDL_GetDesktopDisplayMode(0, &startDisplayMode);
-	curDisplayMode = startDisplayMode;
 
 	//load configuration
-	if(int error = LoadConfig() != 0)
+	if(int error = LoadKeyConfig() != 0)
 	{
 		return error;
 	}
 
-	UpdateLog("Configuration loaded.", false);
+	UpdateLog("Key configuration loaded.", false);
+
+	//objectManager->vidInitLock = SDL_CreateMutex();
+	//objectManager->vidInitDone = SDL_CreateCond();
+
+	//objectManager->renderLock = SDL_CreateMutex();
+	//objectManager->renderDone = SDL_CreateCond();
+
+	//objectManager->processLock = SDL_CreateMutex();
+	//objectManager->processDone = SDL_CreateCond();
+
+	//SDL_mutexP(objectManager->vidInitLock);
+	//SDL_mutexP(objectManager->renderLock);
+	//SDL_mutexP(objectManager->processLock);
+	
+	//objectManager->renderingThread = SDL_CreateThread(RenderThreadControl, "render", objectManager);
+	
+	//SDL_CondWait( objectManager->vidInitDone, objectManager->vidInitLock );
+
+	renderingManager->Initialize();
 
 	//set up SDL screen
-	if(int error = InitializeGraphics() != 0)
-	{
-		return error;
-	}
+	//if(int error = InitializeGraphics() != 0)
+	//{
+	//	return error;
+	//}
 
 	////set up audio
 	SDL_AudioSpec *desired; 
@@ -661,428 +507,6 @@ int Main::SpawnObjects()
 	return 0;
 }
 
-void Main::AdjustCamera(bool adjustInstantly)
-{
-	if(zoomOut < 1) { zoomOut = 1; }
-
-	float targetZoomOut = 1;
-	HSVect2D targetFocusPos;
-	targetFocusPos.x = 0;
-	targetFocusPos.y = 0;
-	float top = 0;
-	float bottom = 0;
-	float left = 0;
-	float right = 0;
-
-	//get the target camera position
-	for(int i = 0; i < MAX_PLAYERS; i++)
-	{
-		if(objectManager->focusObject[i] == NULL)
-		{
-			continue;
-		}
-
-		HSVect2D checkPos;
-
-		if(objectManager->focusObject[i]->IsFighter())
-		{
-			Fighter * f = (Fighter*)objectManager->focusObject[i];
-
-			//get the center of the fighter's terrain box
-			checkPos.x = f->pos.x + f->firstTerrainBox->offset.x + f->firstTerrainBox->width/2;
-			checkPos.y = f->pos.y + f->firstTerrainBox->offset.y + f->firstTerrainBox->height/2;
-		}
-		else
-		{
-			checkPos.x = objectManager->focusObject[i]->pos.x;
-			checkPos.y = objectManager->focusObject[i]->pos.y;
-		}
-
-		if(i == 0)
-		{
-			left = checkPos.x;
-			right = checkPos.x;
-			top = checkPos.y;
-			bottom = checkPos.y;
-		}
-		else
-		{
-			if(checkPos.x < left) { left = checkPos.x; }
-			if(checkPos.x > right) { right = checkPos.x; }
-			if(checkPos.y < top) { top = checkPos.y; }
-			if(checkPos.y > bottom) { bottom = checkPos.y; }
-		}
-	}
-
-	targetFocusPos.x = left + (right - left) / 2;
-	targetFocusPos.y = top + (bottom - top) / 2;
-
-	//get the target camera zoom
-	if(right - left <= MAX_GAME_RESOLUTION_X - ZOOM_BOUNDARY_X_THRESHOLD && bottom - top <= MAX_GAME_RESOLUTION_Y - ZOOM_BOUNDARY_Y_THRESHOLD)
-	{
-		targetZoomOut = 1;
-	}
-	else
-	{
-		float targetZoomOutX;
-		if(MAX_GAME_RESOLUTION_X - ZOOM_BOUNDARY_X_THRESHOLD <= 0) { targetZoomOutX = objectManager->stageSize.x / MAX_GAME_RESOLUTION_X; }
-		else { targetZoomOutX = (right - left) / (MAX_GAME_RESOLUTION_X - ZOOM_BOUNDARY_X_THRESHOLD); }
-
-		float targetZoomOutY;
-		if(MAX_GAME_RESOLUTION_Y - ZOOM_BOUNDARY_Y_THRESHOLD <= 0) { targetZoomOutY = objectManager->stageSize.y / MAX_GAME_RESOLUTION_Y; }
-		else { targetZoomOutY = (bottom - top) / (MAX_GAME_RESOLUTION_Y - ZOOM_BOUNDARY_Y_THRESHOLD); }
-
-		if(targetZoomOutX > targetZoomOutY) { targetZoomOut = targetZoomOutX; }
-		else { targetZoomOut = targetZoomOutY; }
-	}
-
-	if(adjustInstantly)
-	{
-		//go to the target values instantly
-		zoomOut = targetZoomOut;
-		focusPos.x = targetFocusPos.x;
-		focusPos.y = targetFocusPos.y;
-	}
-	else
-	{
-		//pan/zoom towards the target values gradually
-		if(focusPos.x != targetFocusPos.x || focusPos.y != targetFocusPos.y)
-		{
-			HSVect2D posDiff;
-			posDiff.x = targetFocusPos.x - focusPos.x;
-			posDiff.y = targetFocusPos.y - focusPos.y;
-
-			HSVectComp diffLength = sqrt(pow(posDiff.x, 2) + pow(posDiff.y, 2));
-			HSVect2D diffNormal;
-			diffNormal.x = posDiff.x / diffLength;
-			diffNormal.y = posDiff.y / diffLength;
-			HSVectComp panLength = diffLength / PAN_DIVIDER;
-
-			HSVect2D posChange;
-			posChange.x = diffNormal.x * panLength;
-			posChange.y = diffNormal.y * panLength;
-
-			if((focusPos.x < targetFocusPos.x && focusPos.x + posChange.x > targetFocusPos.x) ||
-				(focusPos.x > targetFocusPos.x && focusPos.x + posChange.x < targetFocusPos.x))
-			{
-				focusPos.x = targetFocusPos.x;
-			}
-			else
-			{
-				focusPos.x += posChange.x;
-			}
-			
-			if((focusPos.y < targetFocusPos.y && focusPos.y + posChange.y > targetFocusPos.y) ||
-				(focusPos.y > targetFocusPos.y && focusPos.y + posChange.y < targetFocusPos.y))
-			{
-				focusPos.y = targetFocusPos.y;
-			}
-			else
-			{
-				focusPos.y += posChange.y;
-			}
-
-			if(focusPos.x == targetFocusPos.x && focusPos.y == targetFocusPos.y)
-			{
-				zoomOut = targetZoomOut;
-			}
-			else
-			{
-				HSVectComp changeLength = sqrt(pow(posChange.x, 2) + pow(posChange.y, 2));
-				float zoomRatio = changeLength / diffLength;
-
-				float zoomDiff = targetZoomOut - zoomOut;
-				zoomOut += zoomDiff * zoomRatio;
-			}
-		}
-		else
-		{
-			zoomOut = targetZoomOut;
-		}
-	}
-
-	if(gameState == MATCH)
-	{
-		//adjust zoom based on stage size
-		HSVect2D viewportSize;
-		viewportSize.x = MAX_GAME_RESOLUTION_X * zoomOut;
-		viewportSize.y = MAX_GAME_RESOLUTION_Y * zoomOut;
-
-		if(viewportSize.x > objectManager->stageSize.x)
-		{
-			zoomOut = objectManager->stageSize.x / MAX_GAME_RESOLUTION_X;
-			viewportSize.x = MAX_GAME_RESOLUTION_X * zoomOut;
-			viewportSize.y = MAX_GAME_RESOLUTION_Y * zoomOut;
-		}
-
-		if(viewportSize.y > objectManager->stageSize.y)
-		{
-			zoomOut = objectManager->stageSize.y / MAX_GAME_RESOLUTION_Y;
-			viewportSize.x = MAX_GAME_RESOLUTION_X * zoomOut;
-			viewportSize.y = MAX_GAME_RESOLUTION_Y * zoomOut;
-		}
-
-		//adjust focus position based on stage boundary
-
-		if(focusPos.x - (viewportSize.x / 2) < objectManager->stageSize.x / -2)
-		{
-			focusPos.x = (objectManager->stageSize.x / -2) + (viewportSize.x / 2);
-		}
-		else if(focusPos.x + (viewportSize.x / 2) > objectManager->stageSize.x / 2)
-		{
-			focusPos.x = (objectManager->stageSize.x / 2) - (viewportSize.x / 2);
-		}
-		if(focusPos.y - (viewportSize.y / 2) < objectManager->stageSize.y / -2)
-		{
-			focusPos.y = (objectManager->stageSize.y / -2) + (viewportSize.y / 2);
-		}
-		else if(focusPos.y + (viewportSize.y / 2) > objectManager->stageSize.y / 2)
-		{
-			focusPos.y = (objectManager->stageSize.y / 2) - (viewportSize.y / 2);
-		}
-	}
-}
-
-int Main::Render()
-{
-	glGetError();
-
-	AdjustCamera(false);
-
-	ChangeShaderProgram(shader_progIndexed);
-	glUniform2f(indexedFocusPosLoc, focusPos.x, focusPos.y);
-	glUniform1f(indexedZoomOutLoc, zoomOut - 1);
-	
-	ChangeShaderProgram(shader_progNonIndexed);
-	glUniform2f(nonIndexedFocusPosLoc, focusPos.x, focusPos.y);
-	glUniform1f(nonIndexedZoomOutLoc, zoomOut - 1);
-	
-	//render objects
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	list<HSObject*>::iterator objIt;
-	for ( objIt=objectManager->stageObjects.begin(); objIt != objectManager->stageObjects.end(); objIt++)
-	{
-		if(!(*objIt)->visible) { continue; }
-
-		list<TextureInstance>::iterator texIt;
-		for ( texIt=(*objIt)->curHold->textures.begin(); texIt != (*objIt)->curHold->textures.end(); texIt++)
-		{
-			RenderTexture((*objIt), (*texIt));
-		}
-	}
-	for ( objIt=objectManager->BGSpawnedObjects.begin(); objIt != objectManager->BGSpawnedObjects.end(); objIt++)
-	{
-		if(!(*objIt)->visible) { continue; }
-
-		list<TextureInstance>::iterator texIt;
-		for ( texIt=(*objIt)->curHold->textures.begin(); texIt != (*objIt)->curHold->textures.end(); texIt++)
-		{
-			RenderTexture((*objIt), (*texIt));
-		}
-	}
-	for ( objIt=objectManager->fighterObjects.begin(); objIt != objectManager->fighterObjects.end(); objIt++)
-	{
-		if(!(*objIt)->visible) { continue; }
-
-		list<TextureInstance>::iterator texIt;
-		for ( texIt=(*objIt)->curHold->textures.begin(); texIt != (*objIt)->curHold->textures.end(); texIt++)
-		{
-			RenderTexture((*objIt), (*texIt));
-		}
-	}
-	for ( objIt=objectManager->FGSpawnedObjects.begin(); objIt != objectManager->FGSpawnedObjects.end(); objIt++)
-	{
-		if(!(*objIt)->visible) { continue; }
-
-		list<TextureInstance>::iterator texIt;
-		for ( texIt=(*objIt)->curHold->textures.begin(); texIt != (*objIt)->curHold->textures.end(); texIt++)
-		{
-			RenderTexture((*objIt), (*texIt));
-		}
-	}
-
-	//left = MAX_GAME_RESOLUTION_X / -2;
-	//right = MAX_GAME_RESOLUTION_X / 2;
-	//bottom = MAX_GAME_RESOLUTION_Y / 2;
-	//top = MAX_GAME_RESOLUTION_Y / -2;
-
-	//render HUD
-	//glPushMatrix();
-	//glMatrixMode(GL_PROJECTION);
-	//glLoadIdentity();
-	//glOrtho(left, right, bottom, top, 1, -1);
-	//glMatrixMode(GL_MODELVIEW);
-	//glLoadIdentity();
-	
-	ChangeShaderProgram(shader_progIndexed);
-	glUniform2f(indexedFocusPosLoc, 0.0f, 0.0f);
-	glUniform1f(indexedZoomOutLoc, 0.0f);
-	
-	ChangeShaderProgram(shader_progNonIndexed);
-	glUniform2f(nonIndexedFocusPosLoc, 0.0f, 0.0f);
-	glUniform1f(nonIndexedZoomOutLoc, 0.0f);
-
-	//ChangeShaderProgram(0);
-
-	for ( objIt=objectManager->HUDObjects.begin(); objIt != objectManager->HUDObjects.end(); objIt++)
-	{
-		if(!(*objIt)->visible) { continue; }
-
-		list<TextureInstance>::iterator texIt;
-		for ( texIt=(*objIt)->curHold->textures.begin(); texIt != (*objIt)->curHold->textures.end(); texIt++)
-		{
-			RenderTexture((*objIt), (*texIt));
-		}
-	}
-
-	//glPopMatrix();
-
-	//glDisableClientState(GL_VERTEX_ARRAY);
-	//glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-	//glDisableClientState(GL_INDEX_ARRAY);
-	
-	SDL_GL_SwapWindow(surf_display);
-
-	GLenum glError = glGetError();
-	if(glError != GL_NO_ERROR)
-	{
-		string glErrorString = "OpenGL error in Render(): " + GetGLErrorText(glError);
-		UpdateLog(glErrorString, true);
-	}
-
-	return 0;
-}
-
-int Main::RenderTexture(HSObject * obj, TextureInstance tex)
-{
-	//get the actual texture offset, based on the object's current hFlip
-	float hScale = tex.hScale;
-	float vScale = tex.vScale;
-	if(obj->hFlip)
-	{
-		hScale *= -1;
-	}
-
-	//get the offset
-	float offsetX = obj->pos.x;
-	if(obj->hFlip)
-	{
-		offsetX += tex.offset.x * -1;
-	}
-	else
-	{
-		offsetX += tex.offset.x;
-	}
-	float offsetY = obj->pos.y + tex.offset.y;
-
-	//set up the texture
-	if(tex.hsTex->indexed)
-	{
-		if(currentShaderProgramID != shader_progIndexed)
-		{
-			ChangeShaderProgram(shader_progIndexed);
-		}
-
-		//set up the palette
-		glActiveTexture(GL_TEXTURE1);
-		glUniform1i(paletteLoc, 1);
-		if(obj->palette == NULL || obj->useTGAPalettes)
-		{
-			glBindTexture(GL_TEXTURE_2D, tex.hsTex->ownPalette->textureID);
-		}
-		else
-		{
-			glBindTexture(GL_TEXTURE_2D, obj->palette->textureID);
-		}
-		glPixelStorei(GL_PACK_ALIGNMENT, 4);
-		glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-
-		//set up the general texture settings
-		glUniform2f(indexedScaleLoc, hScale, vScale);
-		glUniform1f(indexedDepthLoc, obj->depth);
-		glActiveTexture(GL_TEXTURE0);
-		glUniform1i(indexedTexLoc, 0);
-		glPixelStorei(GL_PACK_ALIGNMENT, 1);
-		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-	}
-	else
-	{
-		if(currentShaderProgramID != shader_progNonIndexed)
-		{
-			ChangeShaderProgram(shader_progNonIndexed);
-		}
-
-		//set up the general texture settings
-		glUniform2f(nonIndexedScaleLoc, hScale, vScale);
-		glUniform1f(nonIndexedDepthLoc, obj->depth);
-		glActiveTexture(GL_TEXTURE0);
-		glUniform1i(nonIndexedTexLoc, 0);
-		glPixelStorei(GL_PACK_ALIGNMENT, 4);
-		glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-	}
-	
-	list<HSTextureSlice*>::iterator tsItr;
-	for(tsItr = tex.hsTex->textureSlices.begin(); tsItr != tex.hsTex->textureSlices.end(); tsItr++)
-	{
-		//loop through the texture slices
-		float sliceOffsetX = (*tsItr)->offset.x;
-		if(obj->hFlip)
-		{
-			sliceOffsetX = sliceOffsetX * -1;
-		}
-		float sliceOffsetY = (*tsItr)->offset.y;
-		if(tex.hsTex->indexed)
-		{
-			glUniform2f(indexedPosOffsetLoc, offsetX + sliceOffsetX, offsetY + sliceOffsetY);
-		}
-		else
-		{
-			glUniform2f(nonIndexedPosOffsetLoc, offsetX + sliceOffsetX, offsetY + sliceOffsetY);
-		}
-		glBindTexture(GL_TEXTURE_2D, (*tsItr)->textureID);
-
-		if(objectManager->openGL3)
-		{
-			//get the vertex array set up
-			glBindVertexArray((*tsItr)->vaoID);
-		}
-		else
-		{
-			GLenum positionLoc;
-
-			if(tex.hsTex->indexed)
-			{
-				positionLoc = positionLocIndexed;
-			}
-			else
-			{
-				positionLoc = positionLocNonIndexed;
-			}
-
-			glBindBuffer(GL_ARRAY_BUFFER, (*tsItr)->bufferID);
-			glVertexAttribPointer(positionLoc, 3, GL_FLOAT, GL_FALSE, 0, (void*)0);
-			glBindBuffer(GL_ARRAY_BUFFER, 0);
-		}
-
-		//draw stuff
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, (void*)0);
-
-		//unbind stuff
-		if(objectManager->openGL3)
-		{
-			glBindVertexArray(0);
-		}
-
-		glBindTexture(GL_TEXTURE_2D, 0);
-	}
-
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, 0);
-
-	return 0;
-}
-
 int Main::PlayAudio()
 {
 	if(gameState == MATCH && matchState != IN_PROGRESS) { return 0; }
@@ -1174,6 +598,8 @@ int Main::DeleteObjects(list<HSObject*> * objects)
 int Main::Cleanup()
 {
 	objectManager->ClearAllObjects();
+	objectManager->clearTexturesAndPalettes = true;
+	renderingManager->Execute();
 
 	if(shader_vert != 0)
 	{
@@ -1219,6 +645,8 @@ int Main::ChangeGameState(GameState newState)
 
 	gameState = newState;
 
+	objectManager->matchCamera = false;
+
 	StartLoading();
 
 	switch(newState)
@@ -1236,6 +664,8 @@ int Main::ChangeGameState(GameState newState)
 
 	objectManager->SortAllObjects();
 
+	objectManager->loadTexturesAndPalettes = true;
+
 	EndLoading();
 
 	return 0;
@@ -1244,20 +674,19 @@ int Main::ChangeGameState(GameState newState)
 int Main::StartLoading()
 {
 	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\loading\\loading.xml", &objectManager->HUDObjects, &objectManager->loading) != 0) { return error; }
-	objectManager->loading->ChangeHold(objectManager->loading->firstHold);
 	objectManager->loading->pos.x = -90;
 	objectManager->loading->pos.y = -18;
 
-	//refresh the screen
-	return Render();
+	objectManager->loadTexturesAndPalettes = true;
+	objectManager->doRender = true;
+	renderingManager->Execute();
+
+	return 0;
 }
 
 int Main::EndLoading()
 {
-	//get rid of the loading graphic, which is guaranteed to be in the front
-	objectManager->HUDObjects.pop_front();
-	delete objectManager->loading;
-	objectManager->loading = NULL;
+	objectManager->loading->visible = false;
 
 	return 0;
 }
@@ -1620,17 +1049,17 @@ int Main::ChangeMainMenuState(MainMenuState newState)
 	case FREE_FOR_ALL:
 		break;
 	case OPTIONS:
-		MakeVideoSettingsInvisible();
+		objectManager->MakeVideoSettingsInvisible();
 		break;
 	case VIDEO:
-		fullScreenToApply = fullScreen;
-		stretchScreenToApply = stretchScreen;
-		fullscreenResolutionXToApply = fullscreenResolutionX;
-		fullscreenResolutionYToApply = fullscreenResolutionY;
-		windowedResolutionXToApply = windowedResolutionX;
-		windowedResolutionYToApply = windowedResolutionY;
+		objectManager->fullScreenToApply = objectManager->fullScreen;
+		objectManager->stretchScreenToApply = objectManager->stretchScreen;
+		objectManager->fullscreenResolutionXToApply = objectManager->fullscreenResolutionX;
+		objectManager->fullscreenResolutionYToApply = objectManager->fullscreenResolutionY;
+		objectManager->windowedResolutionXToApply = objectManager->windowedResolutionX;
+		objectManager->windowedResolutionYToApply = objectManager->windowedResolutionY;
 
-		SetVideoSettingVisibility();
+		objectManager->SetVideoSettingVisibility();
 		break;
 	case KEY_CONFIG:
 		break;
@@ -1681,22 +1110,22 @@ int Main::EventMainMenu(InputStates * inputHistory, int frame)
 			switch(objectManager->menuManager->GetCursorIndex())
 			{
 			case 0:
-				if(fullScreenToApply) { fullScreenToApply = false; }
-				else { fullScreenToApply = true; }
-				SetVideoSettingVisibility();
+				if(objectManager->fullScreenToApply) { objectManager->fullScreenToApply = false; }
+				else { objectManager->fullScreenToApply = true; }
+				objectManager->SetVideoSettingVisibility();
 				break;
 			case 1:
-				if(stretchScreenToApply) { stretchScreenToApply = false; }
-				else { stretchScreenToApply = true; }
-				SetVideoSettingVisibility();
+				if(objectManager->stretchScreenToApply) { objectManager->stretchScreenToApply = false; }
+				else { objectManager->stretchScreenToApply = true; }
+				objectManager->SetVideoSettingVisibility();
 				break;
 			case 2:
-				PrevFullscreenResolution();
-				SetVideoSettingVisibility();
+				objectManager->PrevFullscreenResolution();
+				objectManager->SetVideoSettingVisibility();
 				break;
 			case 3:
-				PrevWindowedResolution();
-				SetVideoSettingVisibility();
+				objectManager->PrevWindowedResolution();
+				objectManager->SetVideoSettingVisibility();
 				break;
 			}
 			break;
@@ -1710,22 +1139,22 @@ int Main::EventMainMenu(InputStates * inputHistory, int frame)
 			switch(objectManager->menuManager->GetCursorIndex())
 			{
 			case 0:
-				if(fullScreenToApply) { fullScreenToApply = false; }
-				else { fullScreenToApply = true; }
-				SetVideoSettingVisibility();
+				if(objectManager->fullScreenToApply) { objectManager->fullScreenToApply = false; }
+				else { objectManager->fullScreenToApply = true; }
+				objectManager->SetVideoSettingVisibility();
 				break;
 			case 1:
-				if(stretchScreenToApply) { stretchScreenToApply = false; }
-				else { stretchScreenToApply = true; }
-				SetVideoSettingVisibility();
+				if(objectManager->stretchScreenToApply) { objectManager->stretchScreenToApply = false; }
+				else { objectManager->stretchScreenToApply = true; }
+				objectManager->SetVideoSettingVisibility();
 				break;
 			case 2:
-				NextFullscreenResolution();
-				SetVideoSettingVisibility();
+				objectManager->NextFullscreenResolution();
+				objectManager->SetVideoSettingVisibility();
 				break;
 			case 3:
-				NextWindowedResolution();
-				SetVideoSettingVisibility();
+				objectManager->NextWindowedResolution();
+				objectManager->SetVideoSettingVisibility();
 				break;
 			}
 			break;
@@ -1807,26 +1236,26 @@ int Main::EventMainMenu(InputStates * inputHistory, int frame)
 			switch(objectManager->menuManager->GetCursorIndex())
 			{
 			case 0:
-				if(fullScreenToApply) { fullScreenToApply = false; }
-				else { fullScreenToApply = true; }
-				SetVideoSettingVisibility();
+				if(objectManager->fullScreenToApply) { objectManager->fullScreenToApply = false; }
+				else { objectManager->fullScreenToApply = true; }
+				objectManager->SetVideoSettingVisibility();
 				break;
 			case 1:
-				if(stretchScreenToApply) { stretchScreenToApply = false; }
-				else { stretchScreenToApply = true; }
-				SetVideoSettingVisibility();
+				if(objectManager->stretchScreenToApply) { objectManager->stretchScreenToApply = false; }
+				else { objectManager->stretchScreenToApply = true; }
+				objectManager->SetVideoSettingVisibility();
 				break;
 			case 2:
-				NextFullscreenResolution();
-				SetVideoSettingVisibility();
+				objectManager->NextFullscreenResolution();
+				objectManager->SetVideoSettingVisibility();
 				break;
 			case 3:
-				NextWindowedResolution();
-				SetVideoSettingVisibility();
+				objectManager->NextWindowedResolution();
+				objectManager->SetVideoSettingVisibility();
 				break;
 			case 4:
-				if(int error = ApplyVideoSettings() != 0) { return error; }
-				SetVideoSettingVisibility();
+				if(int error = objectManager->ApplyVideoSettings() != 0) { return error; }
+				objectManager->SetVideoSettingVisibility();
 				break;
 			case 5:
 				objectManager->menuManager->ToParent();
@@ -1918,291 +1347,6 @@ int Main::EventMainMenu(InputStates * inputHistory, int frame)
 int Main::UpdateMainMenu()
 {
 	return 0;
-}
-
-void Main::MakeVideoSettingsInvisible()
-{
-	objectManager->fullscreenYes->visible = false;
-	objectManager->fullscreenNo->visible = false;
-	objectManager->stretchYes->visible = false;
-	objectManager->stretchNo->visible = false;
-	objectManager->fullscreen640x360->visible = false;
-	objectManager->fullscreen800x450->visible = false;
-	objectManager->fullscreen1024x576->visible = false;
-	objectManager->fullscreen1152x648->visible = false;
-	objectManager->fullscreen1280x720->visible = false;
-	objectManager->fullscreen1360x765->visible = false;
-	objectManager->fullscreen1366x768->visible = false;
-	objectManager->fullscreen1400x787->visible = false;
-	objectManager->fullscreen1440x810->visible = false;
-	objectManager->fullscreen1600x900->visible = false;
-	objectManager->fullscreen1680x945->visible = false;
-	objectManager->fullscreen1920x1080->visible = false;
-	objectManager->windowed640x360->visible = false;
-	objectManager->windowed800x450->visible = false;
-	objectManager->windowed1024x576->visible = false;
-	objectManager->windowed1152x648->visible = false;
-	objectManager->windowed1280x720->visible = false;
-	objectManager->windowed1360x765->visible = false;
-	objectManager->windowed1366x768->visible = false;
-	objectManager->windowed1400x787->visible = false;
-	objectManager->windowed1440x810->visible = false;
-	objectManager->windowed1600x900->visible = false;
-	objectManager->windowed1680x945->visible = false;
-	objectManager->windowed1920x1080->visible = false;
-}
-
-void Main::SetVideoSettingVisibility()
-{
-	MakeVideoSettingsInvisible();
-
-	if(fullScreenToApply) { objectManager->fullscreenYes->visible = true; }
-	else { objectManager->fullscreenNo->visible = true; }
-	if(stretchScreenToApply) { objectManager->stretchYes->visible = true; }
-	else { objectManager->stretchNo->visible = true; }
-	if(fullscreenResolutionXToApply == 640) { objectManager->fullscreen640x360->visible = true; }
-	else if(fullscreenResolutionXToApply == 800) { objectManager->fullscreen800x450->visible = true; }
-	else if(fullscreenResolutionXToApply == 1024) { objectManager->fullscreen1024x576->visible = true; }
-	else if(fullscreenResolutionXToApply == 1152) { objectManager->fullscreen1152x648->visible = true; }
-	else if(fullscreenResolutionXToApply == 1280) { objectManager->fullscreen1280x720->visible = true; }
-	else if(fullscreenResolutionXToApply == 1360) { objectManager->fullscreen1360x765->visible = true; }
-	else if(fullscreenResolutionXToApply == 1366) { objectManager->fullscreen1366x768->visible = true; }
-	else if(fullscreenResolutionXToApply == 1400) { objectManager->fullscreen1400x787->visible = true; }
-	else if(fullscreenResolutionXToApply == 1440) { objectManager->fullscreen1440x810->visible = true; }
-	else if(fullscreenResolutionXToApply == 1600) { objectManager->fullscreen1600x900->visible = true; }
-	else if(fullscreenResolutionXToApply == 1680) { objectManager->fullscreen1680x945->visible = true; }
-	else if(fullscreenResolutionXToApply == 1920) { objectManager->fullscreen1920x1080->visible = true; }
-	if(windowedResolutionXToApply == 640) { objectManager->windowed640x360->visible = true; }
-	else if(windowedResolutionXToApply == 800) { objectManager->windowed800x450->visible = true; }
-	else if(windowedResolutionXToApply == 1024) { objectManager->windowed1024x576->visible = true; }
-	else if(windowedResolutionXToApply == 1152) { objectManager->windowed1152x648->visible = true; }
-	else if(windowedResolutionXToApply == 1280) { objectManager->windowed1280x720->visible = true; }
-	else if(windowedResolutionXToApply == 1360) { objectManager->windowed1360x765->visible = true; }
-	else if(windowedResolutionXToApply == 1366) { objectManager->windowed1366x768->visible = true; }
-	else if(windowedResolutionXToApply == 1400) { objectManager->windowed1400x787->visible = true; }
-	else if(windowedResolutionXToApply == 1440) { objectManager->windowed1440x810->visible = true; }
-	else if(windowedResolutionXToApply == 1600) { objectManager->windowed1600x900->visible = true; }
-	else if(windowedResolutionXToApply == 1680) { objectManager->windowed1680x945->visible = true; }
-	else if(windowedResolutionXToApply == 1920) { objectManager->windowed1920x1080->visible = true; }
-}
-
-void Main::NextFullscreenResolution()
-{
-	if(fullscreenResolutionXToApply == 1920)
-	{
-		fullscreenResolutionXToApply = 640; fullscreenResolutionYToApply = 360;
-	}
-	else if(fullscreenResolutionXToApply == 1680)
-	{
-		fullscreenResolutionXToApply = 1920; fullscreenResolutionYToApply = 1080;
-	}
-	else if(fullscreenResolutionXToApply == 1600)
-	{
-		fullscreenResolutionXToApply = 1680; fullscreenResolutionYToApply = 945;
-	}
-	else if(fullscreenResolutionXToApply == 1440)
-	{
-		fullscreenResolutionXToApply = 1600; fullscreenResolutionYToApply = 900;
-	}
-	else if(fullscreenResolutionXToApply == 1400)
-	{
-		fullscreenResolutionXToApply = 1440; fullscreenResolutionYToApply = 810;
-	}
-	else if(fullscreenResolutionXToApply == 1366)
-	{
-		fullscreenResolutionXToApply = 1400; fullscreenResolutionYToApply = 787;
-	}
-	else if(fullscreenResolutionXToApply == 1360)
-	{
-		fullscreenResolutionXToApply = 1366; fullscreenResolutionYToApply = 768;
-	}
-	else if(fullscreenResolutionXToApply == 1280)
-	{
-		fullscreenResolutionXToApply = 1360; fullscreenResolutionYToApply = 765;
-	}
-	else if(fullscreenResolutionXToApply == 1152)
-	{
-		fullscreenResolutionXToApply = 1280; fullscreenResolutionYToApply = 720;
-	}
-	else if(fullscreenResolutionXToApply == 1024)
-	{
-		fullscreenResolutionXToApply = 1152; fullscreenResolutionYToApply = 648;
-	}
-	else if(fullscreenResolutionXToApply == 800)
-	{
-		fullscreenResolutionXToApply = 1024; fullscreenResolutionYToApply = 576;
-	}
-	else if(fullscreenResolutionXToApply == 640)
-	{
-		fullscreenResolutionXToApply = 800; fullscreenResolutionYToApply = 450;
-	}
-}
-
-void Main::PrevFullscreenResolution()
-{
-	if(fullscreenResolutionXToApply == 1920)
-	{
-		fullscreenResolutionXToApply = 1680; fullscreenResolutionYToApply = 945;
-	}
-	else if(fullscreenResolutionXToApply == 1680)
-	{
-		fullscreenResolutionXToApply = 1600; fullscreenResolutionYToApply = 900;
-	}
-	else if(fullscreenResolutionXToApply == 1600)
-	{
-		fullscreenResolutionXToApply = 1440; fullscreenResolutionYToApply = 810;
-	}
-	else if(fullscreenResolutionXToApply == 1440)
-	{
-		fullscreenResolutionXToApply = 1400; fullscreenResolutionYToApply = 787;
-	}
-	else if(fullscreenResolutionXToApply == 1400)
-	{
-		fullscreenResolutionXToApply = 1366; fullscreenResolutionYToApply = 768;
-	}
-	else if(fullscreenResolutionXToApply == 1366)
-	{
-		fullscreenResolutionXToApply = 1360; fullscreenResolutionYToApply = 765;
-	}
-	else if(fullscreenResolutionXToApply == 1360)
-	{
-		fullscreenResolutionXToApply = 1280; fullscreenResolutionYToApply = 720;
-	}
-	else if(fullscreenResolutionXToApply == 1280)
-	{
-		fullscreenResolutionXToApply = 1152; fullscreenResolutionYToApply = 648;
-	}
-	else if(fullscreenResolutionXToApply == 1152)
-	{
-		fullscreenResolutionXToApply = 1024; fullscreenResolutionYToApply = 576;
-	}
-	else if(fullscreenResolutionXToApply == 1024)
-	{
-		fullscreenResolutionXToApply = 800; fullscreenResolutionYToApply = 450;
-	}
-	else if(fullscreenResolutionXToApply == 800)
-	{
-		fullscreenResolutionXToApply = 640; fullscreenResolutionYToApply = 360;
-	}
-	else if(fullscreenResolutionXToApply == 640)
-	{
-		fullscreenResolutionXToApply = 1920; fullscreenResolutionYToApply = 1080;
-	}
-}
-
-void Main::NextWindowedResolution()
-{
-	if(windowedResolutionXToApply == 1920)
-	{
-		windowedResolutionXToApply = 640; windowedResolutionYToApply = 360;
-	}
-	else if(windowedResolutionXToApply == 1680)
-	{
-		windowedResolutionXToApply = 1920; windowedResolutionYToApply = 1080;
-	}
-	else if(windowedResolutionXToApply == 1600)
-	{
-		windowedResolutionXToApply = 1680; windowedResolutionYToApply = 945;
-	}
-	else if(windowedResolutionXToApply == 1440)
-	{
-		windowedResolutionXToApply = 1600; windowedResolutionYToApply = 900;
-	}
-	else if(windowedResolutionXToApply == 1400)
-	{
-		windowedResolutionXToApply = 1440; windowedResolutionYToApply = 810;
-	}
-	else if(windowedResolutionXToApply == 1366)
-	{
-		windowedResolutionXToApply = 1400; windowedResolutionYToApply = 787;
-	}
-	else if(windowedResolutionXToApply == 1360)
-	{
-		windowedResolutionXToApply = 1366; windowedResolutionYToApply = 768;
-	}
-	else if(windowedResolutionXToApply == 1280)
-	{
-		windowedResolutionXToApply = 1360; windowedResolutionYToApply = 765;
-	}
-	else if(windowedResolutionXToApply == 1152)
-	{
-		windowedResolutionXToApply = 1280; windowedResolutionYToApply = 720;
-	}
-	else if(windowedResolutionXToApply == 1024)
-	{
-		windowedResolutionXToApply = 1152; windowedResolutionYToApply = 648;
-	}
-	else if(windowedResolutionXToApply == 800)
-	{
-		windowedResolutionXToApply = 1024; windowedResolutionYToApply = 576;
-	}
-	else if(windowedResolutionXToApply == 640)
-	{
-		windowedResolutionXToApply = 800; windowedResolutionYToApply = 450;
-	}
-}
-
-void Main::PrevWindowedResolution()
-{
-	if(windowedResolutionXToApply == 1920)
-	{
-		windowedResolutionXToApply = 1680; windowedResolutionYToApply = 945;
-	}
-	else if(windowedResolutionXToApply == 1680)
-	{
-		windowedResolutionXToApply = 1600; windowedResolutionYToApply = 900;
-	}
-	else if(windowedResolutionXToApply == 1600)
-	{
-		windowedResolutionXToApply = 1440; windowedResolutionYToApply = 810;
-	}
-	else if(windowedResolutionXToApply == 1440)
-	{
-		windowedResolutionXToApply = 1400; windowedResolutionYToApply = 787;
-	}
-	else if(windowedResolutionXToApply == 1400)
-	{
-		windowedResolutionXToApply = 1366; windowedResolutionYToApply = 768;
-	}
-	else if(windowedResolutionXToApply == 1366)
-	{
-		windowedResolutionXToApply = 1360; windowedResolutionYToApply = 765;
-	}
-	else if(windowedResolutionXToApply == 1360)
-	{
-		windowedResolutionXToApply = 1280; windowedResolutionYToApply = 720;
-	}
-	else if(windowedResolutionXToApply == 1280)
-	{
-		windowedResolutionXToApply = 1152; windowedResolutionYToApply = 648;
-	}
-	else if(windowedResolutionXToApply == 1152)
-	{
-		windowedResolutionXToApply = 1024; windowedResolutionYToApply = 576;
-	}
-	else if(windowedResolutionXToApply == 1024)
-	{
-		windowedResolutionXToApply = 800; windowedResolutionYToApply = 450;
-	}
-	else if(windowedResolutionXToApply == 800)
-	{
-		windowedResolutionXToApply = 640; windowedResolutionYToApply = 360;
-	}
-	else if(windowedResolutionXToApply == 640)
-	{
-		windowedResolutionXToApply = 1920; windowedResolutionYToApply = 1080;
-	}
-}
-
-int Main::ApplyVideoSettings()
-{
-	stretchScreen = stretchScreenToApply;
-	fullscreenResolutionX = fullscreenResolutionXToApply;
-	fullscreenResolutionY = fullscreenResolutionYToApply;
-	windowedResolutionX = windowedResolutionXToApply;
-	windowedResolutionY = windowedResolutionYToApply;
-
-	return SetFullScreen(fullScreenToApply);
 }
 
 int Main::InitializeCharacterSelect()
@@ -2425,7 +1569,7 @@ int Main::InitializeCharacterSelect()
 	if(toPlay[2]) { ChangeCharacterSelectPlayerState(SELECTING_CHARACTER, 2); }
 	if(toPlay[3]) { ChangeCharacterSelectPlayerState(SELECTING_CHARACTER, 3); }
 
-	AdjustCamera(true);
+	objectManager->centerCameraInstantly = true;
 
 	return 0;
 }
@@ -3244,7 +2388,8 @@ int Main::InitializeMatch()
 
 	ChangePauseMenuState(PAUSE_TOP);
 
-	AdjustCamera(true);
+	objectManager->centerCameraInstantly = true;
+	objectManager->matchCamera = true;
 
 	return 0;
 }
@@ -3312,17 +2457,17 @@ int Main::ChangePauseMenuState(PauseMenuState newState)
 	switch(newState)
 	{
 	case PAUSE_TOP:
-		MakeVideoSettingsInvisible();
+		objectManager->MakeVideoSettingsInvisible();
 		break;
 	case PAUSE_VIDEO:
-		fullScreenToApply = fullScreen;
-		stretchScreenToApply = stretchScreen;
-		fullscreenResolutionXToApply = fullscreenResolutionX;
-		fullscreenResolutionYToApply = fullscreenResolutionY;
-		windowedResolutionXToApply = windowedResolutionX;
-		windowedResolutionYToApply = windowedResolutionY;
+		objectManager->fullScreenToApply = objectManager->fullScreen;
+		objectManager->stretchScreenToApply = objectManager->stretchScreen;
+		objectManager->fullscreenResolutionXToApply = objectManager->fullscreenResolutionX;
+		objectManager->fullscreenResolutionYToApply = objectManager->fullscreenResolutionY;
+		objectManager->windowedResolutionXToApply = objectManager->windowedResolutionX;
+		objectManager->windowedResolutionYToApply = objectManager->windowedResolutionY;
 
-		SetVideoSettingVisibility();
+		objectManager->SetVideoSettingVisibility();
 		break;
 	case PAUSE_KEY_CONFIG:
 		break;
@@ -3386,22 +2531,22 @@ int Main::EventMatch(InputStates * inputHistory, int frame, int player)
 				switch(objectManager->menuManager->GetCursorIndex())
 				{
 				case 0:
-					if(fullScreenToApply) { fullScreenToApply = false; }
-					else { fullScreenToApply = true; }
-					SetVideoSettingVisibility();
+					if(objectManager->fullScreenToApply) { objectManager->fullScreenToApply = false; }
+					else { objectManager->fullScreenToApply = true; }
+					objectManager->SetVideoSettingVisibility();
 					break;
 				case 1:
-					if(stretchScreenToApply) { stretchScreenToApply = false; }
-					else { stretchScreenToApply = true; }
-					SetVideoSettingVisibility();
+					if(objectManager->stretchScreenToApply) { objectManager->stretchScreenToApply = false; }
+					else { objectManager->stretchScreenToApply = true; }
+					objectManager->SetVideoSettingVisibility();
 					break;
 				case 2:
-					PrevFullscreenResolution();
-					SetVideoSettingVisibility();
+					objectManager->PrevFullscreenResolution();
+					objectManager->SetVideoSettingVisibility();
 					break;
 				case 3:
-					PrevWindowedResolution();
-					SetVideoSettingVisibility();
+					objectManager->PrevWindowedResolution();
+					objectManager->SetVideoSettingVisibility();
 					break;
 				}
 				break;
@@ -3415,22 +2560,22 @@ int Main::EventMatch(InputStates * inputHistory, int frame, int player)
 				switch(objectManager->menuManager->GetCursorIndex())
 				{
 				case 0:
-					if(fullScreenToApply) { fullScreenToApply = false; }
-					else { fullScreenToApply = true; }
-					SetVideoSettingVisibility();
+					if(objectManager->fullScreenToApply) { objectManager->fullScreenToApply = false; }
+					else { objectManager->fullScreenToApply = true; }
+					objectManager->SetVideoSettingVisibility();
 					break;
 				case 1:
-					if(stretchScreenToApply) { stretchScreenToApply = false; }
-					else { stretchScreenToApply = true; }
-					SetVideoSettingVisibility();
+					if(objectManager->stretchScreenToApply) { objectManager->stretchScreenToApply = false; }
+					else { objectManager->stretchScreenToApply = true; }
+					objectManager->SetVideoSettingVisibility();
 					break;
 				case 2:
-					NextFullscreenResolution();
-					SetVideoSettingVisibility();
+					objectManager->NextFullscreenResolution();
+					objectManager->SetVideoSettingVisibility();
 					break;
 				case 3:
-					NextWindowedResolution();
-					SetVideoSettingVisibility();
+					objectManager->NextWindowedResolution();
+					objectManager->SetVideoSettingVisibility();
 					break;
 				}
 				break;
@@ -3468,26 +2613,26 @@ int Main::EventMatch(InputStates * inputHistory, int frame, int player)
 				switch(objectManager->menuManager->GetCursorIndex())
 				{
 				case 0:
-					if(fullScreenToApply) { fullScreenToApply = false; }
-					else { fullScreenToApply = true; }
-					SetVideoSettingVisibility();
+					if(objectManager->fullScreenToApply) { objectManager->fullScreenToApply = false; }
+					else { objectManager->fullScreenToApply = true; }
+					objectManager->SetVideoSettingVisibility();
 					break;
 				case 1:
-					if(stretchScreenToApply) { stretchScreenToApply = false; }
-					else { stretchScreenToApply = true; }
-					SetVideoSettingVisibility();
+					if(objectManager->stretchScreenToApply) { objectManager->stretchScreenToApply = false; }
+					else { objectManager->stretchScreenToApply = true; }
+					objectManager->SetVideoSettingVisibility();
 					break;
 				case 2:
-					NextFullscreenResolution();
-					SetVideoSettingVisibility();
+					objectManager->NextFullscreenResolution();
+					objectManager->SetVideoSettingVisibility();
 					break;
 				case 3:
-					NextWindowedResolution();
-					SetVideoSettingVisibility();
+					objectManager->NextWindowedResolution();
+					objectManager->SetVideoSettingVisibility();
 					break;
 				case 4:
-					if(int error = ApplyVideoSettings() != 0) { return error; }
-					SetVideoSettingVisibility();
+					if(int error = objectManager->ApplyVideoSettings() != 0) { return error; }
+					objectManager->SetVideoSettingVisibility();
 					break;
 				case 5:
 					objectManager->menuManager->ToParent();
@@ -3650,11 +2795,8 @@ int Main::CollideMatch()
 	return 0;
 }
 
-void Main::DefaultConfig()
+void Main::DefaultKeyConfig()
 {
-	fullScreen = true;
-	stretchScreen = false;
-
 	mappings[0].keyUp = SDLK_w;
 	mappings[0].keyDown = SDLK_s;
 	mappings[0].keyLeft = SDLK_a;
@@ -3678,26 +2820,24 @@ void Main::DefaultConfig()
 	mappings[1].keyStart = SDLK_KP_PLUS;
 	mappings[1].keyMenuConfirm = mappings[1].keyLight;
 	mappings[1].keyMenuBack = mappings[1].keyJump;
-	
-	SetBestGameResolution();
 }
 
-int Main::LoadConfig()
+int Main::LoadKeyConfig()
 {
 	//get the XML structure from the file
 	XMLDocument * file = new XMLDocument();
-	if(int error = file->LoadFile("config.xml") != 0)
+	if(int error = file->LoadFile("data\\config\\keyConfig.xml") != 0)
 	{
 		//file doesn't exist, so just set some defaults and then save the configuration
-		DefaultConfig();
-		return SaveConfig();
+		DefaultKeyConfig();
+		return SaveKeyConfig();
 	}
 
-	if(strcmp(file->RootElement()->Value(), "Configuration") != 0)
+	if(strcmp(file->RootElement()->Value(), "KeyConfiguration") != 0)
 	{
 		//file isn't formatted correctly, so just set some defaults and then save the configuration
-		DefaultConfig();
-		return SaveConfig();
+		DefaultKeyConfig();
+		return SaveKeyConfig();
 	}
 
 	//loop through all the parts of the configuration
@@ -3707,34 +2847,7 @@ int Main::LoadConfig()
 		const char * configSec = i->Value();
 
 		//create a new object of the appropriate type
-		if(strcmp(configSec, "General") == 0)
-		{
-			//get fullscreen
-			const char * fs = i->Attribute("fullscreen");
-			string b;
-			if(fs != NULL)
-			{
-				b.assign(fs);
-				if(b.compare("true") == 0) { fullScreen = true; }
-				else if(b.compare("false") == 0) { fullScreen = false; }
-			}
-
-			//get stretchScreen
-			const char * ss = i->Attribute("stretchScreen");
-			if(ss != NULL)
-			{
-				b.assign(ss);
-				if(b.compare("true") == 0) { stretchScreen = true; }
-				else if(b.compare("false") == 0) { stretchScreen = false; }
-			}
-
-			//get resolution
-			i->QueryIntAttribute("windowedResolutionX", &windowedResolutionX);
-			i->QueryIntAttribute("windowedResolutionY", &windowedResolutionY);
-			i->QueryIntAttribute("fullscreenResolutionX", &fullscreenResolutionX);
-			i->QueryIntAttribute("fullscreenResolutionY", &fullscreenResolutionY);
-		}
-		else if(strcmp(configSec, "PlayerOne") == 0)
+		if(strcmp(configSec, "PlayerOne") == 0)
 		{
 			LoadPlayerConfig(i, 0);
 		}
@@ -3750,15 +2863,6 @@ int Main::LoadConfig()
 		{
 			LoadPlayerConfig(i, 3);
 		}
-	}
-
-	if(windowedResolutionX > MAX_GAME_RESOLUTION_X || windowedResolutionX < MIN_GAME_RESOLUTION_X
-		|| windowedResolutionY > MAX_GAME_RESOLUTION_Y || windowedResolutionY < MIN_GAME_RESOLUTION_Y
-		|| fullscreenResolutionX > MAX_GAME_RESOLUTION_X || fullscreenResolutionX < MIN_GAME_RESOLUTION_X
-		|| fullscreenResolutionY > MAX_GAME_RESOLUTION_Y || fullscreenResolutionY < MIN_GAME_RESOLUTION_Y)
-	{
-		SetBestGameResolution();
-		SaveConfig();
 	}
 
 	return 0;
@@ -4109,34 +3213,10 @@ bool Main::LoadToStickConfig(string config, Uint8 * stick)
 	return false;
 }
 
-int Main::SaveConfig()
+int Main::SaveKeyConfig()
 {
 	//create a new xml structure
 	XMLDocument * file = new XMLDocument();
-
-	XMLElement * general = file->NewElement("General");
-	if(fullScreen)
-	{
-		general->SetAttribute("fullscreen", "true");
-	}
-	else
-	{
-		general->SetAttribute("fullscreen", "false");
-	}
-	
-	if(stretchScreen)
-	{
-		general->SetAttribute("stretchScreen", "true");
-	}
-	else
-	{
-		general->SetAttribute("stretchScreen", "false");
-	}
-
-	general->SetAttribute("windowedResolutionX", windowedResolutionX);
-	general->SetAttribute("windowedResolutionY", windowedResolutionY);
-	general->SetAttribute("fullscreenResolutionX", fullscreenResolutionX);
-	general->SetAttribute("fullscreenResolutionY", fullscreenResolutionY);
 
 	XMLElement * playerOne = file->NewElement("PlayerOne");
 	SetPlayerConfig(playerOne, 0);
@@ -4150,8 +3230,7 @@ int Main::SaveConfig()
 	XMLElement * playerFour = file->NewElement("PlayerFour");
 	SetPlayerConfig(playerFour, 3);
 
-	XMLElement * config = file->NewElement("Configuration");
-	config->InsertEndChild(general);
+	XMLElement * config = file->NewElement("KeyConfiguration");
 	config->InsertEndChild(playerOne);
 	config->InsertEndChild(playerTwo);
 	config->InsertEndChild(playerThree);
@@ -4159,7 +3238,7 @@ int Main::SaveConfig()
 
 	file->InsertEndChild(config);
 
-	file->SaveFile("config.xml");
+	file->SaveFile("data\\config\\keyConfig.xml");
 
 	return 0;
 }
@@ -5028,7 +4107,7 @@ void Main::KeyDown(SDL_Keycode sym)
 			{
 				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
 			}
-			SaveConfig();
+			SaveKeyConfig();
 			break;
 		case 1: //down
 			mappings[playerToSetUp].keyDown = sym;
@@ -5046,7 +4125,7 @@ void Main::KeyDown(SDL_Keycode sym)
 			{
 				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
 			}
-			SaveConfig();
+			SaveKeyConfig();
 			break;
 		case 2: //left
 			mappings[playerToSetUp].keyLeft = sym;
@@ -5064,7 +4143,7 @@ void Main::KeyDown(SDL_Keycode sym)
 			{
 				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
 			}
-			SaveConfig();
+			SaveKeyConfig();
 			break;
 		case 3: //right
 			mappings[playerToSetUp].keyRight = sym;
@@ -5082,7 +4161,7 @@ void Main::KeyDown(SDL_Keycode sym)
 			{
 				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
 			}
-			SaveConfig();
+			SaveKeyConfig();
 			break;
 		case 4: //light attack
 			mappings[playerToSetUp].keyLight = sym;
@@ -5098,7 +4177,7 @@ void Main::KeyDown(SDL_Keycode sym)
 			{
 				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
 			}
-			SaveConfig();
+			SaveKeyConfig();
 			break;
 		case 5: //heavy attack
 			mappings[playerToSetUp].keyHeavy = sym;
@@ -5114,7 +4193,7 @@ void Main::KeyDown(SDL_Keycode sym)
 			{
 				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
 			}
-			SaveConfig();
+			SaveKeyConfig();
 			break;
 		case 6: //jump
 			mappings[playerToSetUp].keyJump = sym;
@@ -5130,7 +4209,7 @@ void Main::KeyDown(SDL_Keycode sym)
 			{
 				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
 			}
-			SaveConfig();
+			SaveKeyConfig();
 			break;
 		case 7: //block
 			mappings[playerToSetUp].keyBlock = sym;
@@ -5146,7 +4225,7 @@ void Main::KeyDown(SDL_Keycode sym)
 			{
 				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
 			}
-			SaveConfig();
+			SaveKeyConfig();
 			break;
 		case 8: //pause
 			mappings[playerToSetUp].keyStart = sym;
@@ -5162,7 +4241,7 @@ void Main::KeyDown(SDL_Keycode sym)
 			{
 				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
 			}
-			SaveConfig();
+			SaveKeyConfig();
 			break;
 		case 9: //menu confirm
 			mappings[playerToSetUp].keyMenuConfirm = sym;
@@ -5178,7 +4257,7 @@ void Main::KeyDown(SDL_Keycode sym)
 			{
 				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
 			}
-			SaveConfig();
+			SaveKeyConfig();
 			break;
 		case 10: //menu back
 			mappings[playerToSetUp].keyMenuBack = sym;
@@ -5194,7 +4273,7 @@ void Main::KeyDown(SDL_Keycode sym)
 			{
 				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
 			}
-			SaveConfig();
+			SaveKeyConfig();
 			break;
 		}
 
@@ -5438,7 +4517,7 @@ void Main::JoyAxis(Uint8 which,Uint8 axis,Sint16 value)
 			{
 				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
 			}
-			SaveConfig();
+			SaveKeyConfig();
 			break;
 		}
 
@@ -5593,7 +4672,7 @@ void Main::JoyHat(Uint8 which,Uint8 hat,Uint8 value)
 			{
 				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
 			}
-			SaveConfig();
+			SaveKeyConfig();
 			break;
 		}
 
@@ -5712,7 +4791,7 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 			{
 				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
 			}
-			SaveConfig();
+			SaveKeyConfig();
 			break;
 		case 1: //down
 			mappings[playerToSetUp].buttonDown.joystick = which; mappings[playerToSetUp].buttonDown.button = button;
@@ -5729,7 +4808,7 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 			{
 				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
 			}
-			SaveConfig();
+			SaveKeyConfig();
 			break;
 		case 2: //left
 			mappings[playerToSetUp].buttonLeft.joystick = which; mappings[playerToSetUp].buttonLeft.button = button;
@@ -5746,7 +4825,7 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 			{
 				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
 			}
-			SaveConfig();
+			SaveKeyConfig();
 			break;
 		case 3: //right
 			mappings[playerToSetUp].buttonRight.joystick = which; mappings[playerToSetUp].buttonRight.button = button;
@@ -5763,7 +4842,7 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 			{
 				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
 			}
-			SaveConfig();
+			SaveKeyConfig();
 			break;
 		case 4: //light attack
 			mappings[playerToSetUp].buttonLight.joystick = which; mappings[playerToSetUp].buttonLight.button = button;
@@ -5778,7 +4857,7 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 			{
 				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
 			}
-			SaveConfig();
+			SaveKeyConfig();
 			break;
 		case 5: //heavy attack
 			mappings[playerToSetUp].buttonHeavy.joystick = which; mappings[playerToSetUp].buttonHeavy.button = button;
@@ -5793,7 +4872,7 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 			{
 				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
 			}
-			SaveConfig();
+			SaveKeyConfig();
 			break;
 		case 6: //jump
 			mappings[playerToSetUp].buttonJump.joystick = which; mappings[playerToSetUp].buttonJump.button = button;
@@ -5808,7 +4887,7 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 			{
 				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
 			}
-			SaveConfig();
+			SaveKeyConfig();
 			break;
 		case 7: //block
 			mappings[playerToSetUp].buttonBlock.joystick = which; mappings[playerToSetUp].buttonBlock.button = button;
@@ -5823,7 +4902,7 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 			{
 				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
 			}
-			SaveConfig();
+			SaveKeyConfig();
 			break;
 		case 8: //pause
 			mappings[playerToSetUp].buttonStart.joystick = which; mappings[playerToSetUp].buttonStart.button = button;
@@ -5838,7 +4917,7 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 			{
 				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
 			}
-			SaveConfig();
+			SaveKeyConfig();
 			break;
 		case 9: //menu confirm
 			mappings[playerToSetUp].buttonMenuConfirm.joystick = which; mappings[playerToSetUp].buttonMenuConfirm.button = button;
@@ -5853,7 +4932,7 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 			{
 				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
 			}
-			SaveConfig();
+			SaveKeyConfig();
 			break;
 		case 10: //menu back
 			mappings[playerToSetUp].buttonMenuBack.joystick = which; mappings[playerToSetUp].buttonMenuBack.button = button;
@@ -5868,7 +4947,7 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 			{
 				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
 			}
-			SaveConfig();
+			SaveKeyConfig();
 			break;
 		}
 
@@ -6039,705 +5118,21 @@ void Main::Expose()
 
 void Main::Exit()
 {
-    notDone = false;
-}
-
-int Main::ToggleFullScreen()
-{
-	if(fullScreen) { return SetFullScreen(false); }
-	else { return SetFullScreen(true); }
-}
-
-int Main::SetFullScreen(bool newFullScreen)
-{
-	fullScreen = newFullScreen;
-	if(int error = SaveConfig() != 0) { return error; }
-
-	int gameResolutionX = fullscreenResolutionX;
-	int gameResolutionY = fullscreenResolutionY;
-	int windowSizeX = curDisplayMode.w;
-	int windowSizeY = curDisplayMode.h;
-
-	if(!fullScreen)
-	{
-		if(windowedResolutionX >= startDisplayMode.w || windowedResolutionY >= startDisplayMode.h)
-		{
-			windowedResolutionXToApply = MAX_GAME_RESOLUTION_X;
-			windowedResolutionYToApply = MAX_GAME_RESOLUTION_Y;
-			if(int i = DropToHighestValidWindowedResolution() != 0) { return i; }
-			windowedResolutionX = windowedResolutionXToApply;
-			windowedResolutionY = windowedResolutionYToApply;
-			if(int error = SaveConfig() != 0) { return error; }
-		}
-
-		gameResolutionX = windowedResolutionX;
-		gameResolutionY = windowedResolutionY;
-		windowSizeX = gameResolutionX;
-		windowSizeY = gameResolutionY;
-	}
-	else
-	{
-		if(stretchScreen)
-		{
-			if(int i = SetBestDisplayMode() != 0) { return i; }
-			gameResolutionX = fullscreenResolutionX;
-			gameResolutionY = fullscreenResolutionY;
-			windowSizeX = curDisplayMode.w;
-			windowSizeY = curDisplayMode.h;
-
-			if(int i = SDL_SetWindowDisplayMode(surf_display, &curDisplayMode) != 0)
-			{
-				UpdateLog("SDL Error setting display mode after SetBestDisplayMode().", true);
-				return i;
-			}
-
-			UpdateLog("Display mode set.", false);
-			
-			//do this to actually get the display mode change to kick in. it seems dumb but I don't know why SetWindowDisplayMode() isn't working by itself
-			if(int i = SDL_SetWindowFullscreen(surf_display, 0) != 0)
-			{
-				UpdateLog("SDL Error setting windowed.", true);
-				return i;
-			}
-		}
-		else
-		{
-			if(int i = ReturnToStartDisplayMode() != 0) { return i; }
-			gameResolutionX = fullscreenResolutionX;
-			gameResolutionY = fullscreenResolutionY;
-			windowSizeX = curDisplayMode.w;
-			windowSizeY = curDisplayMode.h;
-
-			if(int i = SDL_SetWindowDisplayMode(surf_display, &curDisplayMode) != 0)
-			{
-				UpdateLog("SDL Error setting display mode after ReturnToStartDisplayMode().", true);
-				return i;
-			}
-
-			UpdateLog("Display mode set.", false);
-			
-			//do this to actually get the display mode change to kick in. it seems dumb but I don't know why SetWindowDisplayMode() isn't working by itself
-			if(int i = SDL_SetWindowFullscreen(surf_display, 0) != 0)
-			{
-				UpdateLog("SDL Error setting windowed.", true);
-				return i;
-			}
-		}
-	}
-
-	glViewport((windowSizeX - gameResolutionX) / 2, (windowSizeY - gameResolutionY) / 2, gameResolutionX, gameResolutionY);
-	
-	resolutionScale = (float)gameResolutionX / (float)MAX_GAME_RESOLUTION_X;
-
-	if(fullScreen)
-	{
-		int options = SDL_WINDOW_FULLSCREEN;
-		SDL_SetWindowSize(surf_display, windowSizeX, windowSizeY);
-		if(int i = SDL_SetWindowFullscreen(surf_display, SDL_WINDOW_FULLSCREEN) != 0)
-		{
-			UpdateLog("SDL Error setting fullscreen.", true);
-			return i;
-		}
-	}
-	else
-	{
-		if(int i = SDL_SetWindowFullscreen(surf_display, 0) != 0)
-		{
-			UpdateLog("SDL Error setting windowed.", true);
-			return i;
-		}
-		SDL_SetWindowSize(surf_display, windowSizeX, windowSizeY);
-	}
-
-	SDL_SetWindowPosition(surf_display, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-	
-	return 0;
-}
-
-int Main::InitializeGraphics()
-{
-	glGetError();
-
-	if(objectManager->textureRegistry.size() > 0)
-	{
-		list<HSTexture*>::iterator trIt;
-		for ( trIt=objectManager->textureRegistry.begin(); trIt != objectManager->textureRegistry.end(); trIt++)
-		{
-			list<HSTextureSlice*>::iterator tsIt;
-			for ( tsIt=(*trIt)->textureSlices.begin(); tsIt != (*trIt)->textureSlices.end(); tsIt++)
-			{
-				glDeleteTextures(1, &(*tsIt)->textureID);
-				glDeleteBuffers(1, &(*tsIt)->bufferID);
-
-				(*tsIt)->textureID = 0;
-				(*tsIt)->bufferID = 0;
-			}
-
-			if((*trIt)->ownPalette != NULL)
-			{
-				glDeleteTextures(1, &(*trIt)->ownPalette->textureID);
-				(*trIt)->ownPalette->textureID = 0;
-			}
-		}
-	}
-
-	if(objectManager->paletteRegistry.size() > 0)
-	{
-		list<HSPalette*>::iterator palIt;
-		for (palIt=objectManager->paletteRegistry.begin(); palIt != objectManager->paletteRegistry.end(); palIt++)
-		{
-			glDeleteTextures(1, &(*palIt)->textureID);
-
-			(*palIt)->textureID = 0;
-		}
-	}
-
-	if(shader_vert != 0)
-	{
-		glDeleteShader(shader_vert);
-		shader_vert = 0;
-	}
-	if(shader_fragNonIndexed != 0)
-	{
-		glDeleteShader(shader_fragNonIndexed);
-		shader_fragNonIndexed = 0;
-	}
-	if(shader_fragIndexed != 0)
-	{
-		glDeleteShader(shader_fragIndexed);
-		shader_fragIndexed = 0;
-	}
-	if(shader_progNonIndexed != 0)
-	{
-		glDeleteProgram(shader_progNonIndexed);
-		shader_progNonIndexed = 0;
-	}
-	if(shader_progIndexed != 0)
-	{
-		glDeleteProgram(shader_progIndexed);
-		shader_progIndexed = 0;
-	}
-
-	if(texCoordBufferID != 0)
-	{
-		glDeleteBuffers(1, &texCoordBufferID);
-		texCoordBufferID = 0;
-	}
-
-	if(elementArrayBufferID != 0)
-	{
-		glDeleteBuffers(1, &elementArrayBufferID);
-		elementArrayBufferID = 0;
-	}
-
-	int options = SDL_WINDOW_OPENGL;
-	int gameResolutionX = fullscreenResolutionX;
-	int gameResolutionY = fullscreenResolutionY;
-	int windowSizeX = curDisplayMode.w;
-	int windowSizeY = curDisplayMode.h;
-
-	if(!fullScreen)
-	{
-		if(windowedResolutionX >= startDisplayMode.w || windowedResolutionY >= startDisplayMode.h)
-		{
-			windowedResolutionXToApply = MAX_GAME_RESOLUTION_X;
-			windowedResolutionYToApply = MAX_GAME_RESOLUTION_Y;
-			if(int error = DropToHighestValidWindowedResolution() != 0) { return error; }
-			windowedResolutionX = windowedResolutionXToApply;
-			windowedResolutionY = windowedResolutionYToApply;
-			if(int error = SaveConfig() != 0) { return error; }
-		}
-
-		gameResolutionX = windowedResolutionX;
-		gameResolutionY = windowedResolutionY;
-		windowSizeX = gameResolutionX;
-		windowSizeY = gameResolutionY;
-	}
-	else
-	{
-		options = options | SDL_WINDOW_FULLSCREEN;
-
-		if(gameResolutionX > curDisplayMode.w || gameResolutionY > curDisplayMode.h || stretchScreen)
-		{
-			if(int error = SetBestDisplayMode() != 0) { return error; }
-			gameResolutionX = fullscreenResolutionX;
-			gameResolutionY = fullscreenResolutionY;
-			windowSizeX = curDisplayMode.w;
-			windowSizeY = curDisplayMode.h;
-		}
-	}
-
-	if((surf_display = SDL_CreateWindow("Homestrife",
-                          SDL_WINDOWPOS_CENTERED,
-                          SDL_WINDOWPOS_CENTERED,
-						  windowSizeX,
-						  windowSizeY,
-                          options)) == NULL)
-	{
-		UpdateLog("Error setting SDL video mode.", true);
-		return -1;
-	}
-	SDL_GL_CreateContext(surf_display);
-
-	UpdateLog("SDL video mode set.", false);
-
-	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-	glClearDepth(1.0f);
-
-	glViewport((windowSizeX - gameResolutionX) / 2, (windowSizeY - gameResolutionY) / 2, gameResolutionX, gameResolutionY);
-
-	resolutionScale = (float)gameResolutionX / (float)MAX_GAME_RESOLUTION_X;
- 
-	glEnable(GL_TEXTURE_2D);
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glDisable(GL_CULL_FACE);
- 
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glLoadIdentity();
-	SDL_GL_SwapWindow(surf_display);
-
-	//get the current opengl version
-	int glMajorVersion = 0;
-	int glMinorVersion = 0;
-	glGetIntegerv(GL_MAJOR_VERSION, &glMajorVersion);
-	glGetIntegerv(GL_MINOR_VERSION, &glMinorVersion);
-
-	//gl major/minor version doesn't work, so use an older method
-	if(glMajorVersion == 0)
-	{
-		string version; version.assign((const char *)glGetString(GL_VERSION));
-
-		if(version.length() >= 1)
-		{
-			string major = version.substr(0, 1);
-			glMajorVersion = atoi(major.c_str());
-		}
-
-		if(version.length() >= 3)
-		{
-			string minor = version.substr(2, 1);
-			glMinorVersion = atoi(minor.c_str());
-		}
-	}
-
-	//we need to know this for texture loading and storage
-	if(glMajorVersion >= 3)
-	{
-		objectManager->openGL3 = true;
-	}
-	else
-	{
-		objectManager->openGL3 = false;
-	}
-
-	stringstream sstm;
-	sstm << "This machine is running OpenGL version " << glMajorVersion << "." << glMinorVersion << ".";
-	UpdateLog(sstm.str(), false);
-
-	if(glMajorVersion < 2)
-	{
-		UpdateLog("OpenGL version is older than 2.0.", true);
-		return -1;
-	}
-
-	setupExtensions();
-	if(shading_enabled == false)
-	{
-		UpdateLog("OpenGL shaders are not enabled.", true);
-		return -1;
-	}
-	if(buffer_objects_enabled == false)
-	{
-		UpdateLog("OpenGL buffer objects are not enabled.", true);
-		return -1;
-	}
-	if(default_array_objects_enabled == false)
-	{
-		UpdateLog("OpenGL default array object is not enabled.", true);
-		return -1;
-	}
-	if(custom_array_objects_enabled == false && objectManager->openGL3)
-	{
-		UpdateLog("OpenGL custom array objects are not enabled.", true);
-		return -1;
-	}
-
-	UpdateLog("OpenGL shaders, buffer objects, and vertex array objects enabled.", false);
-
-	//set up all the shader stuff
-	shader_progNonIndexed = glCreateProgram();
-	shader_progIndexed = glCreateProgram();
-	shader_vert = glCreateShader(GL_VERTEX_SHADER);
-	shader_fragNonIndexed = glCreateShader(GL_FRAGMENT_SHADER);
-	shader_fragIndexed = glCreateShader(GL_FRAGMENT_SHADER);
-
-	string vertShaderFileName;
-	string fragNonIndexedShaderFileName;
-	string fragIndexedShaderFileName;
-
-	if(objectManager->openGL3)
-	{
-		vertShaderFileName = "vertexShader3.glsl.txt";
-		fragNonIndexedShaderFileName = "fragmentShaderNonIndexed3.glsl.txt";
-		fragIndexedShaderFileName = "fragmentShaderIndexed3.glsl.txt";
-	}
-	else
-	{
-		vertShaderFileName = "vertexShader2.glsl.txt";
-		fragNonIndexedShaderFileName = "fragmentShaderNonIndexed2.glsl.txt";
-		fragIndexedShaderFileName = "fragmentShaderIndexed2.glsl.txt";
-	}
-
-	string shader_vert_source_string = loadSource(vertShaderFileName);
-
-	if(shader_vert_source_string.compare("READ ERROR") == 0)
-	{
-		UpdateLog("Could not read vertex shader source file: " + vertShaderFileName, true);
-		return -1;
-	}
-
-	string shader_fragNonIndexed_source_string = loadSource(fragNonIndexedShaderFileName);
-
-	if(shader_fragNonIndexed_source_string.compare("READ ERROR") == 0)
-	{
-		UpdateLog("Could not read non-indexed fragment shader source file: " + fragNonIndexedShaderFileName, true);
-		return -1;
-	}
-
-	string shader_fragIndexed_source_string = loadSource(fragIndexedShaderFileName);
-
-	if(shader_fragIndexed_source_string.compare("READ ERROR") == 0)
-	{
-		UpdateLog("Could not read indexed fragment shader source file: " + fragIndexedShaderFileName, true);
-		return -1;
-	}
-
-	//add some newlines so it compiles correctly
-	unsigned int verPos = shader_vert_source_string.find("#version ", 0);
-	if(verPos != string::npos) { shader_vert_source_string.insert(verPos + 12, "\n"); }
-
-	verPos = shader_fragNonIndexed_source_string.find("#version ", 0);
-	if(verPos != string::npos) { shader_fragNonIndexed_source_string.insert(verPos + 12, "\n"); }
-
-	verPos = shader_fragIndexed_source_string.find("#version ", 0);
-	if(verPos != string::npos) { shader_fragIndexed_source_string.insert(verPos + 12, "\n"); }
-
-	//add more newlines after semicolons so warning/error positions are meaningful
-	unsigned int scPos = shader_vert_source_string.find(";", 0);
-	while(scPos != string::npos)
-	{
-		shader_vert_source_string.insert(scPos+1, "\n");
-		scPos = shader_vert_source_string.find(";", scPos+1);
-	}
-	
-	scPos = shader_fragNonIndexed_source_string.find(";", 0);
-	while(scPos != string::npos)
-	{
-		shader_fragNonIndexed_source_string.insert(scPos+1, "\n");
-		scPos = shader_fragNonIndexed_source_string.find(";", scPos+1);
-	}
-	
-	scPos = shader_fragIndexed_source_string.find(";", 0);
-	while(scPos != string::npos)
-	{
-		shader_fragIndexed_source_string.insert(scPos+1, "\n");
-		scPos = shader_fragIndexed_source_string.find(";", scPos+1);
-	}
-
-	const char * shader_vert_source = shader_vert_source_string.data();
-	const char * shader_fragNonIndexed_source = shader_fragNonIndexed_source_string.data();
-	const char * shader_fragIndexed_source = shader_fragIndexed_source_string.data();
-
-	int len = 0;
-	len = shader_vert_source_string.length();
-	glShaderSource(shader_vert, 1, (const GLcharARB**)&shader_vert_source, &len);
-	len = shader_fragNonIndexed_source_string.length();
-	glShaderSource(shader_fragNonIndexed, 1, (const GLcharARB**)&shader_fragNonIndexed_source, &len);
-	len = shader_fragIndexed_source_string.length();
-	glShaderSource(shader_fragIndexed, 1, (const GLcharARB**)&shader_fragIndexed_source, &len);
-
-	//compile vertex shader
-	string shaderError = "";
-	GLint shaderStatus = GL_FALSE;
-	shaderError = compileShader(shader_vert);
-	glGetShaderiv(shader_vert, GL_COMPILE_STATUS, &shaderStatus);
-	if(shaderStatus == GL_TRUE)
-	{
-		if(shaderError.empty())
-		{
-			UpdateLog("Vertex shader compiled successfully.", false);
-		}
-		else
-		{
-			UpdateLog("Vertex shader compiled successfully with message: " + shaderError, false);
-		}
-	}
-	else if(shaderStatus == GL_FALSE)
-	{
-		if(shaderError.empty())
-		{
-			UpdateLog("Graphics device does not support GLSL shaders.", true);
-		}
-		else
-		{
-			UpdateLog("Error compiling vertex shader: " + shaderError, true);
-		}
-		return -1;
-	}
-	
-	//compile non-indexed fragment shader
-	shaderError = "";
-	shaderStatus = GL_FALSE;
-	shaderError = compileShader(shader_fragNonIndexed);
-	glGetShaderiv(shader_fragNonIndexed, GL_COMPILE_STATUS, &shaderStatus);
-	if(shaderStatus == GL_TRUE)
-	{
-		if(shaderError.empty())
-		{
-			UpdateLog("Non-Indexed fragment shader compiled successfully.", false);
-		}
-		else
-		{
-			UpdateLog("Non-Indexed fragment shader compiled successfully with message: " + shaderError, false);
-		}
-	}
-	else if(shaderStatus == GL_FALSE)
-	{
-		if(shaderError.empty())
-		{
-			UpdateLog("Graphics device does not support GLSL shaders.", true);
-		}
-		else
-		{
-			UpdateLog("Error compiling non-indexed fragment shader: " + shaderError, true);
-		}
-		return -1;
-	}
-	
-	//compile indexed fragment shader
-	shaderError = "";
-	shaderStatus = GL_FALSE;
-	shaderError = compileShader(shader_fragIndexed);
-	glGetShaderiv(shader_fragIndexed, GL_COMPILE_STATUS, &shaderStatus);
-	if(shaderStatus == GL_TRUE)
-	{
-		if(shaderError.empty())
-		{
-			UpdateLog("Indexed fragment shader compiled successfully.", false);
-		}
-		else
-		{
-			UpdateLog("Indexed fragment shader compiled successfully with message: " + shaderError, false);
-		}
-	}
-	else if(shaderStatus == GL_FALSE)
-	{
-		if(shaderError.empty())
-		{
-			UpdateLog("Graphics device does not support GLSL shaders.", true);
-		}
-		else
-		{
-			UpdateLog("Error compiling indexed fragment shader: " + shaderError, true);
-		}
-		return -1;
-	}
-
-	//link non-indexed program
-	glAttachShader(shader_progNonIndexed, shader_vert);
-	glAttachShader(shader_progNonIndexed, shader_fragNonIndexed);
-	
-	shaderError = "";
-	shaderStatus = GL_FALSE;
-	shaderError = linkProgram(shader_progNonIndexed);
-	glGetProgramiv(shader_progNonIndexed, GL_LINK_STATUS, &shaderStatus);
-	if(shaderStatus == GL_TRUE)
-	{
-		if(shaderError.empty())
-		{
-			UpdateLog("Non-Indexed shaders linked successfully.", false);
-		}
-		else
-		{
-			UpdateLog("Non-Indexed shaders linked successfully with message: " + shaderError, false);
-		}
-	}
-	else if(shaderStatus == GL_FALSE)
-	{
-		if(shaderError.empty())
-		{
-			UpdateLog("Graphics device does not support GLSL shaders.", true);
-		}
-		else
-		{
-			UpdateLog("Error linking non-indexed shaders: " + shaderError, true);
-		}
-		return -1;
-	}
-
-	//link indexed program
-	glAttachShader(shader_progIndexed, shader_vert);
-	glAttachShader(shader_progIndexed, shader_fragIndexed);
-	
-	shaderError = "";
-	shaderStatus = GL_FALSE;
-	shaderError = linkProgram(shader_progIndexed);
-	glGetProgramiv(shader_progIndexed, GL_LINK_STATUS, &shaderStatus);
-	if(shaderStatus == GL_TRUE)
-	{
-		if(shaderError.empty())
-		{
-			UpdateLog("Indexed shaders linked successfully.", false);
-		}
-		else
-		{
-			UpdateLog("Indexed shaders linked successfully with message: " + shaderError, false);
-		}
-	}
-	else if(shaderStatus == GL_FALSE)
-	{
-		if(shaderError.empty())
-		{
-			UpdateLog("Graphics device does not support GLSL shaders.", true);
-		}
-		else
-		{
-			UpdateLog("Error linking indexed shaders: " + shaderError, true);
-		}
-		return -1;
-	}
-
-	positionLocNonIndexed = glGetAttribLocation(shader_progNonIndexed, "position");
-	positionLocIndexed = glGetAttribLocation(shader_progIndexed, "position");
-	texCoordInLocNonIndexed = glGetAttribLocation(shader_progNonIndexed, "texCoordIn");
-	texCoordInLocIndexed = glGetAttribLocation(shader_progIndexed, "texCoordIn");
-
-	nonIndexedPosOffsetLoc = glGetUniformLocation(shader_progNonIndexed, "posOffset");
-	indexedPosOffsetLoc = glGetUniformLocation(shader_progIndexed, "posOffset");
-	nonIndexedScaleLoc = glGetUniformLocation(shader_progNonIndexed, "scale");
-	indexedScaleLoc = glGetUniformLocation(shader_progIndexed, "scale");
-	nonIndexedResolutionLoc = glGetUniformLocation(shader_progNonIndexed, "resolution");
-	indexedResolutionLoc = glGetUniformLocation(shader_progIndexed, "resolution");
-	nonIndexedResScaleLoc = glGetUniformLocation(shader_progNonIndexed, "resScale");
-	indexedResScaleLoc = glGetUniformLocation(shader_progIndexed, "resScale");
-	nonIndexedFocusPosLoc = glGetUniformLocation(shader_progNonIndexed, "focusPos");
-	indexedFocusPosLoc = glGetUniformLocation(shader_progIndexed, "focusPos");
-	nonIndexedZoomOutLoc = glGetUniformLocation(shader_progNonIndexed, "zoomOut");
-	indexedZoomOutLoc = glGetUniformLocation(shader_progIndexed, "zoomOut");
-	nonIndexedDepthLoc =  glGetUniformLocation(shader_progNonIndexed, "depth");
-	indexedDepthLoc =  glGetUniformLocation(shader_progIndexed, "depth");
-	nonIndexedTexLoc = glGetUniformLocation(shader_progNonIndexed, "tex");
-	indexedTexLoc = glGetUniformLocation(shader_progIndexed, "tex");
-	paletteLoc = glGetUniformLocation(shader_progIndexed, "palette");
-
-	ChangeShaderProgram(shader_progNonIndexed);
-	glUniform2f(nonIndexedResolutionLoc, (float)gameResolutionX, (float)gameResolutionY);
-	glUniform1f(nonIndexedResScaleLoc, resolutionScale);
-	
-	ChangeShaderProgram(shader_progIndexed);
-	glUniform2f(indexedResolutionLoc, (float)gameResolutionX, (float)gameResolutionY);
-	glUniform1f(indexedResScaleLoc, resolutionScale);
-
-	ChangeShaderProgram(0);
-
-	//set up some VBO stuff
-	if(texCoordBufferID == 0)
-	{
-		GLfloat * texCoord = new GLfloat[8];
-		texCoord[0] = 0.0f;	texCoord[1] = 1.0f;
-		texCoord[2] = 1.0f;	texCoord[3] = 1.0f;
-		texCoord[4] = 1.0f;	texCoord[5] = 0.0f;
-		texCoord[6] = 0.0f;	texCoord[7] = 0.0f;
-
-		glGenBuffers(1, &texCoordBufferID);
-		glBindBuffer(GL_ARRAY_BUFFER, texCoordBufferID);
-		glBufferData(GL_ARRAY_BUFFER, 8*sizeof(GLfloat), texCoord, GL_STATIC_DRAW);
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-		delete[] texCoord;
-	}
-
-	if(elementArrayBufferID == 0)
-	{
-		GLubyte * eArray = new GLubyte[6];
-		eArray[0] = 0; eArray[1] = 1; eArray[2] = 3;
-		eArray[3] = 1; eArray[4] = 2; eArray[5] = 3;
-
-		glGenBuffers(1, &elementArrayBufferID);
-		glBindBuffer(GL_ARRAY_BUFFER, elementArrayBufferID);
-		glBufferData(GL_ARRAY_BUFFER, 6*sizeof(GLubyte), eArray, GL_STATIC_DRAW);
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-		delete[] eArray;
-	}
-
-	if(!objectManager->openGL3)
-	{
-		//bind universal things to the default vertex array object
-		glEnableVertexAttribArray(positionLocNonIndexed);
-		if(positionLocNonIndexed != positionLocIndexed)
-		{
-			glEnableVertexAttribArray(positionLocIndexed);
-		}
-		glEnableVertexAttribArray(texCoordInLocNonIndexed);
-		if(texCoordInLocNonIndexed != texCoordInLocIndexed)
-		{
-			glEnableVertexAttribArray(texCoordInLocIndexed);
-		}
-
-		glBindBuffer(GL_ARRAY_BUFFER, texCoordBufferID);
-		glVertexAttribPointer(texCoordInLocNonIndexed, 2, GL_FLOAT, GL_FALSE, 0, (void*)0);
-		if(texCoordInLocNonIndexed != texCoordInLocIndexed)
-		{
-			glVertexAttribPointer(texCoordInLocIndexed, 2, GL_FLOAT, GL_FALSE, 0, (void*)0);
-		}
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementArrayBufferID);
-	}
-
-	if(objectManager->textureRegistry.size() > 0)
-	{
-		//need to reload all textures
-		list<HSTexture*>::iterator trIt;
-		for ( trIt=objectManager->textureRegistry.begin(); trIt != objectManager->textureRegistry.end(); trIt++)
-		{
-			if(int error = LoadTGAToTexture((*trIt), objectManager->openGL3, (*trIt)->ownPalette != NULL) != 0)
-			{
-				return error;
-			}
-		}
-	}
-
-	if(objectManager->paletteRegistry.size() > 0)
-	{
-		//need to reload all palettes
-		list<HSPalette*>::iterator palIt;
-		for ( palIt=objectManager->paletteRegistry.begin(); palIt != objectManager->paletteRegistry.end(); palIt++)
-		{
-			if(int error = LoadHSPToPalette((*palIt)) != 0)
-			{
-				return error;
-			}
-		}
-	}
-
-	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxTexDimension);
-
-	GLenum glError = glGetError();
-	if(glError != GL_NO_ERROR)
-	{
-		string glErrorString = "OpenGL error in SetFullScreen(): " + GetGLErrorText(glError);
-		UpdateLog(glErrorString, true);
-	}
-
-	return 0;
+    objectManager->notDone = false;
 }
 
 void Main::User(Uint8 type, int code, void* data1, void* data2) 
 {
     string blah = "";
+}
+
+int RenderThreadControl(void *data)
+{
+	if(data == NULL) { return -1; }
+
+	RenderingManager * rm = new RenderingManager((ObjectManager*)data);
+
+	return rm->Execute();
 }
 
 //main
@@ -6747,20 +5142,6 @@ int main( int argc, char* argv[] )
 
 	Main * theGame = new Main();
 	int error = theGame->Execute();
-	
-	//output the error code, if there was one
-	string errorText = "Application exited with no errors.\n\n";
-	if(error != 0)
-	{
-		errorText = "An error occured while running the application. See log for details.\n\n";
-	}
-
-	errorText = errorText + "Log:\n" + HSLog;
-
-	ofstream file;
-	file.open("log.txt");
-	file << errorText;
-	file.close();
 
 	return error;
 }

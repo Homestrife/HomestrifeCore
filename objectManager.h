@@ -37,6 +37,43 @@ class ObjectManager
 {
 public:
 	ObjectManager();
+	
+	bool notDone;
+	SDL_Thread * renderingThread;
+	bool doRender;
+	bool applyVideoSettings;
+	bool centerCameraInstantly;
+	bool matchCamera;
+	bool loadTexturesAndPalettes;
+	bool clearTexturesAndPalettes;
+	int renderingErrorCode;
+	
+	list<GLuint> texturesToDelete;
+	list<GLuint> buffersToDelete;
+	list<GLuint> vaosToDelete;
+	list<GLuint> palettesToDelete;
+
+	SDL_mutex * vidInitLock;
+	SDL_cond * vidInitDone;
+
+	SDL_mutex * renderLock;
+	SDL_cond * renderDone;
+
+	SDL_mutex * processLock;
+	SDL_cond * processDone;
+	
+	bool fullScreen;
+	bool fullScreenToApply;
+	bool stretchScreen;
+	bool stretchScreenToApply;
+	int windowedResolutionX;
+	int windowedResolutionY;
+	int windowedResolutionXToApply;
+	int windowedResolutionYToApply;
+	int fullscreenResolutionX;
+	int fullscreenResolutionY;
+	int fullscreenResolutionXToApply;
+	int fullscreenResolutionYToApply;
 
 	unsigned int newObjectId;
 
@@ -142,6 +179,14 @@ public:
 	int LoadPlayableStages();
 	void PreviousStage();
 	void NextStage();
+
+	void MakeVideoSettingsInvisible();
+	void SetVideoSettingVisibility();
+	void NextFullscreenResolution();
+	void PrevFullscreenResolution();
+	void NextWindowedResolution();
+	void PrevWindowedResolution();
+	int ApplyVideoSettings();
 
 	int CloneObject(SpawnObject * objectToClone, list<HSObject*> * objects, HSObject ** returnValue = NULL);
 	int CloneObject(HSObject * objectToClone, list<HSObject*> * objects, HSObject ** returnValue = NULL);

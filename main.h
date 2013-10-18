@@ -1,28 +1,16 @@
 #ifndef __MAIN_H_
 #define __MAIN_H_
 
-#include <iostream>
-#include <fstream>
 #include "fighter.h"
 #include "HUD.h"
 #include "menu.h"
 #include "menuManager.h"
 #include "objectManager.h"
+#include "renderingManager.h"
 
-#define TARGET_FPS 60
-#define MAX_GAME_RESOLUTION_X 1920
-#define MAX_GAME_RESOLUTION_Y 1080
-#define MIN_GAME_RESOLUTION_X 640
-#define MIN_GAME_RESOLUTION_Y 360
-#define GAME_ASPECT_RATIO_X 16
-#define GAME_ASPECT_RATIO_Y 9
 #define MAX_INPUT_HISTORY 60
 #define STICK_THRESHOLD 18000 //how far a stick must be tilted before it actually registers as a direction being "pressed"
 #define STICK_HARD_THRESHOLD 32700 //how far a stick must be tilted before it actually registers as a direction being pressed hard
-
-#define PAN_DIVIDER 5
-#define ZOOM_BOUNDARY_X_THRESHOLD 1152
-#define ZOOM_BOUNDARY_Y_THRESHOLD 648
 
 #define MAIN_MENU_HEADER_HEIGHT 43
 #define MAIN_MENU_CURSOR_WIDTH 35
@@ -55,6 +43,8 @@
 
 #define JOYSTICK_UNKNOWN 1000
 #define JOYBUTTON_UNKNOWN 1000
+
+int RenderThreadControl(void *data);
 
 enum GameState
 {
@@ -179,10 +169,9 @@ public:
 	int Execute();
 
 protected:
-	string currentWorkingDirectory;
-
 	ObjectManager * objectManager;
-
+	RenderingManager * renderingManager;
+	
 	GameState gameState;
 	MainMenuState mainMenuState;
 	GameType gameType;
@@ -192,68 +181,18 @@ protected:
 	MatchPlayerState matchPlayerState[MAX_PLAYERS];
 	PauseMenuState pauseMenuState;
 
-	GLuint currentShaderProgramID;
-	int nonIndexedPosOffsetLoc;
-	int indexedPosOffsetLoc;
-	int nonIndexedScaleLoc;
-	int indexedScaleLoc;
-	int nonIndexedResolutionLoc;
-	int indexedResolutionLoc;
-	int nonIndexedResScaleLoc;
-	int indexedResScaleLoc;
-	int nonIndexedFocusPosLoc;
-	int indexedFocusPosLoc;
-	int nonIndexedZoomOutLoc;
-	int indexedZoomOutLoc;
-	int nonIndexedDepthLoc;
-	int indexedDepthLoc;
-	int nonIndexedTexLoc;
-	int indexedTexLoc;
-	int paletteLoc;
-	bool notDone;
-	SDL_Window* surf_display;
-	SDL_DisplayMode startDisplayMode;
-	SDL_DisplayMode curDisplayMode;
-	float resolutionScale;
-	bool fullScreen;
-	bool fullScreenToApply;
-	bool stretchScreen;
-	bool stretchScreenToApply;
-	int windowedResolutionX;
-	int windowedResolutionY;
-	int windowedResolutionXToApply;
-	int windowedResolutionYToApply;
-	int fullscreenResolutionX;
-	int fullscreenResolutionY;
-	int fullscreenResolutionXToApply;
-	int fullscreenResolutionYToApply;
-
 	list<SDL_Joystick*> sticks;
-
-	float zoomOut;
-	HSVect2D focusPos;
 
 	unsigned int lastFrameTicks;
 	unsigned int frame;
 
-	int DropToHighestValidFullscreenResolution();
-	int DropToHighestValidWindowedResolution();
-	int SetBestGameResolution();
-	int SetBestDisplayMode();
-	int ReturnToStartDisplayMode();
-	void ChangeShaderProgram(GLuint programID);
-
 	int Initialize();
-	int InitializeGraphics();
 	void DebugOutput();
 	int AdvanceHolds();
 	int Event();
 	int Update();
 	int Collide();
 	int SpawnObjects();
-	void AdjustCamera(bool adjustInstantly);
-	int Render();
-	int RenderTexture(HSObject * obj, TextureInstance tex); 
 	int PlayAudio();
 	int PlayAudio(list<HSObject*> * objects);
 	int DeleteObjects();
@@ -269,13 +208,6 @@ protected:
 	int ChangeMainMenuState(MainMenuState newState);
 	int EventMainMenu(InputStates * inputHistory, int frame);
 	int UpdateMainMenu();
-	void MakeVideoSettingsInvisible();
-	void SetVideoSettingVisibility();
-	void NextFullscreenResolution();
-	void PrevFullscreenResolution();
-	void NextWindowedResolution();
-	void PrevWindowedResolution();
-	int ApplyVideoSettings();
 
 	int InitializeCharacterSelect();
 	int ChangeCharacterSelectState(CharacterSelectState newState);
@@ -304,15 +236,15 @@ protected:
 	int playerToSetUp;
 	int keyToSetUp;
 
-	void DefaultConfig();
-	int LoadConfig();
+	void DefaultKeyConfig();
+	int LoadKeyConfig();
 	void LoadPlayerConfig(XMLElement * config, int player);
 	bool LoadToKeyConfig(string config, SDL_Keycode * key);
 	bool LoadToJoyButtonConfig(string config, JoystickMapping * joyButton);
 	bool LoadToHatConfig(string config, Uint8 * hat);
 	bool LoadToStickConfig(string config, Uint8 * stick);
 
-	int SaveConfig();
+	int SaveKeyConfig();
 	void SetPlayerConfig(XMLElement * config, int player);
 	string GetKeyConfigString(SDL_Keycode key);
 	string GetJoyButtonConfigString(JoystickMapping joyButton);
@@ -355,8 +287,6 @@ protected:
     void Resize(int w,int h);
     void Expose();
     void Exit();
-	int ToggleFullScreen();
-	int SetFullScreen(bool newFullScreen);
     void User(Uint8 type, int code, void* data1, void* data2);
 };
 

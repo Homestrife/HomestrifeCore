@@ -4,6 +4,43 @@ list<CurrentAudioEntry*> currentAudio;
 
 ObjectManager::ObjectManager()
 {
+	notDone = true;
+	renderingThread = NULL;
+	doRender = false;
+	applyVideoSettings = false;
+	centerCameraInstantly = false;
+	matchCamera = false;
+	loadTexturesAndPalettes = false;
+	clearTexturesAndPalettes = false;
+	renderingErrorCode = 0;
+
+	texturesToDelete.clear();
+	buffersToDelete.clear();
+	vaosToDelete.clear();
+	palettesToDelete.clear();
+
+	vidInitLock = NULL;
+	vidInitDone = NULL;
+
+	renderLock = NULL;
+	renderDone = NULL;
+
+	processLock = NULL;
+	processDone = NULL;
+	
+	fullScreen = false;
+	fullScreenToApply = false;
+	stretchScreen = false;
+	stretchScreenToApply = false;
+	windowedResolutionX = 0;
+	windowedResolutionY = 0;
+	windowedResolutionXToApply = 0;
+	windowedResolutionYToApply = 0;
+	fullscreenResolutionX = 0;
+	fullscreenResolutionY = 0;
+	fullscreenResolutionXToApply = 0;
+	fullscreenResolutionYToApply = 0;
+
 	stageObjectsNeedSort = false;
 	BGSpawnedObjectsNeedSort = false;
 	fighterObjectsNeedSort = false;
@@ -339,11 +376,12 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 					HSPalette * newPal = new HSPalette();
 					newPal->usingCount = 0;
 					newPal->paletteFilePath = palFilePath;
+					newPal->textureID = 0;
 
-					if(int error = LoadHSPToPalette(newPal) != 0) //load the texture
-					{
-						return error;
-					}
+					//if(int error = LoadHSPToPalette(newPal) != 0) //load the texture
+					//{
+					//	return error;
+					//}
 
 					paletteRegistry.push_back(newPal);
 					newPalInst.hsPal = newPal;
@@ -970,11 +1008,13 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 							newTex->usingCount = 1;
 							newTex->textureFilePath = textureFilePath;
 							newTex->ownPalette = NULL;
+							newTex->textureSlices.clear();
+							newTex->useTGAPalette = newObject->useTGAPalettes;
 
-							if(int error = LoadTGAToTexture(newTex, openGL3, newObject->useTGAPalettes) != 0) //load the texture
-							{
-								return error;
-							}
+							//if(int error = LoadTGAToTexture(newTex, openGL3, newObject->useTGAPalettes) != 0) //load the texture
+							//{
+							//	return error;
+							//}
 
 							newTexInst.hsTex = newTex;
 							textureRegistry.push_back(newTex);
@@ -1682,6 +1722,293 @@ void ObjectManager::NextStage()
 	}
 }
 
+void ObjectManager::MakeVideoSettingsInvisible()
+{
+	fullscreenYes->visible = false;
+	fullscreenNo->visible = false;
+	stretchYes->visible = false;
+	stretchNo->visible = false;
+	fullscreen640x360->visible = false;
+	fullscreen800x450->visible = false;
+	fullscreen1024x576->visible = false;
+	fullscreen1152x648->visible = false;
+	fullscreen1280x720->visible = false;
+	fullscreen1360x765->visible = false;
+	fullscreen1366x768->visible = false;
+	fullscreen1400x787->visible = false;
+	fullscreen1440x810->visible = false;
+	fullscreen1600x900->visible = false;
+	fullscreen1680x945->visible = false;
+	fullscreen1920x1080->visible = false;
+	windowed640x360->visible = false;
+	windowed800x450->visible = false;
+	windowed1024x576->visible = false;
+	windowed1152x648->visible = false;
+	windowed1280x720->visible = false;
+	windowed1360x765->visible = false;
+	windowed1366x768->visible = false;
+	windowed1400x787->visible = false;
+	windowed1440x810->visible = false;
+	windowed1600x900->visible = false;
+	windowed1680x945->visible = false;
+	windowed1920x1080->visible = false;
+}
+
+void ObjectManager::SetVideoSettingVisibility()
+{
+	MakeVideoSettingsInvisible();
+
+	if(fullScreenToApply) { fullscreenYes->visible = true; }
+	else { fullscreenNo->visible = true; }
+	if(stretchScreenToApply) { stretchYes->visible = true; }
+	else { stretchNo->visible = true; }
+	if(fullscreenResolutionXToApply == 640) { fullscreen640x360->visible = true; }
+	else if(fullscreenResolutionXToApply == 800) { fullscreen800x450->visible = true; }
+	else if(fullscreenResolutionXToApply == 1024) { fullscreen1024x576->visible = true; }
+	else if(fullscreenResolutionXToApply == 1152) { fullscreen1152x648->visible = true; }
+	else if(fullscreenResolutionXToApply == 1280) { fullscreen1280x720->visible = true; }
+	else if(fullscreenResolutionXToApply == 1360) { fullscreen1360x765->visible = true; }
+	else if(fullscreenResolutionXToApply == 1366) { fullscreen1366x768->visible = true; }
+	else if(fullscreenResolutionXToApply == 1400) { fullscreen1400x787->visible = true; }
+	else if(fullscreenResolutionXToApply == 1440) { fullscreen1440x810->visible = true; }
+	else if(fullscreenResolutionXToApply == 1600) { fullscreen1600x900->visible = true; }
+	else if(fullscreenResolutionXToApply == 1680) { fullscreen1680x945->visible = true; }
+	else if(fullscreenResolutionXToApply == 1920) { fullscreen1920x1080->visible = true; }
+	if(windowedResolutionXToApply == 640) { windowed640x360->visible = true; }
+	else if(windowedResolutionXToApply == 800) { windowed800x450->visible = true; }
+	else if(windowedResolutionXToApply == 1024) { windowed1024x576->visible = true; }
+	else if(windowedResolutionXToApply == 1152) { windowed1152x648->visible = true; }
+	else if(windowedResolutionXToApply == 1280) { windowed1280x720->visible = true; }
+	else if(windowedResolutionXToApply == 1360) { windowed1360x765->visible = true; }
+	else if(windowedResolutionXToApply == 1366) { windowed1366x768->visible = true; }
+	else if(windowedResolutionXToApply == 1400) { windowed1400x787->visible = true; }
+	else if(windowedResolutionXToApply == 1440) { windowed1440x810->visible = true; }
+	else if(windowedResolutionXToApply == 1600) { windowed1600x900->visible = true; }
+	else if(windowedResolutionXToApply == 1680) { windowed1680x945->visible = true; }
+	else if(windowedResolutionXToApply == 1920) { windowed1920x1080->visible = true; }
+}
+
+void ObjectManager::NextFullscreenResolution()
+{
+	if(fullscreenResolutionXToApply == 1920)
+	{
+		fullscreenResolutionXToApply = 640; fullscreenResolutionYToApply = 360;
+	}
+	else if(fullscreenResolutionXToApply == 1680)
+	{
+		fullscreenResolutionXToApply = 1920; fullscreenResolutionYToApply = 1080;
+	}
+	else if(fullscreenResolutionXToApply == 1600)
+	{
+		fullscreenResolutionXToApply = 1680; fullscreenResolutionYToApply = 945;
+	}
+	else if(fullscreenResolutionXToApply == 1440)
+	{
+		fullscreenResolutionXToApply = 1600; fullscreenResolutionYToApply = 900;
+	}
+	else if(fullscreenResolutionXToApply == 1400)
+	{
+		fullscreenResolutionXToApply = 1440; fullscreenResolutionYToApply = 810;
+	}
+	else if(fullscreenResolutionXToApply == 1366)
+	{
+		fullscreenResolutionXToApply = 1400; fullscreenResolutionYToApply = 787;
+	}
+	else if(fullscreenResolutionXToApply == 1360)
+	{
+		fullscreenResolutionXToApply = 1366; fullscreenResolutionYToApply = 768;
+	}
+	else if(fullscreenResolutionXToApply == 1280)
+	{
+		fullscreenResolutionXToApply = 1360; fullscreenResolutionYToApply = 765;
+	}
+	else if(fullscreenResolutionXToApply == 1152)
+	{
+		fullscreenResolutionXToApply = 1280; fullscreenResolutionYToApply = 720;
+	}
+	else if(fullscreenResolutionXToApply == 1024)
+	{
+		fullscreenResolutionXToApply = 1152; fullscreenResolutionYToApply = 648;
+	}
+	else if(fullscreenResolutionXToApply == 800)
+	{
+		fullscreenResolutionXToApply = 1024; fullscreenResolutionYToApply = 576;
+	}
+	else if(fullscreenResolutionXToApply == 640)
+	{
+		fullscreenResolutionXToApply = 800; fullscreenResolutionYToApply = 450;
+	}
+}
+
+void ObjectManager::PrevFullscreenResolution()
+{
+	if(fullscreenResolutionXToApply == 1920)
+	{
+		fullscreenResolutionXToApply = 1680; fullscreenResolutionYToApply = 945;
+	}
+	else if(fullscreenResolutionXToApply == 1680)
+	{
+		fullscreenResolutionXToApply = 1600; fullscreenResolutionYToApply = 900;
+	}
+	else if(fullscreenResolutionXToApply == 1600)
+	{
+		fullscreenResolutionXToApply = 1440; fullscreenResolutionYToApply = 810;
+	}
+	else if(fullscreenResolutionXToApply == 1440)
+	{
+		fullscreenResolutionXToApply = 1400; fullscreenResolutionYToApply = 787;
+	}
+	else if(fullscreenResolutionXToApply == 1400)
+	{
+		fullscreenResolutionXToApply = 1366; fullscreenResolutionYToApply = 768;
+	}
+	else if(fullscreenResolutionXToApply == 1366)
+	{
+		fullscreenResolutionXToApply = 1360; fullscreenResolutionYToApply = 765;
+	}
+	else if(fullscreenResolutionXToApply == 1360)
+	{
+		fullscreenResolutionXToApply = 1280; fullscreenResolutionYToApply = 720;
+	}
+	else if(fullscreenResolutionXToApply == 1280)
+	{
+		fullscreenResolutionXToApply = 1152; fullscreenResolutionYToApply = 648;
+	}
+	else if(fullscreenResolutionXToApply == 1152)
+	{
+		fullscreenResolutionXToApply = 1024; fullscreenResolutionYToApply = 576;
+	}
+	else if(fullscreenResolutionXToApply == 1024)
+	{
+		fullscreenResolutionXToApply = 800; fullscreenResolutionYToApply = 450;
+	}
+	else if(fullscreenResolutionXToApply == 800)
+	{
+		fullscreenResolutionXToApply = 640; fullscreenResolutionYToApply = 360;
+	}
+	else if(fullscreenResolutionXToApply == 640)
+	{
+		fullscreenResolutionXToApply = 1920; fullscreenResolutionYToApply = 1080;
+	}
+}
+
+void ObjectManager::NextWindowedResolution()
+{
+	if(windowedResolutionXToApply == 1920)
+	{
+		windowedResolutionXToApply = 640; windowedResolutionYToApply = 360;
+	}
+	else if(windowedResolutionXToApply == 1680)
+	{
+		windowedResolutionXToApply = 1920; windowedResolutionYToApply = 1080;
+	}
+	else if(windowedResolutionXToApply == 1600)
+	{
+		windowedResolutionXToApply = 1680; windowedResolutionYToApply = 945;
+	}
+	else if(windowedResolutionXToApply == 1440)
+	{
+		windowedResolutionXToApply = 1600; windowedResolutionYToApply = 900;
+	}
+	else if(windowedResolutionXToApply == 1400)
+	{
+		windowedResolutionXToApply = 1440; windowedResolutionYToApply = 810;
+	}
+	else if(windowedResolutionXToApply == 1366)
+	{
+		windowedResolutionXToApply = 1400; windowedResolutionYToApply = 787;
+	}
+	else if(windowedResolutionXToApply == 1360)
+	{
+		windowedResolutionXToApply = 1366; windowedResolutionYToApply = 768;
+	}
+	else if(windowedResolutionXToApply == 1280)
+	{
+		windowedResolutionXToApply = 1360; windowedResolutionYToApply = 765;
+	}
+	else if(windowedResolutionXToApply == 1152)
+	{
+		windowedResolutionXToApply = 1280; windowedResolutionYToApply = 720;
+	}
+	else if(windowedResolutionXToApply == 1024)
+	{
+		windowedResolutionXToApply = 1152; windowedResolutionYToApply = 648;
+	}
+	else if(windowedResolutionXToApply == 800)
+	{
+		windowedResolutionXToApply = 1024; windowedResolutionYToApply = 576;
+	}
+	else if(windowedResolutionXToApply == 640)
+	{
+		windowedResolutionXToApply = 800; windowedResolutionYToApply = 450;
+	}
+}
+
+void ObjectManager::PrevWindowedResolution()
+{
+	if(windowedResolutionXToApply == 1920)
+	{
+		windowedResolutionXToApply = 1680; windowedResolutionYToApply = 945;
+	}
+	else if(windowedResolutionXToApply == 1680)
+	{
+		windowedResolutionXToApply = 1600; windowedResolutionYToApply = 900;
+	}
+	else if(windowedResolutionXToApply == 1600)
+	{
+		windowedResolutionXToApply = 1440; windowedResolutionYToApply = 810;
+	}
+	else if(windowedResolutionXToApply == 1440)
+	{
+		windowedResolutionXToApply = 1400; windowedResolutionYToApply = 787;
+	}
+	else if(windowedResolutionXToApply == 1400)
+	{
+		windowedResolutionXToApply = 1366; windowedResolutionYToApply = 768;
+	}
+	else if(windowedResolutionXToApply == 1366)
+	{
+		windowedResolutionXToApply = 1360; windowedResolutionYToApply = 765;
+	}
+	else if(windowedResolutionXToApply == 1360)
+	{
+		windowedResolutionXToApply = 1280; windowedResolutionYToApply = 720;
+	}
+	else if(windowedResolutionXToApply == 1280)
+	{
+		windowedResolutionXToApply = 1152; windowedResolutionYToApply = 648;
+	}
+	else if(windowedResolutionXToApply == 1152)
+	{
+		windowedResolutionXToApply = 1024; windowedResolutionYToApply = 576;
+	}
+	else if(windowedResolutionXToApply == 1024)
+	{
+		windowedResolutionXToApply = 800; windowedResolutionYToApply = 450;
+	}
+	else if(windowedResolutionXToApply == 800)
+	{
+		windowedResolutionXToApply = 640; windowedResolutionYToApply = 360;
+	}
+	else if(windowedResolutionXToApply == 640)
+	{
+		windowedResolutionXToApply = 1920; windowedResolutionYToApply = 1080;
+	}
+}
+
+int ObjectManager::ApplyVideoSettings()
+{
+	stretchScreen = stretchScreenToApply;
+	fullscreenResolutionX = fullscreenResolutionXToApply;
+	fullscreenResolutionY = fullscreenResolutionYToApply;
+	windowedResolutionX = windowedResolutionXToApply;
+	windowedResolutionY = windowedResolutionYToApply;
+
+	applyVideoSettings = true;
+
+	return 0;
+}
+
 int ObjectManager::CloneObject(SpawnObject * objectToClone, list<HSObject*> * objects, HSObject ** returnValue)
 {
 	if(objectToClone == NULL) { return 0; }
@@ -2332,17 +2659,17 @@ int ObjectManager::ClearAllObjects()
 		{
 			if((*tsIt)->bufferID != 0)
 			{
-				glDeleteBuffers(1, &(*tsIt)->bufferID);
+				buffersToDelete.push_back((*tsIt)->bufferID);
 				(*tsIt)->bufferID = 0;
 			}
 			if((*tsIt)->vaoID != 0)
 			{
-				glDeleteVertexArrays(1, &(*tsIt)->vaoID);
+				vaosToDelete.push_back((*tsIt)->vaoID);
 				(*tsIt)->vaoID = 0;
 			}
 			if((*tsIt)->textureID != 0)
 			{
-				glDeleteTextures(1, &(*tsIt)->textureID);
+				texturesToDelete.push_back((*tsIt)->textureID);
 				(*tsIt)->textureID = 0;
 			}
 			delete (*tsIt);
@@ -2357,13 +2684,15 @@ int ObjectManager::ClearAllObjects()
 	{
 		if((*palIt)->textureID != 0)
 		{
-			glDeleteTextures(1, &(*palIt)->textureID);
+			palettesToDelete.push_back((*palIt)->textureID);
 			(*palIt)->textureID = 0;
 		}
 		delete (*palIt);
 	}
 
 	paletteRegistry.clear();
+
+	clearTexturesAndPalettes = true;
 
 	list<HSAudio*>::iterator audIt;
 	for ( audIt=audioRegistry.begin(); audIt != audioRegistry.end(); audIt++)

@@ -58,6 +58,7 @@ struct HSTexture
 	list<HSTextureSlice*> textureSlices;
 	int usingCount; //number of holds using this
 	HSPalette * ownPalette; //the palette data contained within the tga file
+	bool useTGAPalette;
 	bool indexed; //whether or not the texture is indexed
 	bool rightAlign; //whether or not drawing should start from the right
 	bool topAlign; //whether or not drawing should start from the top
