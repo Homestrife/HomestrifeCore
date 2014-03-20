@@ -98,6 +98,7 @@ HSObject::HSObject()
 	firstHold = NULL;
 	lastHold = NULL;
 	curHold = NULL;
+	numHolds = 0;
 	parent = NULL;
 	followParent = false;
 	hFlip = false;
@@ -243,6 +244,8 @@ int HSObject::AdvanceHolds()
 {
 	objectsSpawned = false;
 	audioPlayed = false;
+
+	if(numHolds <= 1) { return 0; } //assume this hold is infinite
 
 	//handle holds
 	if(curHold->duration > 0)

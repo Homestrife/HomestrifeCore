@@ -5,7 +5,6 @@
 #include <fstream>
 #include "fighter.h"
 #include "HUD.h"
-#include "menu.h"
 #include "menuManager.h"
 
 #define MAX_PLAYERS 4
@@ -74,6 +73,12 @@ public:
 	int fullscreenResolutionY;
 	int fullscreenResolutionXToApply;
 	int fullscreenResolutionYToApply;
+	bool needApplyWindowedResolutionForMenu;
+	int windowedResolutionXForMenu;
+	int windowedResolutionYForMenu;
+	bool needApplyFullscreenResolutionForMenu;
+	int fullscreenResolutionXForMenu;
+	int fullscreenResolutionYForMenu;
 
 	unsigned int newObjectId;
 
@@ -90,6 +95,7 @@ public:
 	list<HSTexture*> textureRegistry;
 	list<HSPalette*> paletteRegistry;
 	list<HSAudio*> audioRegistry;
+	list<HSFont*> fontRegistry;
 	bool openGL3;
 	SDL_AudioSpec * obtainedAudioSpec;
 	
@@ -173,6 +179,12 @@ public:
 
 	int LoadDefinition(string defFilePath, list<HSObject*> * objects, HSObject ** returnValue = NULL);
 	int LoadStage(string defFilePath);
+	int LoadHSMenu(string defFilePath, HSVect2D menuPos, HSMenu ** returnValue = NULL);
+	int LoadMenuChooser(string defFilePath, HSFont * font, MenuChooser ** returnValue = NULL);
+	int CreateMenuKeySetting(HSFont * font, MenuKeySetting ** returnValue = NULL);
+	int LoadHSFont(string defFilePath, HSFont ** returnValue = NULL);
+	int LoadHSCharacter(XMLElement * xml, HSCharacter * hsChar);
+
 	int LoadPlayableCharacters(bool loadPlayer[MAX_PLAYERS]);
 	void PreviousCharacter(int player);
 	void NextCharacter(int player);
@@ -180,12 +192,7 @@ public:
 	void PreviousStage();
 	void NextStage();
 
-	void MakeVideoSettingsInvisible();
-	void SetVideoSettingVisibility();
-	void NextFullscreenResolution();
-	void PrevFullscreenResolution();
-	void NextWindowedResolution();
-	void PrevWindowedResolution();
+	void UpdateMenu();
 	int ApplyVideoSettings();
 
 	int CloneObject(SpawnObject * objectToClone, list<HSObject*> * objects, HSObject ** returnValue = NULL);

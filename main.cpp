@@ -12,14 +12,13 @@ Main::Main()
 	renderingManager = new RenderingManager(objectManager);
 	
 	gameState = MAIN_MENU;
-	mainMenuState = TOP;
 	gameType = FREE_FOR_ALL_2;
+	bindingKey = BINDING_NONE;
 
 	lastFrameTicks = 0;
 	frame = 0;
 
 	playerToSetUp = -1;
-	keyToSetUp = -1;
 
 	//set up the default input states
 	defaultInputs.bKeyUp.held = false; defaultInputs.bKeyUp.pressed = false; defaultInputs.bKeyUp.released = false;
@@ -468,7 +467,7 @@ int Main::SpawnObjects()
 		list<SpawnObject*>::iterator spawnIt;
 		for(spawnIt = spawnObjects.begin(); spawnIt != spawnObjects.end(); spawnIt++)
 		{
-			objectManager->CloneObject((*spawnIt), &objectManager->FGSpawnedObjects);
+			if(int error = objectManager->CloneObject((*spawnIt), &objectManager->FGSpawnedObjects) != 0) { return error; }
 		}
 	}
 	for ( objIt=objectManager->BGSpawnedObjects.begin(); objIt != objectManager->BGSpawnedObjects.end(); objIt++)
@@ -478,7 +477,7 @@ int Main::SpawnObjects()
 		list<SpawnObject*>::iterator spawnIt;
 		for(spawnIt = spawnObjects.begin(); spawnIt != spawnObjects.end(); spawnIt++)
 		{
-			objectManager->CloneObject((*spawnIt), &objectManager->FGSpawnedObjects);
+			if(int error = objectManager->CloneObject((*spawnIt), &objectManager->FGSpawnedObjects) != 0) { return error; }
 		}
 	}
 	for ( objIt=objectManager->fighterObjects.begin(); objIt != objectManager->fighterObjects.end(); objIt++)
@@ -488,7 +487,7 @@ int Main::SpawnObjects()
 		list<SpawnObject*>::iterator spawnIt;
 		for(spawnIt = spawnObjects.begin(); spawnIt != spawnObjects.end(); spawnIt++)
 		{
-			objectManager->CloneObject((*spawnIt), &objectManager->FGSpawnedObjects);
+			if(int error = objectManager->CloneObject((*spawnIt), &objectManager->FGSpawnedObjects) != 0) { return error; }
 		}
 	}
 	for ( objIt=objectManager->FGSpawnedObjects.begin(); objIt != objectManager->FGSpawnedObjects.end(); objIt++)
@@ -498,11 +497,75 @@ int Main::SpawnObjects()
 		list<SpawnObject*>::iterator spawnIt;
 		for(spawnIt = spawnObjects.begin(); spawnIt != spawnObjects.end(); spawnIt++)
 		{
-			objectManager->CloneObject((*spawnIt), &objectManager->FGSpawnedObjects);
+			if(int error = objectManager->CloneObject((*spawnIt), &objectManager->FGSpawnedObjects) != 0) { return error; }
 		}
 	}
 
 	objectManager->SortAllObjects();
+
+	if(objectManager->menuManager == NULL) { return 0; }
+
+	if(int error = SpawnMenus(objectManager->menuManager->GetRoot()) != 0) { return error; }
+
+	return 0;
+}
+
+int Main::SpawnMenus(HSMenu * menu)
+{
+	if(menu == NULL) { return 0; }
+
+	if(int error = SpawnText(menu) != 0) { return error; }
+
+	if(menu->needToSpawnCursor)
+	{
+		if(int error = objectManager->CloneObject(menu->cursorToClone, &objectManager->HUDObjects, &menu->activeCursor) != 0) { return error; }
+		menu->activeCursor->pos.x = menu->cursorToClone->pos.x;
+		menu->activeCursor->pos.y = menu->cursorToClone->pos.y;
+		menu->needToSpawnCursor = false;
+	}
+
+	if(!menu->itemNeedToSpawnText) { return 0; }
+
+	list<HSMenuItem*>::iterator miIt;
+	for(miIt = menu->items.begin(); miIt != menu->items.end(); miIt++)
+	{
+		if(int error = SpawnText((*miIt)) != 0) { return error; }
+
+		if((*miIt)->childNeedToSpawnText)
+		{
+			if(int error = SpawnMenus((*miIt)->child) != 0) { return error; }
+			(*miIt)->childNeedToSpawnText = false;
+		}
+
+		if((*miIt)->chooserOrKeySettingNeedToSpawnText)
+		{
+			if(int error = SpawnText((*miIt)->chooser) != 0) { return error; }
+			if(int error = SpawnText((*miIt)->currentKeySetting) != 0) { return error; }
+			(*miIt)->chooserOrKeySettingNeedToSpawnText = false;
+		}
+	}
+
+	menu->itemNeedToSpawnText = false;
+
+	return 0;
+}
+
+int Main::SpawnText(HSText * text)
+{
+	if(text == NULL || text->charListToClone.empty()) { return 0; }
+
+	list<HSCharToClone>::iterator ctcIt;
+	for(ctcIt = text->charListToClone.begin(); ctcIt != text->charListToClone.end(); ctcIt++)
+	{
+		HSObject * newChar;
+		if(int error = objectManager->CloneObject(ctcIt->character, &objectManager->HUDObjects, &newChar) != 0) { return error; }
+		newChar->pos.x = ctcIt->pos.x;
+		newChar->pos.y = ctcIt->pos.y;
+
+		text->characterList.push_back(newChar);
+	}
+
+	text->charListToClone.clear();
 
 	return 0;
 }
@@ -572,6 +635,7 @@ int Main::DeleteObjects()
 	DeleteObjects(&objectManager->BGSpawnedObjects);
 	DeleteObjects(&objectManager->fighterObjects);
 	DeleteObjects(&objectManager->FGSpawnedObjects);
+	DeleteObjects(&objectManager->HUDObjects);
 
 	return 0;
 }
@@ -691,407 +755,7 @@ int Main::EndLoading()
 	return 0;
 }
 
-int Main::InitializeMainMenu()
-{
-	//load all main menu elements and place them in HUDObjects
-	HSObject * newObject;
-	
-	Menu * playerKeyConfigMenu = new Menu(MAIN_MENU_HEADER_HEIGHT, MAIN_MENU_CURSOR_WIDTH, MAIN_MENU_ITEM_HEIGHT, MAIN_MENU_ITEM_SPACING);
-	playerKeyConfigMenu->pos.x = (MAX_GAME_RESOLUTION_X / -2) + MAIN_MENU_ITEM_SPACING;
-	playerKeyConfigMenu->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + MAIN_MENU_ITEM_SPACING;
-
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\cursor\\cursor.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	playerKeyConfigMenu->SetCursor(newObject);
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player1.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	playerKeyConfigMenu->SetHeader(newObject);
-	objectManager->playerOne = newObject;
-	newObject->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player2.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	objectManager->playerTwo = newObject;
-	newObject->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player3.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	objectManager->playerThree = newObject;
-	newObject->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player4.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	objectManager->playerFour = newObject;
-	newObject->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\up\\up.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\down\\down.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\left\\left.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\right\\right.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\lightAttack\\lightAttack.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\heavyAttack\\heavyAttack.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\jump\\jump.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\block\\block.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\pause\\pause.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\menuConfirm\\menuConfirm.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\menuBack\\menuBack.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\back\\back.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	Menu * videoMenu = new Menu(MAIN_MENU_HEADER_HEIGHT, MAIN_MENU_CURSOR_WIDTH, MAIN_MENU_ITEM_HEIGHT, MAIN_MENU_ITEM_SPACING);
-	videoMenu->pos.x = (MAX_GAME_RESOLUTION_X / -2) + MAIN_MENU_ITEM_SPACING;
-	videoMenu->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + MAIN_MENU_ITEM_SPACING;
-
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\cursor\\cursor.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	videoMenu->SetCursor(newObject);
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\video\\video.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	videoMenu->SetHeader(newObject);
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\fullscreen\\fullscreen.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	videoMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\stretchScreen\\stretchScreen.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	videoMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\resolution\\fullscreenResolution.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	videoMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\resolution\\windowedResolution.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	videoMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\apply\\apply.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	videoMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\back\\back.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	videoMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\yes\\yes.xml", &objectManager->HUDObjects, &objectManager->fullscreenYes) != 0) { return error; }
-	objectManager->fullscreenYes->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->fullscreenYes->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING;
-	objectManager->fullscreenYes->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\no\\no.xml", &objectManager->HUDObjects, &objectManager->fullscreenNo) != 0) { return error; }
-	objectManager->fullscreenNo->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->fullscreenNo->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING;
-	objectManager->fullscreenNo->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\yes\\yes.xml", &objectManager->HUDObjects, &objectManager->stretchYes) != 0) { return error; }
-	objectManager->stretchYes->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->stretchYes->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 2 + MAIN_MENU_ITEM_HEIGHT;
-	objectManager->stretchYes->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\no\\no.xml", &objectManager->HUDObjects, &objectManager->stretchNo) != 0) { return error; }
-	objectManager->stretchNo->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->stretchNo->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 2 + MAIN_MENU_ITEM_HEIGHT;
-	objectManager->stretchNo->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\640x360\\640x360.xml", &objectManager->HUDObjects, &objectManager->fullscreen640x360) != 0) { return error; }
-	objectManager->fullscreen640x360->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->fullscreen640x360->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
-	objectManager->fullscreen640x360->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\800x450\\800x450.xml", &objectManager->HUDObjects, &objectManager->fullscreen800x450) != 0) { return error; }
-	objectManager->fullscreen800x450->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->fullscreen800x450->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
-	objectManager->fullscreen800x450->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1024x576\\1024x576.xml", &objectManager->HUDObjects, &objectManager->fullscreen1024x576) != 0) { return error; }
-	objectManager->fullscreen1024x576->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->fullscreen1024x576->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
-	objectManager->fullscreen1024x576->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1152x648\\1152x648.xml", &objectManager->HUDObjects, &objectManager->fullscreen1152x648) != 0) { return error; }
-	objectManager->fullscreen1152x648->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->fullscreen1152x648->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
-	objectManager->fullscreen1152x648->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1280x720\\1280x720.xml", &objectManager->HUDObjects, &objectManager->fullscreen1280x720) != 0) { return error; }
-	objectManager->fullscreen1280x720->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->fullscreen1280x720->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
-	objectManager->fullscreen1280x720->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1360x765\\1360x765.xml", &objectManager->HUDObjects, &objectManager->fullscreen1360x765) != 0) { return error; }
-	objectManager->fullscreen1360x765->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->fullscreen1360x765->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
-	objectManager->fullscreen1360x765->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1366x768\\1366x768.xml", &objectManager->HUDObjects, &objectManager->fullscreen1366x768) != 0) { return error; }
-	objectManager->fullscreen1366x768->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->fullscreen1366x768->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
-	objectManager->fullscreen1366x768->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1400x787\\1400x787.xml", &objectManager->HUDObjects, &objectManager->fullscreen1400x787) != 0) { return error; }
-	objectManager->fullscreen1400x787->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->fullscreen1400x787->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
-	objectManager->fullscreen1400x787->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1440x810\\1440x810.xml", &objectManager->HUDObjects, &objectManager->fullscreen1440x810) != 0) { return error; }
-	objectManager->fullscreen1440x810->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->fullscreen1440x810->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
-	objectManager->fullscreen1440x810->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1600x900\\1600x900.xml", &objectManager->HUDObjects, &objectManager->fullscreen1600x900) != 0) { return error; }
-	objectManager->fullscreen1600x900->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->fullscreen1600x900->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
-	objectManager->fullscreen1600x900->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1680x945\\1680x945.xml", &objectManager->HUDObjects, &objectManager->fullscreen1680x945) != 0) { return error; }
-	objectManager->fullscreen1680x945->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->fullscreen1680x945->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
-	objectManager->fullscreen1680x945->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1920x1080\\1920x1080.xml", &objectManager->HUDObjects, &objectManager->fullscreen1920x1080) != 0) { return error; }
-	objectManager->fullscreen1920x1080->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->fullscreen1920x1080->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
-	objectManager->fullscreen1920x1080->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\640x360\\640x360.xml", &objectManager->HUDObjects, &objectManager->windowed640x360) != 0) { return error; }
-	objectManager->windowed640x360->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->windowed640x360->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
-	objectManager->windowed640x360->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\800x450\\800x450.xml", &objectManager->HUDObjects, &objectManager->windowed800x450) != 0) { return error; }
-	objectManager->windowed800x450->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->windowed800x450->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
-	objectManager->windowed800x450->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1024x576\\1024x576.xml", &objectManager->HUDObjects, &objectManager->windowed1024x576) != 0) { return error; }
-	objectManager->windowed1024x576->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->windowed1024x576->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
-	objectManager->windowed1024x576->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1152x648\\1152x648.xml", &objectManager->HUDObjects, &objectManager->windowed1152x648) != 0) { return error; }
-	objectManager->windowed1152x648->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->windowed1152x648->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
-	objectManager->windowed1152x648->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1280x720\\1280x720.xml", &objectManager->HUDObjects, &objectManager->windowed1280x720) != 0) { return error; }
-	objectManager->windowed1280x720->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->windowed1280x720->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
-	objectManager->windowed1280x720->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1360x765\\1360x765.xml", &objectManager->HUDObjects, &objectManager->windowed1360x765) != 0) { return error; }
-	objectManager->windowed1360x765->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->windowed1360x765->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
-	objectManager->windowed1360x765->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1366x768\\1366x768.xml", &objectManager->HUDObjects, &objectManager->windowed1366x768) != 0) { return error; }
-	objectManager->windowed1366x768->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->windowed1366x768->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
-	objectManager->windowed1366x768->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1400x787\\1400x787.xml", &objectManager->HUDObjects, &objectManager->windowed1400x787) != 0) { return error; }
-	objectManager->windowed1400x787->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->windowed1400x787->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
-	objectManager->windowed1400x787->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1440x810\\1440x810.xml", &objectManager->HUDObjects, &objectManager->windowed1440x810) != 0) { return error; }
-	objectManager->windowed1440x810->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->windowed1440x810->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
-	objectManager->windowed1440x810->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1600x900\\1600x900.xml", &objectManager->HUDObjects, &objectManager->windowed1600x900) != 0) { return error; }
-	objectManager->windowed1600x900->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->windowed1600x900->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
-	objectManager->windowed1600x900->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1680x945\\1680x945.xml", &objectManager->HUDObjects, &objectManager->windowed1680x945) != 0) { return error; }
-	objectManager->windowed1680x945->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->windowed1680x945->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
-	objectManager->windowed1680x945->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1920x1080\\1920x1080.xml", &objectManager->HUDObjects, &objectManager->windowed1920x1080) != 0) { return error; }
-	objectManager->windowed1920x1080->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->windowed1920x1080->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
-	objectManager->windowed1920x1080->visible = false;
-	
-	Menu * keyConfigMenu = new Menu(MAIN_MENU_HEADER_HEIGHT, MAIN_MENU_CURSOR_WIDTH, MAIN_MENU_ITEM_HEIGHT, MAIN_MENU_ITEM_SPACING);
-	keyConfigMenu->pos.x = (MAX_GAME_RESOLUTION_X / -2) + MAIN_MENU_ITEM_SPACING;
-	keyConfigMenu->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + MAIN_MENU_ITEM_SPACING;
-
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\cursor\\cursor.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	keyConfigMenu->SetCursor(newObject);
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\keyConfig\\keyConfig.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	keyConfigMenu->SetHeader(newObject);
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player1.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	keyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject, playerKeyConfigMenu));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player2.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	keyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject, playerKeyConfigMenu));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player3.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	keyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject, playerKeyConfigMenu));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player4.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	keyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject, playerKeyConfigMenu));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\back\\back.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	keyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-
-	Menu * freeForAllMenu = new Menu(MAIN_MENU_HEADER_HEIGHT, MAIN_MENU_CURSOR_WIDTH, MAIN_MENU_ITEM_HEIGHT, MAIN_MENU_ITEM_SPACING);
-	freeForAllMenu->pos.x = (MAX_GAME_RESOLUTION_X / -2) + MAIN_MENU_ITEM_SPACING;
-	freeForAllMenu->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + MAIN_MENU_ITEM_SPACING;
-
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\cursor\\cursor.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	freeForAllMenu->SetCursor(newObject);
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\freeForAll\\freeForAll.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	freeForAllMenu->SetHeader(newObject);
-
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\players\\2players.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	freeForAllMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\players\\3players.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	freeForAllMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\players\\4players.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	freeForAllMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\back\\back.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	freeForAllMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-
-	Menu * versusMenu = new Menu(MAIN_MENU_HEADER_HEIGHT, MAIN_MENU_CURSOR_WIDTH, MAIN_MENU_ITEM_HEIGHT, MAIN_MENU_ITEM_SPACING);
-	versusMenu->pos.x = (MAX_GAME_RESOLUTION_X / -2) + MAIN_MENU_ITEM_SPACING;
-	versusMenu->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + MAIN_MENU_ITEM_SPACING;
-
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\cursor\\cursor.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	versusMenu->SetCursor(newObject);
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\versus\\versus.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	versusMenu->SetHeader(newObject);
-
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\freeForAll\\freeForAll.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	versusMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject, freeForAllMenu));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\back\\back.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	versusMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	Menu * optionsMenu = new Menu(MAIN_MENU_HEADER_HEIGHT, MAIN_MENU_CURSOR_WIDTH, MAIN_MENU_ITEM_HEIGHT, MAIN_MENU_ITEM_SPACING);
-	optionsMenu->pos.x = (MAX_GAME_RESOLUTION_X / -2) + MAIN_MENU_ITEM_SPACING;
-	optionsMenu->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + MAIN_MENU_ITEM_SPACING;
-
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\cursor\\cursor.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	optionsMenu->SetCursor(newObject);
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\options\\options.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	optionsMenu->SetHeader(newObject);
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\video\\video.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	optionsMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject, videoMenu));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\keyConfig\\keyConfig.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	optionsMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject, keyConfigMenu));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\back\\back.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	optionsMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-
-	Menu * mainMenu = new Menu(MAIN_MENU_HEADER_HEIGHT, MAIN_MENU_CURSOR_WIDTH, MAIN_MENU_ITEM_HEIGHT, MAIN_MENU_ITEM_SPACING);
-	mainMenu->pos.x = (MAX_GAME_RESOLUTION_X / -2) + MAIN_MENU_ITEM_SPACING;
-	mainMenu->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + MAIN_MENU_ITEM_SPACING;
-
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\cursor\\cursor.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	mainMenu->SetCursor(newObject);
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\mainMenu\\mainMenu.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	mainMenu->SetHeader(newObject);
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\versus\\versus.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	mainMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject, versusMenu));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\options\\options.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	mainMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject, optionsMenu));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\quit\\quitGame.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	mainMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject, optionsMenu));
-
-	objectManager->menuManager = new MenuManager(mainMenu);
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\pressDesiredButton\\pressDesiredButton.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	objectManager->pressDesiredButton = newObject;
-	newObject->visible = false;
-
-	ChangeMainMenuState(TOP);
-
-	return 0;
-}
-
-int Main::ChangeMainMenuState(MainMenuState newState)
-{
-	mainMenuState = newState;
-
-	switch(newState)
-	{
-	case TOP:
-		break;
-	case VERSUS:
-		break;
-	case FREE_FOR_ALL:
-		break;
-	case OPTIONS:
-		objectManager->MakeVideoSettingsInvisible();
-		break;
-	case VIDEO:
-		objectManager->fullScreenToApply = objectManager->fullScreen;
-		objectManager->stretchScreenToApply = objectManager->stretchScreen;
-		objectManager->fullscreenResolutionXToApply = objectManager->fullscreenResolutionX;
-		objectManager->fullscreenResolutionYToApply = objectManager->fullscreenResolutionY;
-		objectManager->windowedResolutionXToApply = objectManager->windowedResolutionX;
-		objectManager->windowedResolutionYToApply = objectManager->windowedResolutionY;
-
-		objectManager->SetVideoSettingVisibility();
-		break;
-	case KEY_CONFIG:
-		break;
-	case PLAYER_KEY_CONFIG:
-		objectManager->pressDesiredButton->visible = false;
-		switch(playerToSetUp)
-		{
-		case 0:
-			objectManager->menuManager->SetHeader(objectManager->playerOne);
-			break;
-		case 1:
-			objectManager->menuManager->SetHeader(objectManager->playerTwo);
-			break;
-		case 2:
-			objectManager->menuManager->SetHeader(objectManager->playerThree);
-			break;
-		case 3:
-			objectManager->menuManager->SetHeader(objectManager->playerFour);
-			break;
-		}
-		break;
-	case INPUT_KEY:
-		objectManager->pressDesiredButton->pos.x = objectManager->menuManager->GetCursorPos().x + PRESS_DESIRED_BUTTON_OFFSET_X;
-		objectManager->pressDesiredButton->pos.y = objectManager->menuManager->GetCursorPos().y;
-		objectManager->pressDesiredButton->visible = true;
-		break;
-	}
-
-	return 0;
-}
-
-int Main::EventMainMenu(InputStates * inputHistory, int frame)
+int Main::EventMenu(InputStates * inputHistory, int frame)
 {
 	if(inputHistory->frame == frame && (inputHistory->bButtonDown.pressed || inputHistory->bHatDown.pressed || inputHistory->bKeyDown.pressed || inputHistory->bStickDown.pressed))
 	{
@@ -1104,239 +768,184 @@ int Main::EventMainMenu(InputStates * inputHistory, int frame)
 	
 	if(inputHistory->frame == frame && (inputHistory->bButtonLeft.pressed || inputHistory->bHatLeft.pressed || inputHistory->bKeyLeft.pressed || inputHistory->bStickLeft.pressed))
 	{
-		switch(mainMenuState)
+		HSMenuFunction function = objectManager->menuManager->GetCurrentFunction();
+
+		switch(function)
 		{
-		case VIDEO:
-			switch(objectManager->menuManager->GetCursorIndex())
-			{
-			case 0:
-				if(objectManager->fullScreenToApply) { objectManager->fullScreenToApply = false; }
-				else { objectManager->fullScreenToApply = true; }
-				objectManager->SetVideoSettingVisibility();
-				break;
-			case 1:
-				if(objectManager->stretchScreenToApply) { objectManager->stretchScreenToApply = false; }
-				else { objectManager->stretchScreenToApply = true; }
-				objectManager->SetVideoSettingVisibility();
-				break;
-			case 2:
-				objectManager->PrevFullscreenResolution();
-				objectManager->SetVideoSettingVisibility();
-				break;
-			case 3:
-				objectManager->PrevWindowedResolution();
-				objectManager->SetVideoSettingVisibility();
-				break;
-			}
+		case FULL_SCREEN:
+		case STRETCH_SCREEN:
+		case FULL_SCREEN_RESOLUTION:
+		case WINDOWED_RESOLUTION:
+			objectManager->menuManager->ChoicePrev();
 			break;
 		}
 	}
 	else if(inputHistory->frame == frame && (inputHistory->bButtonRight.pressed || inputHistory->bHatRight.pressed || inputHistory->bKeyRight.pressed || inputHistory->bStickRight.pressed))
 	{
-		switch(mainMenuState)
+		HSMenuFunction function = objectManager->menuManager->GetCurrentFunction();
+
+		switch(function)
 		{
-		case VIDEO:
-			switch(objectManager->menuManager->GetCursorIndex())
-			{
-			case 0:
-				if(objectManager->fullScreenToApply) { objectManager->fullScreenToApply = false; }
-				else { objectManager->fullScreenToApply = true; }
-				objectManager->SetVideoSettingVisibility();
-				break;
-			case 1:
-				if(objectManager->stretchScreenToApply) { objectManager->stretchScreenToApply = false; }
-				else { objectManager->stretchScreenToApply = true; }
-				objectManager->SetVideoSettingVisibility();
-				break;
-			case 2:
-				objectManager->NextFullscreenResolution();
-				objectManager->SetVideoSettingVisibility();
-				break;
-			case 3:
-				objectManager->NextWindowedResolution();
-				objectManager->SetVideoSettingVisibility();
-				break;
-			}
+		case FULL_SCREEN:
+		case STRETCH_SCREEN:
+		case FULL_SCREEN_RESOLUTION:
+		case WINDOWED_RESOLUTION:
+			objectManager->menuManager->ChoiceNext();
 			break;
 		}
 	}
 
 	if(inputHistory->frame == frame && (inputHistory->buttonMenuConfirm.pressed || inputHistory->keyMenuConfirm.pressed))
 	{
-		switch(mainMenuState)
+		HSMenuFunction function = objectManager->menuManager->GetCurrentFunction();
+
+		switch(function)
 		{
-		case TOP:
-			switch(objectManager->menuManager->GetCursorIndex())
-			{
-			case 0:
-				objectManager->menuManager->ToChild();
-				ChangeMainMenuState(VERSUS);
-				break;
-			case 1:
-				objectManager->menuManager->ToChild();
-				ChangeMainMenuState(OPTIONS);
-				break;
-			case 2:
-				Exit();
-				break;
-			}
+		case FREE_FOR_ALL_2_PLAYERS:
+			gameType = FREE_FOR_ALL_2;
+			ChangeGameState(CHARACTER_SELECT);
 			break;
-		case VERSUS:
-			switch(objectManager->menuManager->GetCursorIndex())
-			{
-			case 0:
-				objectManager->menuManager->ToChild();
-				ChangeMainMenuState(FREE_FOR_ALL);
-				break;
-			case 1:
-				objectManager->menuManager->ToParent();
-				ChangeMainMenuState(TOP);
-				break;
-			}
+		case FREE_FOR_ALL_3_PLAYERS:
+			gameType = FREE_FOR_ALL_3;
+			ChangeGameState(CHARACTER_SELECT);
 			break;
-		case FREE_FOR_ALL:
-			switch(objectManager->menuManager->GetCursorIndex())
-			{
-			case 0:
-				gameType = FREE_FOR_ALL_2;
-				if(int i = ChangeGameState(CHARACTER_SELECT) != 0) { return i; }
-				break;
-			case 1:
-				gameType = FREE_FOR_ALL_3;
-				if(int i = ChangeGameState(CHARACTER_SELECT) != 0) { return i; }
-				break;
-			case 2:
-				gameType = FREE_FOR_ALL_4;
-				if(int i = ChangeGameState(CHARACTER_SELECT) != 0) { return i; }
-				break;
-			case 3:
-				objectManager->menuManager->ToParent();
-				ChangeMainMenuState(VERSUS);
-				break;
-			}
+		case FREE_FOR_ALL_4_PLAYERS:
+			gameType = FREE_FOR_ALL_4;
+			ChangeGameState(CHARACTER_SELECT);
 			break;
-		case OPTIONS:
-			switch(objectManager->menuManager->GetCursorIndex())
-			{
-			case 0:
-				objectManager->menuManager->ToChild();
-				ChangeMainMenuState(VIDEO);
-				break;
-			case 1:
-				objectManager->menuManager->ToChild();
-				ChangeMainMenuState(KEY_CONFIG);
-				break;
-			case 2:
-				objectManager->menuManager->ToParent();
-				ChangeMainMenuState(TOP);
-				break;
-			}
+		case KEY_CONFIG_UP:
+			bindingKey = BINDING_UP;
+			objectManager->menuManager->SetKeyConfigEnterForItem(KEY_CONFIG_UP);
+			break;
+		case KEY_CONFIG_DOWN:
+			bindingKey = BINDING_DOWN;
+			objectManager->menuManager->SetKeyConfigEnterForItem(KEY_CONFIG_DOWN);
+			break;
+		case KEY_CONFIG_LEFT:
+			bindingKey = BINDING_LEFT;
+			objectManager->menuManager->SetKeyConfigEnterForItem(KEY_CONFIG_LEFT);
+			break;
+		case KEY_CONFIG_RIGHT:
+			bindingKey = BINDING_RIGHT;
+			objectManager->menuManager->SetKeyConfigEnterForItem(KEY_CONFIG_RIGHT);
+			break;
+		case KEY_CONFIG_LIGHT_ATTACK:
+			bindingKey = BINDING_LIGHT;
+			objectManager->menuManager->SetKeyConfigEnterForItem(KEY_CONFIG_LIGHT_ATTACK);
+			break;
+		case KEY_CONFIG_HEAVY_ATTACK:
+			bindingKey = BINDING_HEAVY;
+			objectManager->menuManager->SetKeyConfigEnterForItem(KEY_CONFIG_HEAVY_ATTACK);
+			break;
+		case KEY_CONFIG_JUMP:
+			bindingKey = BINDING_JUMP;
+			objectManager->menuManager->SetKeyConfigEnterForItem(KEY_CONFIG_JUMP);
+			break;
+		case KEY_CONFIG_BLOCK:
+			bindingKey = BINDING_BLOCK;
+			objectManager->menuManager->SetKeyConfigEnterForItem(KEY_CONFIG_BLOCK);
+			break;
+		case KEY_CONFIG_PAUSE:
+			bindingKey = BINDING_PAUSE;
+			objectManager->menuManager->SetKeyConfigEnterForItem(KEY_CONFIG_PAUSE);
+			break;
+		case KEY_CONFIG_MENU_CONFIRM:
+			bindingKey = BINDING_CONFIRM;
+			objectManager->menuManager->SetKeyConfigEnterForItem(KEY_CONFIG_MENU_CONFIRM);
+			break;
+		case KEY_CONFIG_MENU_BACK:
+			bindingKey = BINDING_BACK;
+			objectManager->menuManager->SetKeyConfigEnterForItem(KEY_CONFIG_MENU_BACK);
+			break;
+		case KEY_CONFIG_PLAYER_1:
+			playerToSetUp = 0;
+			objectManager->menuManager->ToChild();
+			objectManager->menuManager->SetCurrentTitleText("Player 1 Key Config");
+			SetMenuKeyConfig();
+			break;
+		case KEY_CONFIG_PLAYER_2:
+			playerToSetUp = 1;
+			objectManager->menuManager->ToChild();
+			objectManager->menuManager->SetCurrentTitleText("Player 2 Key Config");
+			SetMenuKeyConfig();
+			break;
+		case KEY_CONFIG_PLAYER_3:
+			playerToSetUp = 2;
+			objectManager->menuManager->ToChild();
+			objectManager->menuManager->SetCurrentTitleText("Player 3 Key Config");
+			SetMenuKeyConfig();
+			break;
+		case KEY_CONFIG_PLAYER_4:
+			playerToSetUp = 3;
+			objectManager->menuManager->ToChild();
+			objectManager->menuManager->SetCurrentTitleText("Player 4 Key Config");
+			SetMenuKeyConfig();
 			break;
 		case VIDEO:
-			switch(objectManager->menuManager->GetCursorIndex())
-			{
-			case 0:
-				if(objectManager->fullScreenToApply) { objectManager->fullScreenToApply = false; }
-				else { objectManager->fullScreenToApply = true; }
-				objectManager->SetVideoSettingVisibility();
-				break;
-			case 1:
-				if(objectManager->stretchScreenToApply) { objectManager->stretchScreenToApply = false; }
-				else { objectManager->stretchScreenToApply = true; }
-				objectManager->SetVideoSettingVisibility();
-				break;
-			case 2:
-				objectManager->NextFullscreenResolution();
-				objectManager->SetVideoSettingVisibility();
-				break;
-			case 3:
-				objectManager->NextWindowedResolution();
-				objectManager->SetVideoSettingVisibility();
-				break;
-			case 4:
-				if(int error = objectManager->ApplyVideoSettings() != 0) { return error; }
-				objectManager->SetVideoSettingVisibility();
-				break;
-			case 5:
-				objectManager->menuManager->ToParent();
-				ChangeMainMenuState(OPTIONS);
-				break;
-			}
+			objectManager->menuManager->ToChild();
+			SetMenuVideoSettings();
 			break;
 		case KEY_CONFIG:
-			switch(objectManager->menuManager->GetCursorIndex())
-			{
-			case 0:
-			case 1:
-			case 2:
-			case 3:
-				playerToSetUp = objectManager->menuManager->GetCursorIndex();
-				objectManager->menuManager->ToChild();
-				ChangeMainMenuState(PLAYER_KEY_CONFIG);
-				break;
-			case 4:
-				objectManager->menuManager->ToParent();
-				ChangeMainMenuState(OPTIONS);
-				break;
-			}
+		case VERSUS:
+		case OPTIONS:
+		case FREE_FOR_ALL:
+			objectManager->menuManager->ToChild();
 			break;
-		case PLAYER_KEY_CONFIG:
-			switch(objectManager->menuManager->GetCursorIndex())
-			{
-			case 0:
-			case 1:
-			case 2:
-			case 3:
-			case 4:
-			case 5:
-			case 6:
-			case 7:
-			case 8:
-			case 9:
-			case 10:
-				keyToSetUp = objectManager->menuManager->GetCursorIndex();
-				ChangeMainMenuState(INPUT_KEY);
-				break;
-			case 11:
-				playerToSetUp = -1;
-				objectManager->menuManager->ToParent();
-				ChangeMainMenuState(KEY_CONFIG);
-				break;
-			}
+		case FULL_SCREEN:
+		case STRETCH_SCREEN:
+		case FULL_SCREEN_RESOLUTION:
+		case WINDOWED_RESOLUTION:
+			objectManager->menuManager->ChoiceNext();
+			break;
+		case APPLY_VIDEO_SETTINGS:
+			ApplyAndSaveVideoSettings();
+			break;
+		case BACK:
+			objectManager->menuManager->ToParent();
+			break;
+		case RESUME_MATCH:
+			ChangeMatchState(IN_PROGRESS);
+			break;
+		case QUIT_MATCH:
+			ChangeGameState(CHARACTER_SELECT);
+			break;
+		case QUIT_GAME:
+			Exit();
 			break;
 		}
 	}
 	else if(inputHistory->frame == frame && (inputHistory->buttonMenuBack.pressed || inputHistory->keyMenuBack.pressed))
 	{
-		switch(mainMenuState)
+		HSMenuFunction function = objectManager->menuManager->GetCurrentFunction();
+
+		switch(gameState)
 		{
-		case TOP:
-			Exit();
+		case MAIN_MENU:
+			switch(function)
+			{
+			case VERSUS:
+			case OPTIONS:
+			case QUIT_GAME:
+				Exit();
+				break;
+			default:
+				objectManager->menuManager->ToParent();
+				break;
+			}
 			break;
-		case VERSUS:
-			objectManager->menuManager->ToParent();
-			ChangeMainMenuState(TOP);
-			break;
-		case FREE_FOR_ALL:
-			objectManager->menuManager->ToParent();
-			ChangeMainMenuState(VERSUS);
-			break;
-		case OPTIONS:
-			objectManager->menuManager->ToParent();
-			ChangeMainMenuState(TOP);
-			break;
-		case VIDEO:
-			objectManager->menuManager->ToParent();
-			ChangeMainMenuState(OPTIONS);
-			break;
-		case KEY_CONFIG:
-			objectManager->menuManager->ToParent();
-			ChangeMainMenuState(OPTIONS);
-			break;
-		case PLAYER_KEY_CONFIG:
-			playerToSetUp = -1;
-			objectManager->menuManager->ToParent();
-			ChangeMainMenuState(KEY_CONFIG);
+		case MATCH:
+			switch(function)
+			{
+			case RESUME_MATCH:
+			case VIDEO:
+			case KEY_CONFIG:
+			case QUIT_MATCH:
+				ChangeMatchState(IN_PROGRESS);
+				break;
+			default:
+				objectManager->menuManager->ToParent();
+				break;
+			}
 			break;
 		}
 	}
@@ -1344,8 +953,40 @@ int Main::EventMainMenu(InputStates * inputHistory, int frame)
 	return 0;
 }
 
+int Main::UpdateMenu()
+{
+	objectManager->UpdateMenu();
+
+	return 0;
+}
+
+int Main::InitializeMainMenu()
+{
+	//load all main menu elements and place them in HUDObjects
+	HSMenu * mainMenu;
+	HSVect2D menuPos;
+	menuPos.x = MAIN_MENU_POS_X;
+	menuPos.y = MAIN_MENU_POS_Y;
+	
+	if(int error = objectManager->LoadHSMenu("data\\hud\\Menus\\Main Menu\\Main Menu.xml", menuPos, &mainMenu) != 0) { return error; }
+
+	objectManager->menuManager = new MenuManager(mainMenu);
+	objectManager->menuManager->SetHidden(false);
+
+	return 0;
+}
+
+int Main::EventMainMenu(InputStates * inputHistory, int frame)
+{
+	EventMenu(inputHistory, frame);
+
+	return 0;
+}
+
 int Main::UpdateMainMenu()
 {
+	UpdateMenu();
+
 	return 0;
 }
 
@@ -2064,290 +1705,18 @@ int Main::InitializeMatch()
 		((HUD*)newHUD)->comboCounterYPosition = COUNTER_ABOVE;
 	}
 
-	//load pause menu
-	Menu * playerKeyConfigMenu = new Menu(MAIN_MENU_HEADER_HEIGHT, MAIN_MENU_CURSOR_WIDTH, MAIN_MENU_ITEM_HEIGHT, MAIN_MENU_ITEM_SPACING);
-	playerKeyConfigMenu->pos.x = -382;
-	playerKeyConfigMenu->pos.y = -352;
+	HSMenu * pauseMenu;
+	HSVect2D menuPos;
+	menuPos.x = PAUSE_MENU_POS_X;
+	menuPos.y = PAUSE_MENU_POS_Y;
 
-	HSObject * newObject;
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\cursor\\cursor.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	playerKeyConfigMenu->SetCursor(newObject);
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player1.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	playerKeyConfigMenu->SetHeader(newObject);
-	objectManager->playerOne = newObject;
-	newObject->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player2.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	objectManager->playerTwo = newObject;
-	newObject->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player3.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	objectManager->playerThree = newObject;
-	newObject->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player4.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	objectManager->playerFour = newObject;
-	newObject->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\up\\up.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\down\\down.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\left\\left.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\right\\right.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\lightAttack\\lightAttack.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\heavyAttack\\heavyAttack.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\jump\\jump.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\block\\block.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\pause\\pause.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\menuConfirm\\menuConfirm.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\menuBack\\menuBack.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\back\\back.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	playerKeyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-
-	Menu * videoMenu = new Menu(MAIN_MENU_HEADER_HEIGHT, MAIN_MENU_CURSOR_WIDTH, MAIN_MENU_ITEM_HEIGHT, MAIN_MENU_ITEM_SPACING);
-	videoMenu->pos.x = -382;
-	videoMenu->pos.y = -352;
-
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\cursor\\cursor.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	videoMenu->SetCursor(newObject);
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\video\\video.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	videoMenu->SetHeader(newObject);
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\fullscreen\\fullscreen.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	videoMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\stretchScreen\\stretchScreen.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	videoMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\resolution\\fullscreenResolution.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	videoMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\resolution\\windowedResolution.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	videoMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\apply\\apply.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	videoMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\back\\back.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	videoMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\yes\\yes.xml", &objectManager->HUDObjects, &objectManager->fullscreenYes) != 0) { return error; }
-	objectManager->fullscreenYes->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->fullscreenYes->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING;
-	objectManager->fullscreenYes->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\no\\no.xml", &objectManager->HUDObjects, &objectManager->fullscreenNo) != 0) { return error; }
-	objectManager->fullscreenNo->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->fullscreenNo->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING;
-	objectManager->fullscreenNo->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\yes\\yes.xml", &objectManager->HUDObjects, &objectManager->stretchYes) != 0) { return error; }
-	objectManager->stretchYes->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->stretchYes->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 2 + MAIN_MENU_ITEM_HEIGHT;
-	objectManager->stretchYes->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\no\\no.xml", &objectManager->HUDObjects, &objectManager->stretchNo) != 0) { return error; }
-	objectManager->stretchNo->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->stretchNo->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 2 + MAIN_MENU_ITEM_HEIGHT;
-	objectManager->stretchNo->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\640x360\\640x360.xml", &objectManager->HUDObjects, &objectManager->fullscreen640x360) != 0) { return error; }
-	objectManager->fullscreen640x360->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->fullscreen640x360->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
-	objectManager->fullscreen640x360->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\800x450\\800x450.xml", &objectManager->HUDObjects, &objectManager->fullscreen800x450) != 0) { return error; }
-	objectManager->fullscreen800x450->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->fullscreen800x450->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
-	objectManager->fullscreen800x450->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1024x576\\1024x576.xml", &objectManager->HUDObjects, &objectManager->fullscreen1024x576) != 0) { return error; }
-	objectManager->fullscreen1024x576->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->fullscreen1024x576->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
-	objectManager->fullscreen1024x576->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1152x648\\1152x648.xml", &objectManager->HUDObjects, &objectManager->fullscreen1152x648) != 0) { return error; }
-	objectManager->fullscreen1152x648->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->fullscreen1152x648->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
-	objectManager->fullscreen1152x648->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1280x720\\1280x720.xml", &objectManager->HUDObjects, &objectManager->fullscreen1280x720) != 0) { return error; }
-	objectManager->fullscreen1280x720->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->fullscreen1280x720->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
-	objectManager->fullscreen1280x720->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1360x765\\1360x765.xml", &objectManager->HUDObjects, &objectManager->fullscreen1360x765) != 0) { return error; }
-	objectManager->fullscreen1360x765->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->fullscreen1360x765->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
-	objectManager->fullscreen1360x765->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1366x768\\1366x768.xml", &objectManager->HUDObjects, &objectManager->fullscreen1366x768) != 0) { return error; }
-	objectManager->fullscreen1366x768->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->fullscreen1366x768->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
-	objectManager->fullscreen1366x768->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1400x787\\1400x787.xml", &objectManager->HUDObjects, &objectManager->fullscreen1400x787) != 0) { return error; }
-	objectManager->fullscreen1400x787->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->fullscreen1400x787->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
-	objectManager->fullscreen1400x787->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1440x810\\1440x810.xml", &objectManager->HUDObjects, &objectManager->fullscreen1440x810) != 0) { return error; }
-	objectManager->fullscreen1440x810->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->fullscreen1440x810->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
-	objectManager->fullscreen1440x810->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1600x900\\1600x900.xml", &objectManager->HUDObjects, &objectManager->fullscreen1600x900) != 0) { return error; }
-	objectManager->fullscreen1600x900->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->fullscreen1600x900->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
-	objectManager->fullscreen1600x900->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1680x945\\1680x945.xml", &objectManager->HUDObjects, &objectManager->fullscreen1680x945) != 0) { return error; }
-	objectManager->fullscreen1680x945->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->fullscreen1680x945->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
-	objectManager->fullscreen1680x945->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1920x1080\\1920x1080.xml", &objectManager->HUDObjects, &objectManager->fullscreen1920x1080) != 0) { return error; }
-	objectManager->fullscreen1920x1080->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->fullscreen1920x1080->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 3 + MAIN_MENU_ITEM_HEIGHT * 2;
-	objectManager->fullscreen1920x1080->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\640x360\\640x360.xml", &objectManager->HUDObjects, &objectManager->windowed640x360) != 0) { return error; }
-	objectManager->windowed640x360->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->windowed640x360->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
-	objectManager->windowed640x360->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\800x450\\800x450.xml", &objectManager->HUDObjects, &objectManager->windowed800x450) != 0) { return error; }
-	objectManager->windowed800x450->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->windowed800x450->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
-	objectManager->windowed800x450->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1024x576\\1024x576.xml", &objectManager->HUDObjects, &objectManager->windowed1024x576) != 0) { return error; }
-	objectManager->windowed1024x576->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->windowed1024x576->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
-	objectManager->windowed1024x576->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1152x648\\1152x648.xml", &objectManager->HUDObjects, &objectManager->windowed1152x648) != 0) { return error; }
-	objectManager->windowed1152x648->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->windowed1152x648->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
-	objectManager->windowed1152x648->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1280x720\\1280x720.xml", &objectManager->HUDObjects, &objectManager->windowed1280x720) != 0) { return error; }
-	objectManager->windowed1280x720->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->windowed1280x720->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
-	objectManager->windowed1280x720->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1360x765\\1360x765.xml", &objectManager->HUDObjects, &objectManager->windowed1360x765) != 0) { return error; }
-	objectManager->windowed1360x765->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->windowed1360x765->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
-	objectManager->windowed1360x765->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1366x768\\1366x768.xml", &objectManager->HUDObjects, &objectManager->windowed1366x768) != 0) { return error; }
-	objectManager->windowed1366x768->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->windowed1366x768->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
-	objectManager->windowed1366x768->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1400x787\\1400x787.xml", &objectManager->HUDObjects, &objectManager->windowed1400x787) != 0) { return error; }
-	objectManager->windowed1400x787->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->windowed1400x787->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
-	objectManager->windowed1400x787->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1440x810\\1440x810.xml", &objectManager->HUDObjects, &objectManager->windowed1440x810) != 0) { return error; }
-	objectManager->windowed1440x810->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->windowed1440x810->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
-	objectManager->windowed1440x810->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1600x900\\1600x900.xml", &objectManager->HUDObjects, &objectManager->windowed1600x900) != 0) { return error; }
-	objectManager->windowed1600x900->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->windowed1600x900->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
-	objectManager->windowed1600x900->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1680x945\\1680x945.xml", &objectManager->HUDObjects, &objectManager->windowed1680x945) != 0) { return error; }
-	objectManager->windowed1680x945->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->windowed1680x945->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
-	objectManager->windowed1680x945->visible = false;
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\1920x1080\\1920x1080.xml", &objectManager->HUDObjects, &objectManager->windowed1920x1080) != 0) { return error; }
-	objectManager->windowed1920x1080->pos.x = videoMenu->pos.x + VIDEO_SETTING_OFFSET_X;
-	objectManager->windowed1920x1080->pos.y = videoMenu->pos.y + MAIN_MENU_HEADER_HEIGHT + MAIN_MENU_ITEM_SPACING * 4 + MAIN_MENU_ITEM_HEIGHT * 3;
-	objectManager->windowed1920x1080->visible = false;
-	
-	Menu * keyConfigMenu = new Menu(MAIN_MENU_HEADER_HEIGHT, MAIN_MENU_CURSOR_WIDTH, MAIN_MENU_ITEM_HEIGHT, MAIN_MENU_ITEM_SPACING);
-	keyConfigMenu->pos.x = -382;
-	keyConfigMenu->pos.y = -352;
-
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\cursor\\cursor.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	keyConfigMenu->SetCursor(newObject);
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\keyConfig\\keyConfig.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	keyConfigMenu->SetHeader(newObject);
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player1.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	keyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject, playerKeyConfigMenu));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player2.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	keyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject, playerKeyConfigMenu));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player3.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	keyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject, playerKeyConfigMenu));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player4.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	keyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject, playerKeyConfigMenu));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\back\\back.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	keyConfigMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	Menu * pauseMenu = new Menu(MAIN_MENU_HEADER_HEIGHT, MAIN_MENU_CURSOR_WIDTH, MAIN_MENU_ITEM_HEIGHT, MAIN_MENU_ITEM_SPACING);
-	pauseMenu->pos.x = -382;
-	pauseMenu->pos.y = -352;
-
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\cursor\\cursor.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	pauseMenu->SetCursor(newObject);
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\pause\\pause.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	pauseMenu->SetHeader(newObject);
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\resume\\resumeMatch.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	pauseMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\video\\video.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	pauseMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject, videoMenu));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\keyConfig\\keyConfig.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	pauseMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject, keyConfigMenu));
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\quit\\quitMatch.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	pauseMenu->AddItem(objectManager->menuManager->MakeMenuItem(newObject));
+	if(int error = objectManager->LoadHSMenu("data\\hud\\Menus\\Pause Menu\\Pause Menu.xml", menuPos, &pauseMenu) !=0) { return error; }
 
 	objectManager->menuManager = new MenuManager(pauseMenu);
-	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\pressDesiredButton\\pressDesiredButton.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	objectManager->pressDesiredButton = newObject;
-	newObject->visible = false;
+	objectManager->menuManager->SetHidden(true);
 
 	//load win text
+	HSObject * newObject;
 	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player1.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->visible = false;
 	newObject->pos.x = -82;
@@ -2386,8 +1755,6 @@ int Main::InitializeMatch()
 		ChangeMatchPlayerState(ACTIVE, i);
 	}
 
-	ChangePauseMenuState(PAUSE_TOP);
-
 	objectManager->centerCameraInstantly = true;
 	objectManager->matchCamera = true;
 
@@ -2401,10 +1768,10 @@ int Main::ChangeMatchState(MatchState newState)
 	switch(newState)
 	{
 		case IN_PROGRESS:
-			objectManager->menuManager->Hide(true);
+			objectManager->menuManager->SetHidden(true);
 			break;
 		case PAUSED:
-			objectManager->menuManager->Hide(false);
+			objectManager->menuManager->SetHidden(false);
 			break;
 		case RESULTS:
 			if(matchPlayerState[0] == ACTIVE)
@@ -2450,55 +1817,6 @@ int Main::ChangeMatchPlayerState(MatchPlayerState newState, int player)
 	return 0;
 }
 
-int Main::ChangePauseMenuState(PauseMenuState newState)
-{
-	pauseMenuState = newState;
-
-	switch(newState)
-	{
-	case PAUSE_TOP:
-		objectManager->MakeVideoSettingsInvisible();
-		break;
-	case PAUSE_VIDEO:
-		objectManager->fullScreenToApply = objectManager->fullScreen;
-		objectManager->stretchScreenToApply = objectManager->stretchScreen;
-		objectManager->fullscreenResolutionXToApply = objectManager->fullscreenResolutionX;
-		objectManager->fullscreenResolutionYToApply = objectManager->fullscreenResolutionY;
-		objectManager->windowedResolutionXToApply = objectManager->windowedResolutionX;
-		objectManager->windowedResolutionYToApply = objectManager->windowedResolutionY;
-
-		objectManager->SetVideoSettingVisibility();
-		break;
-	case PAUSE_KEY_CONFIG:
-		break;
-	case PAUSE_PLAYER_KEY_CONFIG:
-		objectManager->pressDesiredButton->visible = false;
-		switch(playerToSetUp)
-		{
-		case 0:
-			objectManager->menuManager->SetHeader(objectManager->playerOne);
-			break;
-		case 1:
-			objectManager->menuManager->SetHeader(objectManager->playerTwo);
-			break;
-		case 2:
-			objectManager->menuManager->SetHeader(objectManager->playerThree);
-			break;
-		case 3:
-			objectManager->menuManager->SetHeader(objectManager->playerFour);
-			break;
-		}
-		break;
-	case PAUSE_INPUT_KEY:
-		objectManager->pressDesiredButton->pos.x = objectManager->menuManager->GetCursorPos().x + PRESS_DESIRED_BUTTON_OFFSET_X;
-		objectManager->pressDesiredButton->pos.y = objectManager->menuManager->GetCursorPos().y;
-		objectManager->pressDesiredButton->visible = true;
-		break;
-	}
-
-	return 0;
-}
-
 int Main::EventMatch(InputStates * inputHistory, int frame, int player)
 {
 	switch(matchState)
@@ -2514,196 +1832,7 @@ int Main::EventMatch(InputStates * inputHistory, int frame, int player)
 		}
 		break;
 	case PAUSED:
-		if(inputHistory->frame == frame && (inputHistory->bButtonDown.pressed || inputHistory->bHatDown.pressed || inputHistory->bKeyDown.pressed || inputHistory->bStickDown.pressed))
-		{
-			objectManager->menuManager->CursorNext();
-		}
-		else if(inputHistory->frame == frame && (inputHistory->bButtonUp.pressed || inputHistory->bHatUp.pressed || inputHistory->bKeyUp.pressed || inputHistory->bStickUp.pressed))
-		{
-			objectManager->menuManager->CursorPrev();
-		}
-	
-		if(inputHistory->frame == frame && (inputHistory->bButtonLeft.pressed || inputHistory->bHatLeft.pressed || inputHistory->bKeyLeft.pressed || inputHistory->bStickLeft.pressed))
-		{
-			switch(pauseMenuState)
-			{
-			case PAUSE_VIDEO:
-				switch(objectManager->menuManager->GetCursorIndex())
-				{
-				case 0:
-					if(objectManager->fullScreenToApply) { objectManager->fullScreenToApply = false; }
-					else { objectManager->fullScreenToApply = true; }
-					objectManager->SetVideoSettingVisibility();
-					break;
-				case 1:
-					if(objectManager->stretchScreenToApply) { objectManager->stretchScreenToApply = false; }
-					else { objectManager->stretchScreenToApply = true; }
-					objectManager->SetVideoSettingVisibility();
-					break;
-				case 2:
-					objectManager->PrevFullscreenResolution();
-					objectManager->SetVideoSettingVisibility();
-					break;
-				case 3:
-					objectManager->PrevWindowedResolution();
-					objectManager->SetVideoSettingVisibility();
-					break;
-				}
-				break;
-			}
-		}
-		else if(inputHistory->frame == frame && (inputHistory->bButtonRight.pressed || inputHistory->bHatRight.pressed || inputHistory->bKeyRight.pressed || inputHistory->bStickRight.pressed))
-		{
-			switch(pauseMenuState)
-			{
-			case PAUSE_VIDEO:
-				switch(objectManager->menuManager->GetCursorIndex())
-				{
-				case 0:
-					if(objectManager->fullScreenToApply) { objectManager->fullScreenToApply = false; }
-					else { objectManager->fullScreenToApply = true; }
-					objectManager->SetVideoSettingVisibility();
-					break;
-				case 1:
-					if(objectManager->stretchScreenToApply) { objectManager->stretchScreenToApply = false; }
-					else { objectManager->stretchScreenToApply = true; }
-					objectManager->SetVideoSettingVisibility();
-					break;
-				case 2:
-					objectManager->NextFullscreenResolution();
-					objectManager->SetVideoSettingVisibility();
-					break;
-				case 3:
-					objectManager->NextWindowedResolution();
-					objectManager->SetVideoSettingVisibility();
-					break;
-				}
-				break;
-			}
-		}
-
-		if(inputHistory->frame == frame && (inputHistory->bButtonStart.pressed || inputHistory->bKeyStart.pressed))
-		{
-			ChangeMatchState(IN_PROGRESS);
-		}
-		else if(inputHistory->frame == frame && (inputHistory->buttonMenuConfirm.pressed || inputHistory->keyMenuConfirm.pressed))
-		{
-			switch(pauseMenuState)
-			{
-			case PAUSE_TOP:
-				switch(objectManager->menuManager->GetCursorIndex())
-				{
-				case 0:
-					ChangeMatchState(IN_PROGRESS);
-					break;
-				case 1:
-					objectManager->menuManager->ToChild();
-					ChangePauseMenuState(PAUSE_VIDEO);
-					break;
-				case 2:
-					objectManager->menuManager->ToChild();
-					ChangePauseMenuState(PAUSE_KEY_CONFIG);
-					break;
-				case 3:
-					if(int i = ChangeGameState(MAIN_MENU) != 0) { return i; }
-					break;
-				}
-				break;
-			case PAUSE_VIDEO:
-				switch(objectManager->menuManager->GetCursorIndex())
-				{
-				case 0:
-					if(objectManager->fullScreenToApply) { objectManager->fullScreenToApply = false; }
-					else { objectManager->fullScreenToApply = true; }
-					objectManager->SetVideoSettingVisibility();
-					break;
-				case 1:
-					if(objectManager->stretchScreenToApply) { objectManager->stretchScreenToApply = false; }
-					else { objectManager->stretchScreenToApply = true; }
-					objectManager->SetVideoSettingVisibility();
-					break;
-				case 2:
-					objectManager->NextFullscreenResolution();
-					objectManager->SetVideoSettingVisibility();
-					break;
-				case 3:
-					objectManager->NextWindowedResolution();
-					objectManager->SetVideoSettingVisibility();
-					break;
-				case 4:
-					if(int error = objectManager->ApplyVideoSettings() != 0) { return error; }
-					objectManager->SetVideoSettingVisibility();
-					break;
-				case 5:
-					objectManager->menuManager->ToParent();
-					ChangePauseMenuState(PAUSE_TOP);
-					break;
-				}
-				break;
-			case PAUSE_KEY_CONFIG:
-				switch(objectManager->menuManager->GetCursorIndex())
-				{
-				case 0:
-				case 1:
-				case 2:
-				case 3:
-					playerToSetUp = objectManager->menuManager->GetCursorIndex();
-					objectManager->menuManager->ToChild();
-					ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
-					break;
-				case 4:
-					objectManager->menuManager->ToParent();
-					ChangePauseMenuState(PAUSE_TOP);
-					break;
-				}
-				break;
-			case PAUSE_PLAYER_KEY_CONFIG:
-				switch(objectManager->menuManager->GetCursorIndex())
-				{
-				case 0:
-				case 1:
-				case 2:
-				case 3:
-				case 4:
-				case 5:
-				case 6:
-				case 7:
-				case 8:
-				case 9:
-				case 10:
-					keyToSetUp = objectManager->menuManager->GetCursorIndex();
-					ChangePauseMenuState(PAUSE_INPUT_KEY);
-					break;
-				case 11:
-					playerToSetUp = -1;
-					objectManager->menuManager->ToParent();
-					ChangePauseMenuState(PAUSE_KEY_CONFIG);
-					break;
-				}
-				break;
-			}
-		}
-		else if(inputHistory->frame == frame && (inputHistory->buttonMenuBack.pressed || inputHistory->keyMenuBack.pressed))
-		{
-			switch(pauseMenuState)
-			{
-			case PAUSE_TOP:
-				ChangeMatchState(IN_PROGRESS);
-				break;
-			case PAUSE_VIDEO:
-				objectManager->menuManager->ToParent();
-				ChangePauseMenuState(PAUSE_TOP);
-			case PAUSE_KEY_CONFIG:
-				objectManager->menuManager->ToParent();
-				ChangePauseMenuState(PAUSE_TOP);
-				break;
-			case PAUSE_PLAYER_KEY_CONFIG:
-				playerToSetUp = -1;
-				objectManager->menuManager->ToParent();
-				ChangePauseMenuState(PAUSE_KEY_CONFIG);
-				break;
-			}
-		}
+		EventMenu(inputHistory, frame);
 		break;
 	case RESULTS:
 		if(inputHistory->frame == frame && (inputHistory->bButtonStart.pressed || inputHistory->bKeyStart.pressed
@@ -2719,6 +1848,8 @@ int Main::EventMatch(InputStates * inputHistory, int frame, int player)
 
 int Main::UpdateMatch()
 {
+	UpdateMenu();
+
 	return 0;
 }
 
@@ -2741,6 +1872,7 @@ int Main::CollideMatch()
 			{
 				if(int error = ChangeMatchPlayerState(LOST, i) != 0) { return error; }
 				objectManager->players[i]->toDelete = true;
+				objectManager->players[i] = NULL;
 				continue;
 			}
 
@@ -2797,29 +1929,29 @@ int Main::CollideMatch()
 
 void Main::DefaultKeyConfig()
 {
-	mappings[0].keyUp = SDLK_w;
-	mappings[0].keyDown = SDLK_s;
-	mappings[0].keyLeft = SDLK_a;
-	mappings[0].keyRight = SDLK_d;
-	mappings[0].keyJump = SDLK_j;
-	mappings[0].keyLight = SDLK_h;
-	mappings[0].keyHeavy = SDLK_n;
-	mappings[0].keyBlock = SDLK_k;
-	mappings[0].keyStart = SDLK_RSHIFT;
-	mappings[0].keyMenuConfirm = mappings[0].keyLight;
-	mappings[0].keyMenuBack = mappings[0].keyJump;
-
-	mappings[1].keyUp = SDLK_UP;
-	mappings[1].keyDown = SDLK_DOWN;
-	mappings[1].keyLeft = SDLK_LEFT;
-	mappings[1].keyRight = SDLK_RIGHT;
-	mappings[1].keyJump = SDLK_KP_5;
-	mappings[1].keyLight = SDLK_KP_4;
-	mappings[1].keyHeavy = SDLK_KP_1;
-	mappings[1].keyBlock = SDLK_KP_6;
-	mappings[1].keyStart = SDLK_KP_PLUS;
-	mappings[1].keyMenuConfirm = mappings[1].keyLight;
-	mappings[1].keyMenuBack = mappings[1].keyJump;
+	mappings[0].up.type = KEY_SETTING_KEY; mappings[0].up.keycode = SDLK_w;
+	mappings[0].down.type = KEY_SETTING_KEY; mappings[0].down.keycode = SDLK_s;
+	mappings[0].left.type = KEY_SETTING_KEY; mappings[0].left.keycode = SDLK_a;
+	mappings[0].right.type = KEY_SETTING_KEY; mappings[0].right.keycode = SDLK_d;
+	mappings[0].jump.type = KEY_SETTING_KEY; mappings[0].jump.keycode = SDLK_h;
+	mappings[0].light.type = KEY_SETTING_KEY; mappings[0].light.keycode = SDLK_g;
+	mappings[0].heavy.type = KEY_SETTING_KEY; mappings[0].heavy.keycode = SDLK_b;
+	mappings[0].block.type = KEY_SETTING_KEY; mappings[0].block.keycode = SDLK_j;
+	mappings[0].start.type = KEY_SETTING_KEY; mappings[0].start.keycode = SDLK_z;
+	mappings[0].menuConfirm.type = KEY_SETTING_KEY; mappings[0].menuConfirm.keycode = mappings[0].light.keycode;
+	mappings[0].menuBack.type = KEY_SETTING_KEY; mappings[0].menuBack.keycode = mappings[0].jump.keycode;
+	
+	mappings[1].up.type = KEY_SETTING_KEY; mappings[0].up.keycode = SDLK_p;
+	mappings[1].down.type = KEY_SETTING_KEY; mappings[0].down.keycode = SDLK_SEMICOLON;
+	mappings[1].left.type = KEY_SETTING_KEY; mappings[0].left.keycode = SDLK_l;
+	mappings[1].right.type = KEY_SETTING_KEY; mappings[0].right.keycode = SDLK_QUOTE;
+	mappings[1].jump.type = KEY_SETTING_KEY; mappings[0].jump.keycode = SDLK_KP_5;
+	mappings[1].light.type = KEY_SETTING_KEY; mappings[0].light.keycode = SDLK_KP_4;
+	mappings[1].heavy.type = KEY_SETTING_KEY; mappings[0].heavy.keycode = SDLK_KP_1;
+	mappings[1].block.type = KEY_SETTING_KEY; mappings[0].block.keycode = SDLK_KP_6;
+	mappings[1].start.type = KEY_SETTING_KEY; mappings[0].start.keycode = SDLK_KP_0;
+	mappings[1].menuConfirm.type = KEY_SETTING_KEY; mappings[0].menuConfirm.keycode = mappings[0].light.keycode;
+	mappings[1].menuBack.type = KEY_SETTING_KEY; mappings[0].menuBack.keycode = mappings[0].jump.keycode;
 }
 
 int Main::LoadKeyConfig()
@@ -2877,13 +2009,20 @@ void Main::LoadPlayerConfig(XMLElement * config, int player)
 	if(config->Attribute("up") != NULL)
 	{
 		string buttonConfig = config->Attribute("up");
-		if(!LoadToKeyConfig(buttonConfig, &mappings[player].keyUp))
+		mappings[player].up.type = KEY_SETTING_KEY;
+		if(!LoadToKeyConfig(buttonConfig, &mappings[player].up.keycode))
 		{
-			if(!LoadToJoyButtonConfig(buttonConfig, &mappings[player].buttonUp))
+			mappings[player].up.type = KEY_SETTING_BUTTON;
+			if(!LoadToJoyButtonConfig(buttonConfig, &mappings[player].up.joystickMapping))
 			{
-				if((hatOrStick = LoadToHatConfig(buttonConfig, &mappings[player].hat)) == false)
+				mappings[player].up.type = KEY_SETTING_HAT;
+				if((hatOrStick = LoadToHatConfig(buttonConfig, &mappings[player].up.hat)) == false)
 				{
-					hatOrStick = LoadToStickConfig(buttonConfig, &mappings[player].stick);
+					mappings[player].up.type = KEY_SETTING_STICK;
+					if((hatOrStick = LoadToStickConfig(buttonConfig, &mappings[player].up.stick)) == false)
+					{
+						mappings[player].up.type = KEY_SETTING_NONE;
+					}
 				}
 			}
 		}
@@ -2892,13 +2031,20 @@ void Main::LoadPlayerConfig(XMLElement * config, int player)
 	if(!hatOrStick && config->Attribute("down") != NULL)
 	{
 		string buttonConfig = config->Attribute("down");
-		if(!LoadToKeyConfig(buttonConfig, &mappings[player].keyDown))
+		mappings[player].down.type = KEY_SETTING_KEY;
+		if(!LoadToKeyConfig(buttonConfig, &mappings[player].down.keycode))
 		{
-			if(!LoadToJoyButtonConfig(buttonConfig, &mappings[player].buttonDown))
+			mappings[player].down.type = KEY_SETTING_BUTTON;
+			if(!LoadToJoyButtonConfig(buttonConfig, &mappings[player].down.joystickMapping))
 			{
-				if((hatOrStick = LoadToHatConfig(buttonConfig, &mappings[player].hat)) == false)
+				mappings[player].down.type = KEY_SETTING_HAT;
+				if((hatOrStick = LoadToHatConfig(buttonConfig, &mappings[player].down.hat)) == false)
 				{
-					hatOrStick = LoadToStickConfig(buttonConfig, &mappings[player].stick);
+					mappings[player].down.type = KEY_SETTING_STICK;
+					if((hatOrStick = LoadToStickConfig(buttonConfig, &mappings[player].down.stick)) == false)
+					{
+						mappings[player].down.type = KEY_SETTING_NONE;
+					}
 				}
 			}
 		}
@@ -2907,13 +2053,20 @@ void Main::LoadPlayerConfig(XMLElement * config, int player)
 	if(!hatOrStick && config->Attribute("left") != NULL)
 	{
 		string buttonConfig = config->Attribute("left");
-		if(!LoadToKeyConfig(buttonConfig, &mappings[player].keyLeft))
+		mappings[player].left.type = KEY_SETTING_KEY;
+		if(!LoadToKeyConfig(buttonConfig, &mappings[player].left.keycode))
 		{
-			if(!LoadToJoyButtonConfig(buttonConfig, &mappings[player].buttonLeft))
+			mappings[player].left.type = KEY_SETTING_BUTTON;
+			if(!LoadToJoyButtonConfig(buttonConfig, &mappings[player].left.joystickMapping))
 			{
-				if((hatOrStick = LoadToHatConfig(buttonConfig, &mappings[player].hat)) == false)
+				mappings[player].left.type = KEY_SETTING_HAT;
+				if((hatOrStick = LoadToHatConfig(buttonConfig, &mappings[player].left.hat)) == false)
 				{
-					hatOrStick = LoadToStickConfig(buttonConfig, &mappings[player].stick);
+					mappings[player].left.type = KEY_SETTING_STICK;
+					if((hatOrStick = LoadToStickConfig(buttonConfig, &mappings[player].left.stick)) == false)
+					{
+						mappings[player].left.type = KEY_SETTING_NONE;
+					}
 				}
 			}
 		}
@@ -2922,13 +2075,20 @@ void Main::LoadPlayerConfig(XMLElement * config, int player)
 	if(!hatOrStick && config->Attribute("right") != NULL)
 	{
 		string buttonConfig = config->Attribute("right");
-		if(!LoadToKeyConfig(buttonConfig, &mappings[player].keyRight))
+		mappings[player].right.type = KEY_SETTING_KEY;
+		if(!LoadToKeyConfig(buttonConfig, &mappings[player].right.keycode))
 		{
-			if(!LoadToJoyButtonConfig(buttonConfig, &mappings[player].buttonRight))
+			mappings[player].right.type = KEY_SETTING_BUTTON;
+			if(!LoadToJoyButtonConfig(buttonConfig, &mappings[player].right.joystickMapping))
 			{
-				if((hatOrStick = LoadToHatConfig(buttonConfig, &mappings[player].hat)) == false)
+				mappings[player].right.type = KEY_SETTING_HAT;
+				if((hatOrStick = LoadToHatConfig(buttonConfig, &mappings[player].right.hat)) == false)
 				{
-					hatOrStick = LoadToStickConfig(buttonConfig, &mappings[player].stick);
+					mappings[player].right.type = KEY_SETTING_STICK;
+					if((hatOrStick = LoadToStickConfig(buttonConfig, &mappings[player].right.stick)) == false)
+					{
+						mappings[player].right.type = KEY_SETTING_NONE;
+					}
 				}
 			}
 		}
@@ -2937,63 +2097,98 @@ void Main::LoadPlayerConfig(XMLElement * config, int player)
 	if(config->Attribute("light") != NULL)
 	{
 		string buttonConfig = config->Attribute("light");
-		if(!LoadToKeyConfig(buttonConfig, &mappings[player].keyLight))
+		mappings[player].light.type = KEY_SETTING_KEY;
+		if(!LoadToKeyConfig(buttonConfig, &mappings[player].light.keycode))
 		{
-			LoadToJoyButtonConfig(buttonConfig, &mappings[player].buttonLight);
+			mappings[player].light.type = KEY_SETTING_BUTTON;
+			if(!LoadToJoyButtonConfig(buttonConfig, &mappings[player].light.joystickMapping))
+			{
+				mappings[player].light.type = KEY_SETTING_NONE;
+			}
 		}
 	}
 	
 	if(config->Attribute("heavy") != NULL)
 	{
 		string buttonConfig = config->Attribute("heavy");
-		if(!LoadToKeyConfig(buttonConfig, &mappings[player].keyHeavy))
+		mappings[player].heavy.type = KEY_SETTING_KEY;
+		if(!LoadToKeyConfig(buttonConfig, &mappings[player].heavy.keycode))
 		{
-			LoadToJoyButtonConfig(buttonConfig, &mappings[player].buttonHeavy);
+			mappings[player].heavy.type = KEY_SETTING_BUTTON;
+			if(!LoadToJoyButtonConfig(buttonConfig, &mappings[player].heavy.joystickMapping))
+			{
+				mappings[player].heavy.type = KEY_SETTING_NONE;
+			}
 		}
 	}
 	
 	if(config->Attribute("jump") != NULL)
 	{
 		string buttonConfig = config->Attribute("jump");
-		if(!LoadToKeyConfig(buttonConfig, &mappings[player].keyJump))
+		mappings[player].jump.type = KEY_SETTING_KEY;
+		if(!LoadToKeyConfig(buttonConfig, &mappings[player].jump.keycode))
 		{
-			LoadToJoyButtonConfig(buttonConfig, &mappings[player].buttonJump);
+			mappings[player].jump.type = KEY_SETTING_BUTTON;
+			if(!LoadToJoyButtonConfig(buttonConfig, &mappings[player].jump.joystickMapping))
+			{
+				mappings[player].jump.type = KEY_SETTING_NONE;
+			}
 		}
 	}
 	
 	if(config->Attribute("block") != NULL)
 	{
 		string buttonConfig = config->Attribute("block");
-		if(!LoadToKeyConfig(buttonConfig, &mappings[player].keyBlock))
+		mappings[player].block.type = KEY_SETTING_KEY;
+		if(!LoadToKeyConfig(buttonConfig, &mappings[player].block.keycode))
 		{
-			LoadToJoyButtonConfig(buttonConfig, &mappings[player].buttonBlock);
+			mappings[player].block.type = KEY_SETTING_BUTTON;
+			if(!LoadToJoyButtonConfig(buttonConfig, &mappings[player].block.joystickMapping))
+			{
+				mappings[player].block.type = KEY_SETTING_NONE;
+			}
 		}
 	}
 	
 	if(config->Attribute("menuConfirm") != NULL)
 	{
 		string buttonConfig = config->Attribute("menuConfirm");
-		if(!LoadToKeyConfig(buttonConfig, &mappings[player].keyMenuConfirm))
+		mappings[player].menuConfirm.type = KEY_SETTING_KEY;
+		if(!LoadToKeyConfig(buttonConfig, &mappings[player].menuConfirm.keycode))
 		{
-			LoadToJoyButtonConfig(buttonConfig, &mappings[player].buttonMenuConfirm);
+			mappings[player].menuConfirm.type = KEY_SETTING_BUTTON;
+			if(!LoadToJoyButtonConfig(buttonConfig, &mappings[player].menuConfirm.joystickMapping))
+			{
+				mappings[player].menuConfirm.type = KEY_SETTING_NONE;
+			}
 		}
 	}
 	
 	if(config->Attribute("menuBack") != NULL)
 	{
 		string buttonConfig = config->Attribute("menuBack");
-		if(!LoadToKeyConfig(buttonConfig, &mappings[player].keyMenuBack))
+		mappings[player].menuBack.type = KEY_SETTING_KEY;
+		if(!LoadToKeyConfig(buttonConfig, &mappings[player].menuBack.keycode))
 		{
-			LoadToJoyButtonConfig(buttonConfig, &mappings[player].buttonMenuBack);
+			mappings[player].menuBack.type = KEY_SETTING_BUTTON;
+			if(!LoadToJoyButtonConfig(buttonConfig, &mappings[player].menuBack.joystickMapping))
+			{
+				mappings[player].menuBack.type = KEY_SETTING_NONE;
+			}
 		}
 	}
 	
 	if(config->Attribute("pause") != NULL)
 	{
 		string buttonConfig = config->Attribute("pause");
-		if(!LoadToKeyConfig(buttonConfig, &mappings[player].keyStart))
+		mappings[player].start.type = KEY_SETTING_KEY;
+		if(!LoadToKeyConfig(buttonConfig, &mappings[player].start.keycode))
 		{
-			LoadToJoyButtonConfig(buttonConfig, &mappings[player].buttonStart);
+			mappings[player].start.type = KEY_SETTING_BUTTON;
+			if(!LoadToJoyButtonConfig(buttonConfig, &mappings[player].start.joystickMapping))
+			{
+				mappings[player].start.type = KEY_SETTING_NONE;
+			}
 		}
 	}
 }
@@ -3088,10 +2283,10 @@ bool Main::LoadToKeyConfig(string config, SDL_Keycode * key)
 	else if(config == "numpad_plus") { *key = SDLK_KP_PLUS; return true; }
 	//else if(config == "numpad_enter") { *key = SDLK_KP_ENTER; return true; }
 	else if(config == "numpad_equals") { *key = SDLK_KP_EQUALS; return true; }
-	else if(config == "up") { *key = SDLK_UP; return true; }
-	else if(config == "down") { *key = SDLK_DOWN; return true; }
-	else if(config == "right") { *key = SDLK_RIGHT; return true; }
-	else if(config == "left") { *key = SDLK_LEFT; return true; }
+	//else if(config == "up") { *key = SDLK_UP; return true; }
+	//else if(config == "down") { *key = SDLK_DOWN; return true; }
+	//else if(config == "right") { *key = SDLK_RIGHT; return true; }
+	//else if(config == "left") { *key = SDLK_LEFT; return true; }
 	else if(config == "insert") { *key = SDLK_INSERT; return true; }
 	else if(config == "home") { *key = SDLK_HOME; return true; }
 	else if(config == "end") { *key = SDLK_END; return true; }
@@ -3213,22 +2408,115 @@ bool Main::LoadToStickConfig(string config, Uint8 * stick)
 	return false;
 }
 
+void Main::SetMenuVideoSettings()
+{
+	if(objectManager->menuManager == NULL) { return; }
+
+	MenuManager * mm = objectManager->menuManager;
+
+	objectManager->menuManager->SetChoiceForItem(FULL_SCREEN, mm->GetYesNoChooserFunction(objectManager->fullScreen));
+	objectManager->menuManager->SetChoiceForItem(STRETCH_SCREEN, mm->GetYesNoChooserFunction(objectManager->stretchScreen));
+	objectManager->menuManager->SetChoiceForItem(FULL_SCREEN_RESOLUTION, mm->GetResolutionChooserFunction(objectManager->fullscreenResolutionX, objectManager->fullscreenResolutionY));
+	objectManager->menuManager->SetChoiceForItem(WINDOWED_RESOLUTION, mm->GetResolutionChooserFunction(objectManager->windowedResolutionX, objectManager->windowedResolutionY));
+}
+
+void Main::SetMenuKeyConfig()
+{
+	if(objectManager->menuManager == NULL) { return; }
+
+	InputMappings mapping = mappings[playerToSetUp];
+
+	SetMenuKeyConfig(KEY_CONFIG_UP, mapping.up);
+	SetMenuKeyConfig(KEY_CONFIG_DOWN, mapping.down);
+	SetMenuKeyConfig(KEY_CONFIG_LEFT, mapping.left);
+	SetMenuKeyConfig(KEY_CONFIG_RIGHT, mapping.right);
+	SetMenuKeyConfig(KEY_CONFIG_LIGHT_ATTACK, mapping.light);
+	SetMenuKeyConfig(KEY_CONFIG_HEAVY_ATTACK, mapping.heavy);
+	SetMenuKeyConfig(KEY_CONFIG_JUMP, mapping.jump);
+	SetMenuKeyConfig(KEY_CONFIG_BLOCK, mapping.block);
+	SetMenuKeyConfig(KEY_CONFIG_PAUSE, mapping.start);
+	SetMenuKeyConfig(KEY_CONFIG_MENU_CONFIRM, mapping.menuConfirm);
+	SetMenuKeyConfig(KEY_CONFIG_MENU_BACK, mapping.menuBack);
+}
+
+void Main::SetMenuKeyConfig(HSMenuFunction function, KeySetting setting)
+{
+	switch(setting.type)
+	{
+	case KEY_SETTING_NONE:
+		objectManager->menuManager->SetKeyConfigNoSettingForItem(function);
+		break;
+	case KEY_SETTING_KEY:
+		objectManager->menuManager->SetKeyConfigByKeyForItem(function, setting.keycode);
+		break;
+	case KEY_SETTING_BUTTON:
+		objectManager->menuManager->SetKeyConfigByButtonForItem(function, setting.joystickMapping.joystick, setting.joystickMapping.button);
+		break;
+	case KEY_SETTING_HAT:
+		objectManager->menuManager->SetKeyConfigByHatForItem(function, setting.hat);
+		break;
+	case KEY_SETTING_STICK:
+		objectManager->menuManager->SetKeyConfigByStickForItem(function, setting.stick);
+		break;
+	}
+}
+
+void Main::ApplyAndSaveVideoSettings()
+{
+	if(objectManager->menuManager == NULL) { return; }
+
+	MenuManager * mm = objectManager->menuManager;
+
+	//apply the changes
+	objectManager->ApplyVideoSettings();
+
+	//save the settings
+	MenuChooserFunction fullscreenFunc = mm->GetChooserFuncByMenuFunc(FULL_SCREEN);
+	MenuChooserFunction stretchScreenfunc = mm->GetChooserFuncByMenuFunc(STRETCH_SCREEN);
+	MenuChooserFunction fullscreenResFunc = mm->GetChooserFuncByMenuFunc(FULL_SCREEN_RESOLUTION);
+	MenuChooserFunction windowedResFunc = mm->GetChooserFuncByMenuFunc(WINDOWED_RESOLUTION);
+
+	string fullscreenString = mm->GetYesNoConfigString(fullscreenFunc);
+	string stretchScreenString = mm->GetYesNoConfigString(stretchScreenfunc);
+	string fullscreenResXString = mm->GetResolutionXConfigString(fullscreenResFunc);
+	string fullscreenResYString = mm->GetResolutionYConfigString(fullscreenResFunc);
+	string windowedResXString = mm->GetResolutionXConfigString(windowedResFunc);
+	string windowedResYString = mm->GetResolutionYConfigString(windowedResFunc);
+
+	XMLDocument * file = new XMLDocument();
+
+	XMLElement * general = file->NewElement("General");
+	general->SetAttribute("fullscreen", fullscreenString.data());
+	general->SetAttribute("stretchScreen", stretchScreenString.data());
+	general->SetAttribute("fullscreenResolutionX", fullscreenResXString.data());
+	general->SetAttribute("fullscreenResolutionY", fullscreenResYString.data());
+	general->SetAttribute("windowedResolutionX", windowedResXString.data());
+	general->SetAttribute("windowedResolutionY", windowedResYString.data());
+
+	XMLElement * config = file->NewElement("VideoConfiguration");
+	config->InsertEndChild(general);
+
+	file->InsertEndChild(config);
+
+	file->SaveFile("data\\config\\videoConfig.xml");
+}
+
 int Main::SaveKeyConfig()
 {
 	//create a new xml structure
 	XMLDocument * file = new XMLDocument();
 
 	XMLElement * playerOne = file->NewElement("PlayerOne");
-	SetPlayerConfig(playerOne, 0);
+	SavePlayerKeyConfig(playerOne, 0);
 
 	XMLElement * playerTwo = file->NewElement("PlayerTwo");
-	SetPlayerConfig(playerTwo, 1);
+	SavePlayerKeyConfig(playerTwo, 1);
 
 	XMLElement * playerThree = file->NewElement("PlayerThree");
-	SetPlayerConfig(playerThree, 2);
+	SavePlayerKeyConfig(playerThree, 2);
 
 	XMLElement * playerFour = file->NewElement("PlayerFour");
-	SetPlayerConfig(playerFour, 3);
+	SavePlayerKeyConfig(playerFour, 3);
 
 	XMLElement * config = file->NewElement("KeyConfiguration");
 	config->InsertEndChild(playerOne);
@@ -3243,385 +2531,23 @@ int Main::SaveKeyConfig()
 	return 0;
 }
 
-void Main::SetPlayerConfig(XMLElement * config, int player)
+void Main::SavePlayerKeyConfig(XMLElement * config, int player)
 {
-	if(GetKeyConfigString(mappings[player].keyUp) != "")
-	{
-		config->SetAttribute("up", GetKeyConfigString(mappings[player].keyUp).data());
-	}
-	else if(GetJoyButtonConfigString(mappings[player].buttonUp) != "")
-	{
-		config->SetAttribute("up", GetJoyButtonConfigString(mappings[player].buttonUp).data());
-	}
-	else if(GetHatConfigString(mappings[player].hat) != "")
-	{
-		config->SetAttribute("up", GetHatConfigString(mappings[player].hat).data());
-	}
-	else if(GetStickConfigString(mappings[player].stick) != "")
-	{
-		config->SetAttribute("up", GetStickConfigString(mappings[player].stick).data());
-	}
-	
-	if(GetKeyConfigString(mappings[player].keyDown) != "")
-	{
-		config->SetAttribute("down", GetKeyConfigString(mappings[player].keyDown).data());
-	}
-	else if(GetJoyButtonConfigString(mappings[player].buttonDown) != "")
-	{
-		config->SetAttribute("down", GetJoyButtonConfigString(mappings[player].buttonDown).data());
-	}
-	else if(GetHatConfigString(mappings[player].hat) != "")
-	{
-		config->SetAttribute("down", GetHatConfigString(mappings[player].hat).data());
-	}
-	else if(GetStickConfigString(mappings[player].stick) != "")
-	{
-		config->SetAttribute("down", GetStickConfigString(mappings[player].stick).data());
-	}
-	
-	if(GetKeyConfigString(mappings[player].keyLeft) != "")
-	{
-		config->SetAttribute("left", GetKeyConfigString(mappings[player].keyLeft).data());
-	}
-	else if(GetJoyButtonConfigString(mappings[player].buttonLeft) != "")
-	{
-		config->SetAttribute("left", GetJoyButtonConfigString(mappings[player].buttonLeft).data());
-	}
-	else if(GetHatConfigString(mappings[player].hat) != "")
-	{
-		config->SetAttribute("left", GetHatConfigString(mappings[player].hat).data());
-	}
-	else if(GetStickConfigString(mappings[player].stick) != "")
-	{
-		config->SetAttribute("left", GetStickConfigString(mappings[player].stick).data());
-	}
-	
-	if(GetKeyConfigString(mappings[player].keyRight) != "")
-	{
-		config->SetAttribute("right", GetKeyConfigString(mappings[player].keyRight).data());
-	}
-	else if(GetJoyButtonConfigString(mappings[player].buttonRight) != "")
-	{
-		config->SetAttribute("right", GetJoyButtonConfigString(mappings[player].buttonRight).data());
-	}
-	else if(GetHatConfigString(mappings[player].hat) != "")
-	{
-		config->SetAttribute("right", GetHatConfigString(mappings[player].hat).data());
-	}
-	else if(GetStickConfigString(mappings[player].stick) != "")
-	{
-		config->SetAttribute("right", GetStickConfigString(mappings[player].stick).data());
-	}
-	
-	if(GetKeyConfigString(mappings[player].keyLight) != "")
-	{
-		config->SetAttribute("light", GetKeyConfigString(mappings[player].keyLight).data());
-	}
-	else if(GetJoyButtonConfigString(mappings[player].buttonLight) != "")
-	{
-		config->SetAttribute("light", GetJoyButtonConfigString(mappings[player].buttonLight).data());
-	}
-	
-	if(GetKeyConfigString(mappings[player].keyHeavy) != "")
-	{
-		config->SetAttribute("heavy", GetKeyConfigString(mappings[player].keyHeavy).data());
-	}
-	else if(GetJoyButtonConfigString(mappings[player].buttonHeavy) != "")
-	{
-		config->SetAttribute("heavy", GetJoyButtonConfigString(mappings[player].buttonHeavy).data());
-	}
-	
-	if(GetKeyConfigString(mappings[player].keyJump) != "")
-	{
-		config->SetAttribute("jump", GetKeyConfigString(mappings[player].keyJump).data());
-	}
-	else if(GetJoyButtonConfigString(mappings[player].buttonJump) != "")
-	{
-		config->SetAttribute("jump", GetJoyButtonConfigString(mappings[player].buttonJump).data());
-	}
-	
-	if(GetKeyConfigString(mappings[player].keyBlock) != "")
-	{
-		config->SetAttribute("block", GetKeyConfigString(mappings[player].keyBlock).data());
-	}
-	else if(GetJoyButtonConfigString(mappings[player].buttonBlock) != "")
-	{
-		config->SetAttribute("block", GetJoyButtonConfigString(mappings[player].buttonBlock).data());
-	}
-	
-	if(GetKeyConfigString(mappings[player].keyMenuConfirm) != "")
-	{
-		config->SetAttribute("menuConfirm", GetKeyConfigString(mappings[player].keyMenuConfirm).data());
-	}
-	else if(GetJoyButtonConfigString(mappings[player].buttonMenuConfirm) != "")
-	{
-		config->SetAttribute("menuConfirm", GetJoyButtonConfigString(mappings[player].buttonMenuConfirm).data());
-	}
-	
-	if(GetKeyConfigString(mappings[player].keyMenuBack) != "")
-	{
-		config->SetAttribute("menuBack", GetKeyConfigString(mappings[player].keyMenuBack).data());
-	}
-	else if(GetJoyButtonConfigString(mappings[player].buttonMenuBack) != "")
-	{
-		config->SetAttribute("menuBack", GetJoyButtonConfigString(mappings[player].buttonMenuBack).data());
-	}
-	
-	if(GetKeyConfigString(mappings[player].keyStart) != "")
-	{
-		config->SetAttribute("pause", GetKeyConfigString(mappings[player].keyStart).data());
-	}
-	else if(GetJoyButtonConfigString(mappings[player].buttonStart) != "")
-	{
-		config->SetAttribute("pause", GetJoyButtonConfigString(mappings[player].buttonStart).data());
-	}
-}
+	if(objectManager->menuManager == NULL) { return; }
 
-string Main::GetKeyConfigString(SDL_Keycode key)
-{
-	switch(key)
-	{
-	case SDLK_BACKSPACE: return "backspace"; break;
-	case SDLK_TAB: return "tab"; break;
-	case SDLK_CLEAR: return "clear"; break;
-	//case SDLK_RETURN: return "return"; break;
-	case SDLK_PAUSE: return "pause"; break;
-	//case SDLK_ESCAPE: return "escape"; break;
-	case SDLK_SPACE: return "space"; break;
-	case SDLK_EXCLAIM: return "exclaim"; break;
-	case SDLK_QUOTEDBL: return "quotedbl"; break;
-	case SDLK_HASH: return "hash"; break;
-	case SDLK_DOLLAR: return "dollar"; break;
-	case SDLK_AMPERSAND: return "ampersand"; break;
-	case SDLK_QUOTE: return "quote"; break;
-	case SDLK_LEFTPAREN: return "leftparen"; break;
-	case SDLK_RIGHTPAREN: return "rightparen"; break;
-	case SDLK_ASTERISK: return "asterisk"; break;
-	case SDLK_PLUS: return "plus"; break;
-	case SDLK_COMMA: return "comma"; break;
-	case SDLK_MINUS: return "minus"; break;
-	case SDLK_PERIOD: return "period"; break;
-	case SDLK_SLASH: return "slash"; break;
-	case SDLK_0: return "0"; break;
-	case SDLK_1: return "1"; break;
-	case SDLK_2: return "2"; break;
-	case SDLK_3: return "3"; break;
-	case SDLK_4: return "4"; break;
-	case SDLK_5: return "5"; break;
-	case SDLK_6: return "6"; break;
-	case SDLK_7: return "7"; break;
-	case SDLK_8: return "8"; break;
-	case SDLK_9: return "9"; break;
-	case SDLK_COLON: return "colon"; break;
-	case SDLK_SEMICOLON: return "semicolon"; break;
-	case SDLK_LESS: return "less"; break;
-	case SDLK_EQUALS: return "equals"; break;
-	case SDLK_GREATER: return "greater"; break;
-	case SDLK_QUESTION: return "question"; break;
-	case SDLK_AT: return "at"; break;
-	case SDLK_LEFTBRACKET: return "leftbracket"; break;
-	case SDLK_BACKSLASH: return "backslash"; break;
-	case SDLK_RIGHTBRACKET: return "rightbracket"; break;
-	case SDLK_CARET: return "caret"; break;
-	case SDLK_UNDERSCORE: return "underscore"; break;
-	case SDLK_BACKQUOTE: return "backquote"; break;
-	case SDLK_a: return "a"; break;
-	case SDLK_b: return "b"; break;
-	case SDLK_c: return "c"; break;
-	case SDLK_d: return "d"; break;
-	case SDLK_e: return "e"; break;
-	case SDLK_f: return "f"; break;
-	case SDLK_g: return "g"; break;
-	case SDLK_h: return "h"; break;
-	case SDLK_i: return "i"; break;
-	case SDLK_j: return "j"; break;
-	case SDLK_k: return "k"; break;
-	case SDLK_l: return "l"; break;
-	case SDLK_m: return "m"; break;
-	case SDLK_n: return "n"; break;
-	case SDLK_o: return "o"; break;
-	case SDLK_p: return "p"; break;
-	case SDLK_q: return "q"; break;
-	case SDLK_r: return "r"; break;
-	case SDLK_s: return "s"; break;
-	case SDLK_t: return "t"; break;
-	case SDLK_u: return "u"; break;
-	case SDLK_v: return "v"; break;
-	case SDLK_w: return "w"; break;
-	case SDLK_x: return "x"; break;
-	case SDLK_y: return "y"; break;
-	case SDLK_z: return "z"; break;
-	case SDLK_DELETE: return "delete"; break;
-	case SDLK_KP_0: return "numpad_0"; break;
-	case SDLK_KP_1: return "numpad_1"; break;
-	case SDLK_KP_2: return "numpad_2"; break;
-	case SDLK_KP_3: return "numpad_3"; break;
-	case SDLK_KP_4: return "numpad_4"; break;
-	case SDLK_KP_5: return "numpad_5"; break;
-	case SDLK_KP_6: return "numpad_6"; break;
-	case SDLK_KP_7: return "numpad_7"; break;
-	case SDLK_KP_8: return "numpad_8"; break;
-	case SDLK_KP_9: return "numpad_9"; break;
-	case SDLK_KP_PERIOD: return "numpad_period"; break;
-	case SDLK_KP_DIVIDE: return "numpad_divide"; break;
-	case SDLK_KP_MULTIPLY: return "numpad_multiply"; break;
-	case SDLK_KP_MINUS: return "numpad_minus"; break;
-	case SDLK_KP_PLUS: return "numpad_plus"; break;
-	//case SDLK_KP_ENTER: return "numpad_enter"; break;
-	case SDLK_KP_EQUALS: return "numpad_equals"; break;
-	case SDLK_UP: return "up"; break;
-	case SDLK_DOWN: return "down"; break;
-	case SDLK_LEFT: return "left"; break;
-	case SDLK_RIGHT: return "right"; break;
-	case SDLK_INSERT: return "insert"; break;
-	case SDLK_HOME: return "home"; break;
-	case SDLK_END: return "end"; break;
-	case SDLK_PAGEUP: return "pageup"; break;
-	case SDLK_PAGEDOWN: return "pagedown"; break;
-	case SDLK_RSHIFT: return "rshift"; break;
-	case SDLK_LSHIFT: return "lshift"; break;
-	case SDLK_RCTRL: return "rctrl"; break;
-	case SDLK_LCTRL: return "lctrl"; break;
-	case SDLK_RALT: return "ralt"; break;
-	case SDLK_LALT: return "lalt"; break;
-	}
+	MenuManager * mm = objectManager->menuManager;
 
-	return "";
-}
-
-string Main::GetJoyButtonConfigString(JoystickMapping joyButton)
-{
-	switch(joyButton.joystick)
-	{
-	case 0:
-		switch(joyButton.button)
-		{
-		case 0: return "joy0_0"; break;
-		case 1: return "joy0_1"; break;
-		case 2: return "joy0_2"; break;
-		case 3: return "joy0_3"; break;
-		case 4: return "joy0_4"; break;
-		case 5: return "joy0_5"; break;
-		case 6: return "joy0_6"; break;
-		case 7: return "joy0_7"; break;
-		case 8: return "joy0_8"; break;
-		case 9: return "joy0_9"; break;
-		case 10: return "joy0_10"; break;
-		case 11: return "joy0_11"; break;
-		case 12: return "joy0_12"; break;
-		case 13: return "joy0_13"; break;
-		case 14: return "joy0_14"; break;
-		case 15: return "joy0_15"; break;
-		case 16: return "joy0_16"; break;
-		case 17: return "joy0_17"; break;
-		case 18: return "joy0_18"; break;
-		case 19: return "joy0_19"; break;
-		}
-		break;
-	case 1:
-		switch(joyButton.button)
-		{
-		case 0: return "joy1_0"; break;
-		case 1: return "joy1_1"; break;
-		case 2: return "joy1_2"; break;
-		case 3: return "joy1_3"; break;
-		case 4: return "joy1_4"; break;
-		case 5: return "joy1_5"; break;
-		case 6: return "joy1_6"; break;
-		case 7: return "joy1_7"; break;
-		case 8: return "joy1_8"; break;
-		case 9: return "joy1_9"; break;
-		case 10: return "joy1_10"; break;
-		case 11: return "joy1_11"; break;
-		case 12: return "joy1_12"; break;
-		case 13: return "joy1_13"; break;
-		case 14: return "joy1_14"; break;
-		case 15: return "joy1_15"; break;
-		case 16: return "joy1_16"; break;
-		case 17: return "joy1_17"; break;
-		case 18: return "joy1_18"; break;
-		case 19: return "joy1_19"; break;
-		}
-		break;
-	case 2:
-		switch(joyButton.button)
-		{
-		case 0: return "joy2_0"; break;
-		case 1: return "joy2_1"; break;
-		case 2: return "joy2_2"; break;
-		case 3: return "joy2_3"; break;
-		case 4: return "joy2_4"; break;
-		case 5: return "joy2_5"; break;
-		case 6: return "joy2_6"; break;
-		case 7: return "joy2_7"; break;
-		case 8: return "joy2_8"; break;
-		case 9: return "joy2_9"; break;
-		case 10: return "joy2_10"; break;
-		case 11: return "joy2_11"; break;
-		case 12: return "joy2_12"; break;
-		case 13: return "joy2_13"; break;
-		case 14: return "joy2_14"; break;
-		case 15: return "joy2_15"; break;
-		case 16: return "joy2_16"; break;
-		case 17: return "joy2_17"; break;
-		case 18: return "joy2_18"; break;
-		case 19: return "joy2_19"; break;
-		}
-		break;
-	case 3:
-		switch(joyButton.button)
-		{
-		case 0: return "joy3_0"; break;
-		case 1: return "joy3_1"; break;
-		case 2: return "joy3_2"; break;
-		case 3: return "joy3_3"; break;
-		case 4: return "joy3_4"; break;
-		case 5: return "joy3_5"; break;
-		case 6: return "joy3_6"; break;
-		case 7: return "joy3_7"; break;
-		case 8: return "joy3_8"; break;
-		case 9: return "joy3_9"; break;
-		case 10: return "joy3_10"; break;
-		case 11: return "joy3_11"; break;
-		case 12: return "joy3_12"; break;
-		case 13: return "joy3_13"; break;
-		case 14: return "joy3_14"; break;
-		case 15: return "joy3_15"; break;
-		case 16: return "joy3_16"; break;
-		case 17: return "joy3_17"; break;
-		case 18: return "joy3_18"; break;
-		case 19: return "joy3_19"; break;
-		}
-		break;
-	}
-
-	return "";
-}
-
-string Main::GetHatConfigString(Uint8 hat)
-{
-	switch(hat)
-	{
-	case 0: return "joy0_hat"; break;
-	case 1: return "joy1_hat"; break;
-	case 2: return "joy2_hat"; break;
-	case 3: return "joy3_hat"; break;
-	}
-
-	return "";
-}
-
-string Main::GetStickConfigString(Uint8 stick)
-{
-	switch(stick)
-	{
-	case 0: return "joy0_stick"; break;
-	case 1: return "joy1_stick"; break;
-	case 2: return "joy2_stick"; break;
-	case 3: return "joy3_stick"; break;
-	}
-
-	return "";
+	config->SetAttribute("up", mm->GetKeyConfigString(mappings[player].up).data());
+	config->SetAttribute("down", mm->GetKeyConfigString(mappings[player].down).data());
+	config->SetAttribute("left", mm->GetKeyConfigString(mappings[player].left).data());
+	config->SetAttribute("right", mm->GetKeyConfigString(mappings[player].right).data());
+	config->SetAttribute("light", mm->GetKeyConfigString(mappings[player].light).data());
+	config->SetAttribute("heavy", mm->GetKeyConfigString(mappings[player].heavy).data());
+	config->SetAttribute("jump", mm->GetKeyConfigString(mappings[player].jump).data());
+	config->SetAttribute("block", mm->GetKeyConfigString(mappings[player].block).data());
+	config->SetAttribute("menuConfirm", mm->GetKeyConfigString(mappings[player].menuConfirm).data());
+	config->SetAttribute("menuBack", mm->GetKeyConfigString(mappings[player].menuBack).data());
+	config->SetAttribute("pause", mm->GetKeyConfigString(mappings[player].start).data());
 }
 
 //animation and holds
@@ -3676,7 +2602,7 @@ int Main::Event()
         HandleEvent(&curEvent);
     }
 
-	if(mainMenuState == INPUT_KEY) { return 0; } 
+	if(bindingKey != BINDING_NONE) { return 0; } 
 
 	for(int i = 0; i < MAX_PLAYERS; i++)
 	{
@@ -3787,9 +2713,12 @@ void Main::ClearStickForAllPlayers(Uint8 which)
 {
 	for(int i = 0; i < MAX_PLAYERS; i++)
 	{
-		if(mappings[i].stick == which)
+		if(mappings[i].up.type == KEY_SETTING_STICK && mappings[i].up.stick == which)
 		{
-			mappings[i].stick = JOYSTICK_UNKNOWN;
+			mappings[i].up.type = KEY_SETTING_NONE;
+			mappings[i].down.type = KEY_SETTING_NONE;
+			mappings[i].left.type = KEY_SETTING_NONE;
+			mappings[i].right.type = KEY_SETTING_NONE;
 		}
 	}
 }
@@ -3798,9 +2727,12 @@ void Main::ClearHatForAllPlayers(Uint8 which)
 {
 	for(int i = 0; i < MAX_PLAYERS; i++)
 	{
-		if(mappings[i].hat == which)
+		if(mappings[i].up.type == KEY_SETTING_HAT && mappings[i].up.hat == which)
 		{
-			mappings[i].hat = JOYSTICK_UNKNOWN;
+			mappings[i].up.type = KEY_SETTING_NONE;
+			mappings[i].down.type = KEY_SETTING_NONE;
+			mappings[i].left.type = KEY_SETTING_NONE;
+			mappings[i].right.type = KEY_SETTING_NONE;
 		}
 	}
 }
@@ -3809,51 +2741,56 @@ void Main::ClearButtonForAllPlayers(Uint8 which, Uint8 button, int playerToIgnor
 {
 	for(int i = 0; i < MAX_PLAYERS; i++)
 	{
-		if(i == playerToIgnore) { continue; }
-
-		if(mappings[i].buttonUp.joystick == which && mappings[i].buttonUp.button == button)
+		if(playerToIgnore != i || (bindingKey != BINDING_CONFIRM && bindingKey != BINDING_BACK))
 		{
-			mappings[i].buttonUp.joystick = JOYSTICK_UNKNOWN; mappings[i].buttonUp.button = JOYBUTTON_UNKNOWN;
+			if(mappings[i].up.type == KEY_SETTING_BUTTON && mappings[i].up.joystickMapping.joystick == which && mappings[i].up.joystickMapping.button == button)
+			{
+				mappings[i].up.type = KEY_SETTING_NONE;
+			}
+			if(mappings[i].down.type == KEY_SETTING_BUTTON && mappings[i].down.joystickMapping.joystick == which && mappings[i].down.joystickMapping.button == button)
+			{
+				mappings[i].down.type = KEY_SETTING_NONE;
+			}
+			if(mappings[i].left.type == KEY_SETTING_BUTTON && mappings[i].left.joystickMapping.joystick == which && mappings[i].left.joystickMapping.button == button)
+			{
+				mappings[i].left.type = KEY_SETTING_NONE;
+			}
+			if(mappings[i].right.type == KEY_SETTING_BUTTON && mappings[i].right.joystickMapping.joystick == which && mappings[i].right.joystickMapping.button == button)
+			{
+				mappings[i].right.type = KEY_SETTING_NONE;
+			}
+			if(mappings[i].light.type == KEY_SETTING_BUTTON && mappings[i].light.joystickMapping.joystick == which && mappings[i].light.joystickMapping.button == button)
+			{
+				mappings[i].light.type = KEY_SETTING_NONE;
+			}
+			if(mappings[i].heavy.type == KEY_SETTING_BUTTON && mappings[i].heavy.joystickMapping.joystick == which && mappings[i].heavy.joystickMapping.button == button)
+			{
+				mappings[i].heavy.type = KEY_SETTING_NONE;
+			}
+			if(mappings[i].jump.type == KEY_SETTING_BUTTON && mappings[i].jump.joystickMapping.joystick == which && mappings[i].jump.joystickMapping.button == button)
+			{
+				mappings[i].jump.type = KEY_SETTING_NONE;
+			}
+			if(mappings[i].block.type == KEY_SETTING_BUTTON && mappings[i].block.joystickMapping.joystick == which && mappings[i].block.joystickMapping.button == button)
+			{
+				mappings[i].block.type = KEY_SETTING_NONE;
+			}
+			if(mappings[i].start.type == KEY_SETTING_BUTTON && mappings[i].start.joystickMapping.joystick == which && mappings[i].start.joystickMapping.button == button)
+			{
+				mappings[i].start.type = KEY_SETTING_NONE;
+			}
 		}
-		if(mappings[i].buttonDown.joystick == which && mappings[i].buttonDown.button == button)
+		
+		if(playerToIgnore != i || bindingKey == BINDING_CONFIRM || bindingKey == BINDING_BACK)
 		{
-			mappings[i].buttonDown.joystick = JOYSTICK_UNKNOWN; mappings[i].buttonDown.button = JOYBUTTON_UNKNOWN;
-		}
-		if(mappings[i].buttonLeft.joystick == which && mappings[i].buttonLeft.button == button)
-		{
-			mappings[i].buttonLeft.joystick = JOYSTICK_UNKNOWN; mappings[i].buttonLeft.button = JOYBUTTON_UNKNOWN;
-		}
-		if(mappings[i].buttonRight.joystick == which && mappings[i].buttonRight.button == button)
-		{
-			mappings[i].buttonRight.joystick = JOYSTICK_UNKNOWN; mappings[i].buttonRight.button = JOYBUTTON_UNKNOWN;
-		}
-		if(mappings[i].buttonJump.joystick == which && mappings[i].buttonJump.button == button)
-		{
-			mappings[i].buttonJump.joystick = JOYSTICK_UNKNOWN; mappings[i].buttonJump.button = JOYBUTTON_UNKNOWN;
-		}
-		if(mappings[i].buttonLight.joystick == which && mappings[i].buttonLight.button == button)
-		{
-			mappings[i].buttonLight.joystick = JOYSTICK_UNKNOWN; mappings[i].buttonLight.button = JOYBUTTON_UNKNOWN;
-		}
-		if(mappings[i].buttonHeavy.joystick == which && mappings[i].buttonHeavy.button == button)
-		{
-			mappings[i].buttonHeavy.joystick = JOYSTICK_UNKNOWN; mappings[i].buttonHeavy.button = JOYBUTTON_UNKNOWN;
-		}
-		if(mappings[i].buttonBlock.joystick == which && mappings[i].buttonBlock.button == button)
-		{
-			mappings[i].buttonBlock.joystick = JOYSTICK_UNKNOWN; mappings[i].buttonBlock.button = JOYBUTTON_UNKNOWN;
-		}
-		if(mappings[i].buttonStart.joystick == which && mappings[i].buttonStart.button == button)
-		{
-			mappings[i].buttonStart.joystick = JOYSTICK_UNKNOWN; mappings[i].buttonStart.button = JOYBUTTON_UNKNOWN;
-		}
-		if(mappings[i].buttonMenuConfirm.joystick == which && mappings[i].buttonMenuConfirm.button == button)
-		{
-			mappings[i].buttonMenuConfirm.joystick = JOYSTICK_UNKNOWN; mappings[i].buttonMenuConfirm.button = JOYBUTTON_UNKNOWN;
-		}
-		if(mappings[i].buttonMenuBack.joystick == which && mappings[i].buttonMenuBack.button == button)
-		{
-			mappings[i].buttonMenuBack.joystick = JOYSTICK_UNKNOWN; mappings[i].buttonMenuBack.button = JOYBUTTON_UNKNOWN;
+			if(mappings[i].menuConfirm.type == KEY_SETTING_BUTTON && mappings[i].menuConfirm.joystickMapping.joystick == which && mappings[i].menuConfirm.joystickMapping.button == button)
+			{
+				mappings[i].menuConfirm.type = KEY_SETTING_NONE;
+			}
+			if(mappings[i].menuBack.type == KEY_SETTING_BUTTON && mappings[i].menuBack.joystickMapping.joystick == which && mappings[i].menuBack.joystickMapping.button == button)
+			{
+				mappings[i].menuBack.type = KEY_SETTING_NONE;
+			}
 		}
 	}
 }
@@ -3862,62 +2799,41 @@ void Main::ClearKeyForAllPlayers(SDL_Keycode sym, int playerToIgnore)
 {
 	for(int i = 0; i < MAX_PLAYERS; i++)
 	{
-		if(i == playerToIgnore) { continue; }
-
-		if(mappings[i].keyUp == sym) { mappings[i].keyUp = SDLK_UNKNOWN; }
-		if(mappings[i].keyDown == sym) { mappings[i].keyDown = SDLK_UNKNOWN; }
-		if(mappings[i].keyLeft == sym) { mappings[i].keyLeft = SDLK_UNKNOWN; }
-		if(mappings[i].keyRight == sym) { mappings[i].keyRight = SDLK_UNKNOWN; }
-		if(mappings[i].keyJump == sym) { mappings[i].keyJump = SDLK_UNKNOWN; }
-		if(mappings[i].keyLight == sym) { mappings[i].keyLight = SDLK_UNKNOWN; }
-		if(mappings[i].keyHeavy == sym) { mappings[i].keyHeavy = SDLK_UNKNOWN; }
-		if(mappings[i].keyBlock == sym) { mappings[i].keyBlock = SDLK_UNKNOWN; }
-		if(mappings[i].keyStart == sym) { mappings[i].keyStart = SDLK_UNKNOWN; }
-		if(mappings[i].keyMenuConfirm == sym) { mappings[i].keyMenuConfirm = SDLK_UNKNOWN; }
-		if(mappings[i].keyMenuBack == sym) { mappings[i].keyMenuBack = SDLK_UNKNOWN; }
+		if(playerToIgnore != i || (bindingKey != BINDING_CONFIRM && bindingKey != BINDING_BACK))
+		{
+			if(mappings[i].up.type == KEY_SETTING_KEY && mappings[i].up.keycode == sym) { mappings[i].up.type = KEY_SETTING_NONE; }
+			if(mappings[i].down.type == KEY_SETTING_KEY && mappings[i].down.keycode == sym) { mappings[i].down.type = KEY_SETTING_NONE; }
+			if(mappings[i].left.type == KEY_SETTING_KEY && mappings[i].left.keycode == sym) { mappings[i].left.type = KEY_SETTING_NONE; }
+			if(mappings[i].right.type == KEY_SETTING_KEY && mappings[i].right.keycode == sym) { mappings[i].right.type = KEY_SETTING_NONE; }
+			if(mappings[i].light.type == KEY_SETTING_KEY && mappings[i].light.keycode == sym) { mappings[i].light.type = KEY_SETTING_NONE; }
+			if(mappings[i].heavy.type == KEY_SETTING_KEY && mappings[i].heavy.keycode == sym) { mappings[i].heavy.type = KEY_SETTING_NONE; }
+			if(mappings[i].jump.type == KEY_SETTING_KEY && mappings[i].jump.keycode == sym) { mappings[i].jump.type = KEY_SETTING_NONE; }
+			if(mappings[i].block.type == KEY_SETTING_KEY && mappings[i].block.keycode == sym) { mappings[i].block.type = KEY_SETTING_NONE; }
+			if(mappings[i].start.type == KEY_SETTING_KEY && mappings[i].start.keycode == sym) { mappings[i].start.type = KEY_SETTING_NONE; }
+		}
+		
+		if(playerToIgnore != i || bindingKey == BINDING_CONFIRM || bindingKey == BINDING_BACK)
+		{
+			if(mappings[i].menuConfirm.type == KEY_SETTING_KEY && mappings[i].menuConfirm.keycode == sym) { mappings[i].menuConfirm.type = KEY_SETTING_NONE; }
+			if(mappings[i].menuBack.type == KEY_SETTING_KEY && mappings[i].menuBack.keycode == sym) { mappings[i].menuBack.type = KEY_SETTING_NONE; }
+		}
 	}
 }
 
 void Main::ClearControls(int player)
 {
 	if(player < 0 || player >= MAX_PLAYERS) { return; }
-	mappings[player].buttonUp.button = JOYBUTTON_UNKNOWN;
-	mappings[player].buttonUp.joystick = JOYSTICK_UNKNOWN;
-	mappings[player].buttonDown.button = JOYBUTTON_UNKNOWN;
-	mappings[player].buttonDown.joystick = JOYSTICK_UNKNOWN;
-	mappings[player].buttonLeft.button = JOYBUTTON_UNKNOWN;
-	mappings[player].buttonLeft.joystick = JOYSTICK_UNKNOWN;
-	mappings[player].buttonRight.button = JOYBUTTON_UNKNOWN;
-	mappings[player].buttonRight.joystick = JOYSTICK_UNKNOWN;
-	mappings[player].buttonJump.button = JOYBUTTON_UNKNOWN;
-	mappings[player].buttonJump.joystick = JOYSTICK_UNKNOWN;
-	mappings[player].buttonLight.button = JOYBUTTON_UNKNOWN;
-	mappings[player].buttonLight.joystick = JOYSTICK_UNKNOWN;
-	mappings[player].buttonHeavy.button = JOYBUTTON_UNKNOWN;
-	mappings[player].buttonHeavy.joystick = JOYSTICK_UNKNOWN;
-	mappings[player].buttonBlock.button = JOYBUTTON_UNKNOWN;
-	mappings[player].buttonBlock.joystick = JOYSTICK_UNKNOWN;
-	mappings[player].buttonStart.button = JOYBUTTON_UNKNOWN;
-	mappings[player].buttonStart.joystick = JOYSTICK_UNKNOWN;
-	mappings[player].buttonMenuConfirm.button = JOYBUTTON_UNKNOWN;
-	mappings[player].buttonMenuConfirm.joystick = JOYSTICK_UNKNOWN;
-	mappings[player].buttonMenuBack.button = JOYBUTTON_UNKNOWN;
-	mappings[player].buttonMenuBack.joystick = JOYSTICK_UNKNOWN;
-
-	mappings[player].keyUp = SDLK_UNKNOWN;
-	mappings[player].keyDown = SDLK_UNKNOWN;
-	mappings[player].keyLeft = SDLK_UNKNOWN;
-	mappings[player].keyRight = SDLK_UNKNOWN;
-	mappings[player].keyJump = SDLK_UNKNOWN;
-	mappings[player].keyLight = SDLK_UNKNOWN;
-	mappings[player].keyHeavy = SDLK_UNKNOWN;
-	mappings[player].keyBlock = SDLK_UNKNOWN;
-	mappings[player].keyStart = SDLK_UNKNOWN;
-	mappings[player].keyMenuConfirm = SDLK_UNKNOWN;
-	mappings[player].keyMenuBack = SDLK_UNKNOWN;
-
-	mappings[player].hat = JOYSTICK_UNKNOWN;
-	mappings[player].stick = JOYSTICK_UNKNOWN;
+	mappings[player].up.type = KEY_SETTING_NONE;
+	mappings[player].down.type = KEY_SETTING_NONE;
+	mappings[player].left.type = KEY_SETTING_NONE;
+	mappings[player].right.type = KEY_SETTING_NONE;
+	mappings[player].light.type = KEY_SETTING_NONE;
+	mappings[player].heavy.type = KEY_SETTING_NONE;
+	mappings[player].jump.type = KEY_SETTING_NONE;
+	mappings[player].block.type = KEY_SETTING_NONE;
+	mappings[player].start.type = KEY_SETTING_NONE;
+	mappings[player].menuConfirm.type = KEY_SETTING_NONE;
+	mappings[player].menuBack.type = KEY_SETTING_NONE;
 }
 
 void Main::ChangePlayerPalette(int player)
@@ -4086,193 +3002,173 @@ void Main::InputBlur()
 
 void Main::KeyDown(SDL_Keycode sym) 
 {
-	if(mainMenuState == INPUT_KEY || pauseMenuState == PAUSE_INPUT_KEY)
+	if(bindingKey != BINDING_NONE)
 	{
-		ClearKeyForAllPlayers(sym, playerToSetUp);
-		switch(keyToSetUp)
+		if(sym == SDLK_ESCAPE)
 		{
-		case 0: //up
-			mappings[playerToSetUp].keyUp = sym;
-			mappings[playerToSetUp].stick = -1;
-			mappings[playerToSetUp].hat = -1;
-			mappings[playerToSetUp].buttonUp.joystick = -1;
-			mappings[playerToSetUp].buttonUp.button = -1;
-			keyToSetUp = -1;
+			HSMenuFunction func = NO_MENU_FUNCTION;
+			switch(bindingKey)
+			{
+			case BINDING_UP:
+				mappings[playerToSetUp].up.type = KEY_SETTING_NONE;
+				func = KEY_CONFIG_UP;
+				break;
+			case BINDING_DOWN:
+				mappings[playerToSetUp].down.type = KEY_SETTING_NONE;
+				func = KEY_CONFIG_DOWN;
+				break;
+			case BINDING_LEFT:
+				mappings[playerToSetUp].left.type = KEY_SETTING_NONE;
+				func = KEY_CONFIG_LEFT;
+				break;
+			case BINDING_RIGHT:
+				mappings[playerToSetUp].right.type = KEY_SETTING_NONE;
+				func = KEY_CONFIG_RIGHT;
+				break;
+			case BINDING_LIGHT:
+				mappings[playerToSetUp].light.type = KEY_SETTING_NONE;
+				func = KEY_CONFIG_LIGHT_ATTACK;
+				break;
+			case BINDING_HEAVY:
+				mappings[playerToSetUp].heavy.type = KEY_SETTING_NONE;
+				func = KEY_CONFIG_HEAVY_ATTACK;
+				break;
+			case BINDING_JUMP:
+				mappings[playerToSetUp].jump.type = KEY_SETTING_NONE;
+				func = KEY_CONFIG_JUMP;
+				break;
+			case BINDING_BLOCK:
+				mappings[playerToSetUp].block.type = KEY_SETTING_NONE;
+				func = KEY_CONFIG_BLOCK;
+				break;
+			case BINDING_PAUSE:
+				mappings[playerToSetUp].start.type = KEY_SETTING_NONE;
+				func = KEY_CONFIG_PAUSE;
+				break;
+			case BINDING_CONFIRM:
+				mappings[playerToSetUp].menuConfirm.type = KEY_SETTING_NONE;
+				func = KEY_CONFIG_MENU_CONFIRM;
+				break;
+			case BINDING_BACK:
+				mappings[playerToSetUp].menuBack.type = KEY_SETTING_NONE;
+				func = KEY_CONFIG_MENU_BACK;
+				break;
+			}
+			objectManager->menuManager->SetKeyConfigNoSettingForItem(func);
+			bindingKey = BINDING_NONE;
+			return;
+		}
+
+		if(sym == SDLK_RETURN
+			|| sym == SDLK_KP_ENTER
+			|| sym == SDLK_UP
+			|| sym == SDLK_DOWN
+			|| sym == SDLK_LEFT
+			|| sym == SDLK_RIGHT)
+		{
+			return;
+		}
+
+		ClearKeyForAllPlayers(sym, playerToSetUp);
+		switch(bindingKey)
+		{
+		case BINDING_UP: //up
+			mappings[playerToSetUp].up.type = KEY_SETTING_KEY;
+			mappings[playerToSetUp].up.keycode = sym;
+			//objectManager->menuManager->SetKeyConfigByKeyForItem(KEY_CONFIG_UP, sym);
+			SetMenuKeyConfig();
 			objectManager->menuManager->CursorNext();
-			if(gameState == MAIN_MENU)
-			{
-				ChangeMainMenuState(PLAYER_KEY_CONFIG);
-			}
-			else if(gameState == MATCH)
-			{
-				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
-			}
+			bindingKey = BINDING_NONE;
 			SaveKeyConfig();
 			break;
-		case 1: //down
-			mappings[playerToSetUp].keyDown = sym;
-			mappings[playerToSetUp].stick = -1;
-			mappings[playerToSetUp].hat = -1;
-			mappings[playerToSetUp].buttonDown.joystick = -1;
-			mappings[playerToSetUp].buttonDown.button = -1;
-			keyToSetUp = -1;
+		case BINDING_DOWN: //down
+			mappings[playerToSetUp].down.type = KEY_SETTING_KEY;
+			mappings[playerToSetUp].down.keycode = sym;
+			//objectManager->menuManager->SetKeyConfigByKeyForItem(KEY_CONFIG_DOWN, sym);
+			SetMenuKeyConfig();
 			objectManager->menuManager->CursorNext();
-			if(gameState == MAIN_MENU)
-			{
-				ChangeMainMenuState(PLAYER_KEY_CONFIG);
-			}
-			else if(gameState == MATCH)
-			{
-				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
-			}
+			bindingKey = BINDING_NONE;
 			SaveKeyConfig();
 			break;
-		case 2: //left
-			mappings[playerToSetUp].keyLeft = sym;
-			mappings[playerToSetUp].stick = -1;
-			mappings[playerToSetUp].hat = -1;
-			mappings[playerToSetUp].buttonLeft.joystick = -1;
-			mappings[playerToSetUp].buttonLeft.button = -1;
-			keyToSetUp = -1;
+		case BINDING_LEFT: //left
+			mappings[playerToSetUp].left.type = KEY_SETTING_KEY;
+			mappings[playerToSetUp].left.keycode = sym;
+			//objectManager->menuManager->SetKeyConfigByKeyForItem(KEY_CONFIG_LEFT, sym);
+			SetMenuKeyConfig();
 			objectManager->menuManager->CursorNext();
-			if(gameState == MAIN_MENU)
-			{
-				ChangeMainMenuState(PLAYER_KEY_CONFIG);
-			}
-			else if(gameState == MATCH)
-			{
-				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
-			}
+			bindingKey = BINDING_NONE;
 			SaveKeyConfig();
 			break;
-		case 3: //right
-			mappings[playerToSetUp].keyRight = sym;
-			mappings[playerToSetUp].stick = -1;
-			mappings[playerToSetUp].hat = -1;
-			mappings[playerToSetUp].buttonRight.joystick = -1;
-			mappings[playerToSetUp].buttonRight.button = -1;
-			keyToSetUp = -1;
+		case BINDING_RIGHT: //right
+			mappings[playerToSetUp].right.type = KEY_SETTING_KEY;
+			mappings[playerToSetUp].right.keycode = sym;
+			//objectManager->menuManager->SetKeyConfigByKeyForItem(KEY_CONFIG_RIGHT, sym);
+			SetMenuKeyConfig();
 			objectManager->menuManager->CursorNext();
-			if(gameState == MAIN_MENU)
-			{
-				ChangeMainMenuState(PLAYER_KEY_CONFIG);
-			}
-			else if(gameState == MATCH)
-			{
-				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
-			}
+			bindingKey = BINDING_NONE;
 			SaveKeyConfig();
 			break;
-		case 4: //light attack
-			mappings[playerToSetUp].keyLight = sym;
-			mappings[playerToSetUp].buttonLight.joystick = -1;
-			mappings[playerToSetUp].buttonLight.button = -1;
-			keyToSetUp = -1;
+		case BINDING_LIGHT: //light attack
+			mappings[playerToSetUp].light.type = KEY_SETTING_KEY;
+			mappings[playerToSetUp].light.keycode = sym;
+			//objectManager->menuManager->SetKeyConfigByKeyForItem(KEY_CONFIG_LIGHT_ATTACK, sym);
+			SetMenuKeyConfig();
 			objectManager->menuManager->CursorNext();
-			if(gameState == MAIN_MENU)
-			{
-				ChangeMainMenuState(PLAYER_KEY_CONFIG);
-			}
-			else if(gameState == MATCH)
-			{
-				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
-			}
+			bindingKey = BINDING_NONE;
 			SaveKeyConfig();
 			break;
-		case 5: //heavy attack
-			mappings[playerToSetUp].keyHeavy = sym;
-			mappings[playerToSetUp].buttonHeavy.joystick = -1;
-			mappings[playerToSetUp].buttonHeavy.button = -1;
-			keyToSetUp = -1;
+		case BINDING_HEAVY: //heavy attack
+			mappings[playerToSetUp].heavy.type = KEY_SETTING_KEY;
+			mappings[playerToSetUp].heavy.keycode = sym;
+			//objectManager->menuManager->SetKeyConfigByKeyForItem(KEY_CONFIG_HEAVY_ATTACK, sym);
+			SetMenuKeyConfig();
 			objectManager->menuManager->CursorNext();
-			if(gameState == MAIN_MENU)
-			{
-				ChangeMainMenuState(PLAYER_KEY_CONFIG);
-			}
-			else if(gameState == MATCH)
-			{
-				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
-			}
+			bindingKey = BINDING_NONE;
 			SaveKeyConfig();
 			break;
-		case 6: //jump
-			mappings[playerToSetUp].keyJump = sym;
-			mappings[playerToSetUp].buttonJump.joystick = -1;
-			mappings[playerToSetUp].buttonJump.button = -1;
-			keyToSetUp = -1;
+		case BINDING_JUMP: //jump
+			mappings[playerToSetUp].jump.type = KEY_SETTING_KEY;
+			mappings[playerToSetUp].jump.keycode = sym;
+			//objectManager->menuManager->SetKeyConfigByKeyForItem(KEY_CONFIG_JUMP, sym);
+			SetMenuKeyConfig();
 			objectManager->menuManager->CursorNext();
-			if(gameState == MAIN_MENU)
-			{
-				ChangeMainMenuState(PLAYER_KEY_CONFIG);
-			}
-			else if(gameState == MATCH)
-			{
-				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
-			}
+			bindingKey = BINDING_NONE;
 			SaveKeyConfig();
 			break;
-		case 7: //block
-			mappings[playerToSetUp].keyBlock = sym;
-			mappings[playerToSetUp].buttonBlock.joystick = -1;
-			mappings[playerToSetUp].buttonBlock.button = -1;
-			keyToSetUp = -1;
+		case BINDING_BLOCK: //block
+			mappings[playerToSetUp].block.type = KEY_SETTING_KEY;
+			mappings[playerToSetUp].block.keycode = sym;
+			//objectManager->menuManager->SetKeyConfigByKeyForItem(KEY_CONFIG_BLOCK, sym);
+			SetMenuKeyConfig();
 			objectManager->menuManager->CursorNext();
-			if(gameState == MAIN_MENU)
-			{
-				ChangeMainMenuState(PLAYER_KEY_CONFIG);
-			}
-			else if(gameState == MATCH)
-			{
-				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
-			}
+			bindingKey = BINDING_NONE;
 			SaveKeyConfig();
 			break;
-		case 8: //pause
-			mappings[playerToSetUp].keyStart = sym;
-			mappings[playerToSetUp].buttonStart.joystick = -1;
-			mappings[playerToSetUp].buttonStart.button = -1;
-			keyToSetUp = -1;
+		case BINDING_PAUSE: //pause
+			mappings[playerToSetUp].start.type = KEY_SETTING_KEY;
+			mappings[playerToSetUp].start.keycode = sym;
+			//objectManager->menuManager->SetKeyConfigByKeyForItem(KEY_CONFIG_PAUSE, sym);
+			SetMenuKeyConfig();
 			objectManager->menuManager->CursorNext();
-			if(gameState == MAIN_MENU)
-			{
-				ChangeMainMenuState(PLAYER_KEY_CONFIG);
-			}
-			else if(gameState == MATCH)
-			{
-				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
-			}
+			bindingKey = BINDING_NONE;
 			SaveKeyConfig();
 			break;
-		case 9: //menu confirm
-			mappings[playerToSetUp].keyMenuConfirm = sym;
-			mappings[playerToSetUp].buttonMenuConfirm.joystick = -1;
-			mappings[playerToSetUp].buttonMenuConfirm.button = -1;
-			keyToSetUp = -1;
+		case BINDING_CONFIRM: //menu confirm
+			mappings[playerToSetUp].menuConfirm.type = KEY_SETTING_KEY;
+			mappings[playerToSetUp].menuConfirm.keycode = sym;
+			//objectManager->menuManager->SetKeyConfigByKeyForItem(KEY_CONFIG_MENU_CONFIRM, sym);
+			SetMenuKeyConfig();
 			objectManager->menuManager->CursorNext();
-			if(gameState == MAIN_MENU)
-			{
-				ChangeMainMenuState(PLAYER_KEY_CONFIG);
-			}
-			else if(gameState == MATCH)
-			{
-				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
-			}
+			bindingKey = BINDING_NONE;
 			SaveKeyConfig();
 			break;
-		case 10: //menu back
-			mappings[playerToSetUp].keyMenuBack = sym;
-			mappings[playerToSetUp].buttonMenuBack.joystick = -1;
-			mappings[playerToSetUp].buttonMenuBack.button = -1;
-			keyToSetUp = -1;
+		case BINDING_BACK: //menu back
+			mappings[playerToSetUp].menuBack.type = KEY_SETTING_KEY;
+			mappings[playerToSetUp].menuBack.keycode = sym;
+			//objectManager->menuManager->SetKeyConfigByKeyForItem(KEY_CONFIG_MENU_BACK, sym);
+			SetMenuKeyConfig();
 			objectManager->menuManager->CursorNext();
-			if(gameState == MAIN_MENU)
-			{
-				ChangeMainMenuState(PLAYER_KEY_CONFIG);
-			}
-			else if(gameState == MATCH)
-			{
-				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
-			}
+			bindingKey = BINDING_NONE;
 			SaveKeyConfig();
 			break;
 		}
@@ -4292,62 +3188,82 @@ void Main::KeyDown(SDL_Keycode sym)
 			curInputs[i]->keyMenuBack.pressed = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].keyUp == sym)
+		if(i == 0 && SDLK_UP == sym)
 		{
 			curInputs[i]->bKeyUp.pressed = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].keyDown == sym)
+		if(i == 0 && SDLK_DOWN == sym)
 		{
 			curInputs[i]->bKeyDown.pressed = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].keyLeft == sym)
+		if(i == 0 && SDLK_LEFT == sym)
 		{
 			curInputs[i]->bKeyLeft.pressed = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].keyRight == sym)
+		if(i == 0 && SDLK_RIGHT == sym)
 		{
 			curInputs[i]->bKeyRight.pressed = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].keyJump == sym)
+		if(mappings[i].up.type == KEY_SETTING_KEY && mappings[i].up.keycode == sym)
+		{
+			curInputs[i]->bKeyUp.pressed = true;
+			inputStateChange[i] = true;
+		}
+		if(mappings[i].down.type == KEY_SETTING_KEY && mappings[i].down.keycode == sym)
+		{
+			curInputs[i]->bKeyDown.pressed = true;
+			inputStateChange[i] = true;
+		}
+		if(mappings[i].left.type == KEY_SETTING_KEY && mappings[i].left.keycode == sym)
+		{
+			curInputs[i]->bKeyLeft.pressed = true;
+			inputStateChange[i] = true;
+		}
+		if(mappings[i].right.type == KEY_SETTING_KEY && mappings[i].right.keycode == sym)
+		{
+			curInputs[i]->bKeyRight.pressed = true;
+			inputStateChange[i] = true;
+		}
+		if(mappings[i].jump.type == KEY_SETTING_KEY && mappings[i].jump.keycode == sym)
 		{
 			curInputs[i]->bKeyJump.pressed = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].keyBlock == sym)
+		if(mappings[i].block.type == KEY_SETTING_KEY && mappings[i].block.keycode == sym)
 		{
 			curInputs[i]->bKeyBlock.pressed = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].keyLight == sym)
+		if(mappings[i].light.type == KEY_SETTING_KEY && mappings[i].light.keycode == sym)
 		{
 			curInputs[i]->bKeyLight.pressed = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].keyHeavy == sym)
+		if(mappings[i].heavy.type == KEY_SETTING_KEY && mappings[i].heavy.keycode == sym)
 		{
 			curInputs[i]->bKeyHeavy.pressed = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].keyStart == sym)
+		if(mappings[i].start.type == KEY_SETTING_KEY && mappings[i].start.keycode == sym)
 		{
 			curInputs[i]->bKeyStart.pressed = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].keySelect == sym)
+		if(mappings[i].select.type == KEY_SETTING_KEY && mappings[i].select.keycode == sym)
 		{
 			curInputs[i]->bKeySelect.pressed = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].keyMenuConfirm == sym)
+		if(mappings[i].menuConfirm.type == KEY_SETTING_KEY && mappings[i].menuConfirm.keycode == sym)
 		{
 			curInputs[i]->keyMenuConfirm.pressed = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].keyMenuBack == sym)
+		if(mappings[i].menuBack.type == KEY_SETTING_KEY && mappings[i].menuBack.keycode == sym)
 		{
 			curInputs[i]->keyMenuBack.pressed = true;
 			inputStateChange[i] = true;
@@ -4357,69 +3273,69 @@ void Main::KeyDown(SDL_Keycode sym)
 
 void Main::KeyUp(SDL_Keycode sym) 
 {
-	if(keyToSetUp > 0)
+	if(bindingKey != BINDING_NONE)
 	{
 		return;
 	}
 
 	for(int i = 0; i < MAX_PLAYERS; i++)
 	{
-		if(mappings[i].keyUp == sym)
+		if(mappings[i].up.type == KEY_SETTING_KEY && mappings[i].up.keycode == sym)
 		{
 			curInputs[i]->bKeyUp.released = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].keyDown == sym)
+		if(mappings[i].down.type == KEY_SETTING_KEY && mappings[i].down.keycode == sym)
 		{
 			curInputs[i]->bKeyDown.released = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].keyLeft == sym)
+		if(mappings[i].left.type == KEY_SETTING_KEY && mappings[i].left.keycode == sym)
 		{
 			curInputs[i]->bKeyLeft.released = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].keyRight == sym)
+		if(mappings[i].right.type == KEY_SETTING_KEY && mappings[i].right.keycode == sym)
 		{
 			curInputs[i]->bKeyRight.released = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].keyJump == sym)
+		if(mappings[i].jump.type == KEY_SETTING_KEY && mappings[i].jump.keycode == sym)
 		{
 			curInputs[i]->bKeyJump.released = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].keyBlock == sym)
+		if(mappings[i].block.type == KEY_SETTING_KEY && mappings[i].block.keycode == sym)
 		{
 			curInputs[i]->bKeyBlock.released = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].keyLight == sym)
+		if(mappings[i].light.type == KEY_SETTING_KEY && mappings[i].light.keycode == sym)
 		{
 			curInputs[i]->bKeyLight.released = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].keyHeavy == sym)
+		if(mappings[i].heavy.type == KEY_SETTING_KEY && mappings[i].heavy.keycode == sym)
 		{
 			curInputs[i]->bKeyHeavy.released = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].keyStart == sym)
+		if(mappings[i].start.type == KEY_SETTING_KEY && mappings[i].start.keycode == sym)
 		{
 			curInputs[i]->bKeyStart.released = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].keySelect == sym)
+		if(mappings[i].select.type == KEY_SETTING_KEY && mappings[i].select.keycode == sym)
 		{
 			curInputs[i]->bKeySelect.released = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].keyMenuConfirm == sym)
+		if(mappings[i].menuConfirm.type == KEY_SETTING_KEY && mappings[i].menuConfirm.keycode == sym)
 		{
 			curInputs[i]->keyMenuConfirm.released = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].keyMenuBack == sym)
+		if(mappings[i].menuBack.type == KEY_SETTING_KEY && mappings[i].menuBack.keycode == sym)
 		{
 			curInputs[i]->keyMenuBack.released = true;
 			inputStateChange[i] = true;
@@ -4479,44 +3395,39 @@ void Main::MButtonUp(int mX, int mY)
 
 void Main::JoyAxis(Uint8 which,Uint8 axis,Sint16 value) 
 {
-	if(mainMenuState == INPUT_KEY || pauseMenuState == PAUSE_INPUT_KEY)
+	if(bindingKey != BINDING_NONE)
 	{
 		if(abs(value) <= STICK_THRESHOLD) { return; }
 
-		switch(keyToSetUp)
+		int cursorMoves = 1;
+
+		switch(bindingKey)
 		{
-		case 0: //up
-			objectManager->menuManager->CursorNext();
-		case 1: //down
-			objectManager->menuManager->CursorNext();
-		case 2: //left
-			objectManager->menuManager->CursorNext();
-		case 3: //right
+		case BINDING_UP: //up
+			cursorMoves++;
+		case BINDING_DOWN: //down
+			cursorMoves++;
+		case BINDING_LEFT: //left
+			cursorMoves++;
+		case BINDING_RIGHT: //right
 			ClearStickForAllPlayers(which);
-			mappings[playerToSetUp].stick = which;
-			mappings[playerToSetUp].hat = -1;
-			mappings[playerToSetUp].keyUp = SDLK_UNKNOWN;
-			mappings[playerToSetUp].buttonUp.joystick = -1;
-			mappings[playerToSetUp].buttonUp.button = -1;
-			mappings[playerToSetUp].keyDown = SDLK_UNKNOWN;
-			mappings[playerToSetUp].buttonDown.joystick = -1;
-			mappings[playerToSetUp].buttonDown.button = -1;
-			mappings[playerToSetUp].keyLeft = SDLK_UNKNOWN;
-			mappings[playerToSetUp].buttonLeft.joystick = -1;
-			mappings[playerToSetUp].buttonLeft.button = -1;
-			mappings[playerToSetUp].keyRight = SDLK_UNKNOWN;
-			mappings[playerToSetUp].buttonRight.joystick = -1;
-			mappings[playerToSetUp].buttonRight.button = -1;
-			objectManager->menuManager->CursorNext();
-			keyToSetUp = -1;
-			if(gameState == MAIN_MENU)
+			mappings[playerToSetUp].up.type = KEY_SETTING_STICK;
+			mappings[playerToSetUp].up.stick = which;
+			mappings[playerToSetUp].down.type = KEY_SETTING_STICK;
+			mappings[playerToSetUp].down.stick = which;
+			mappings[playerToSetUp].left.type = KEY_SETTING_STICK;
+			mappings[playerToSetUp].left.stick = which;
+			mappings[playerToSetUp].right.type = KEY_SETTING_STICK;
+			mappings[playerToSetUp].right.stick = which;
+			objectManager->menuManager->SetKeyConfigByStickForItem(KEY_CONFIG_UP, which);
+			objectManager->menuManager->SetKeyConfigByStickForItem(KEY_CONFIG_DOWN, which);
+			objectManager->menuManager->SetKeyConfigByStickForItem(KEY_CONFIG_LEFT, which);
+			objectManager->menuManager->SetKeyConfigByStickForItem(KEY_CONFIG_RIGHT, which);
+			for(int i = 0; i < cursorMoves; i++)
 			{
-				ChangeMainMenuState(PLAYER_KEY_CONFIG);
+				objectManager->menuManager->CursorNext();
 			}
-			else if(gameState == MATCH)
-			{
-				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
-			}
+			bindingKey = BINDING_NONE;
 			SaveKeyConfig();
 			break;
 		}
@@ -4530,7 +3441,7 @@ void Main::JoyAxis(Uint8 which,Uint8 axis,Sint16 value)
 	
 	for(int i = 0; i < MAX_PLAYERS; i++)
 	{
-		if(mappings[i].stick == which)
+		if(mappings[i].up.type == KEY_SETTING_STICK && mappings[i].up.stick == which)
 		{
 			tempInputs = curInputs[i];
 			prevStickState = &prevJoystickStates[i];
@@ -4636,42 +3547,37 @@ void Main::JoyAxis(Uint8 which,Uint8 axis,Sint16 value)
 
 void Main::JoyHat(Uint8 which,Uint8 hat,Uint8 value) 
 {
-	if(mainMenuState == INPUT_KEY || pauseMenuState == PAUSE_INPUT_KEY)
+	if(bindingKey != BINDING_NONE)
 	{
-		switch(keyToSetUp)
+		int cursorMoves = 1;
+
+		switch(bindingKey)
 		{
-		case 0: //up
-			objectManager->menuManager->CursorNext();
-		case 1: //down
-			objectManager->menuManager->CursorNext();
-		case 2: //left
-			objectManager->menuManager->CursorNext();
-		case 3: //right
+		case BINDING_UP: //up
+			cursorMoves++;
+		case BINDING_DOWN: //down
+			cursorMoves++;
+		case BINDING_LEFT: //left
+			cursorMoves++;
+		case BINDING_RIGHT: //right
 			ClearHatForAllPlayers(which);
-			mappings[playerToSetUp].hat = which;
-			mappings[playerToSetUp].stick = -1;
-			mappings[playerToSetUp].keyUp = SDLK_UNKNOWN;
-			mappings[playerToSetUp].buttonUp.joystick = -1;
-			mappings[playerToSetUp].buttonUp.button = -1;
-			mappings[playerToSetUp].keyDown = SDLK_UNKNOWN;
-			mappings[playerToSetUp].buttonDown.joystick = -1;
-			mappings[playerToSetUp].buttonDown.button = -1;
-			mappings[playerToSetUp].keyLeft = SDLK_UNKNOWN;
-			mappings[playerToSetUp].buttonLeft.joystick = -1;
-			mappings[playerToSetUp].buttonLeft.button = -1;
-			mappings[playerToSetUp].keyRight = SDLK_UNKNOWN;
-			mappings[playerToSetUp].buttonRight.joystick = -1;
-			mappings[playerToSetUp].buttonRight.button = -1;
-			objectManager->menuManager->CursorNext();
-			keyToSetUp = -1;
-			if(gameState == MAIN_MENU)
+			mappings[playerToSetUp].up.type = KEY_SETTING_HAT;
+			mappings[playerToSetUp].up.hat = which;
+			mappings[playerToSetUp].down.type = KEY_SETTING_HAT;
+			mappings[playerToSetUp].down.hat = which;
+			mappings[playerToSetUp].left.type = KEY_SETTING_HAT;
+			mappings[playerToSetUp].left.hat = which;
+			mappings[playerToSetUp].right.type = KEY_SETTING_HAT;
+			mappings[playerToSetUp].right.hat = which;
+			objectManager->menuManager->SetKeyConfigByHatForItem(KEY_CONFIG_UP, which);
+			objectManager->menuManager->SetKeyConfigByHatForItem(KEY_CONFIG_DOWN, which);
+			objectManager->menuManager->SetKeyConfigByHatForItem(KEY_CONFIG_LEFT, which);
+			objectManager->menuManager->SetKeyConfigByHatForItem(KEY_CONFIG_RIGHT, which);
+			for(int i = 0; i < cursorMoves; i++)
 			{
-				ChangeMainMenuState(PLAYER_KEY_CONFIG);
+				objectManager->menuManager->CursorNext();
 			}
-			else if(gameState == MATCH)
-			{
-				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
-			}
+			bindingKey = BINDING_NONE;
 			SaveKeyConfig();
 			break;
 		}
@@ -4685,7 +3591,7 @@ void Main::JoyHat(Uint8 which,Uint8 hat,Uint8 value)
 	
 	for(int i = 0; i < MAX_PLAYERS; i++)
 	{
-		if(mappings[i].hat == which)
+		if(mappings[i].up.type == KEY_SETTING_HAT && mappings[i].up.hat == which)
 		{
 			tempInputs = curInputs[i];
 			prevStickState = &prevJoystickStates[i];
@@ -4771,182 +3677,108 @@ void Main::JoyHat(Uint8 which,Uint8 hat,Uint8 value)
 
 void Main::JoyButtonDown(Uint8 which,Uint8 button) 
 {
-	if(mainMenuState == INPUT_KEY || pauseMenuState == PAUSE_INPUT_KEY)
+	if(bindingKey != BINDING_NONE)
 	{
 		ClearButtonForAllPlayers(which, button, playerToSetUp);
-		switch(keyToSetUp)
+		switch(bindingKey)
 		{
-		case 0: //up
-			mappings[playerToSetUp].buttonUp.joystick = which; mappings[playerToSetUp].buttonUp.button = button;
-			mappings[playerToSetUp].stick = -1;
-			mappings[playerToSetUp].hat = -1;
-			mappings[playerToSetUp].keyUp = SDLK_UNKNOWN;
-			keyToSetUp = -1;
+		case BINDING_UP: //up
+			mappings[playerToSetUp].up.type = KEY_SETTING_BUTTON;
+			mappings[playerToSetUp].up.joystickMapping.joystick = which; mappings[playerToSetUp].up.joystickMapping.button = button;
+			//objectManager->menuManager->SetKeyConfigByButtonForItem(KEY_CONFIG_UP, which, button);
+			SetMenuKeyConfig();
 			objectManager->menuManager->CursorNext();
-			if(gameState == MAIN_MENU)
-			{
-				ChangeMainMenuState(PLAYER_KEY_CONFIG);
-			}
-			else if(gameState == MATCH)
-			{
-				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
-			}
+			bindingKey = BINDING_NONE;
 			SaveKeyConfig();
 			break;
-		case 1: //down
-			mappings[playerToSetUp].buttonDown.joystick = which; mappings[playerToSetUp].buttonDown.button = button;
-			mappings[playerToSetUp].stick = -1;
-			mappings[playerToSetUp].hat = -1;
-			mappings[playerToSetUp].keyDown = SDLK_UNKNOWN;
-			keyToSetUp = -1;
+		case BINDING_DOWN: //down
+			mappings[playerToSetUp].down.type = KEY_SETTING_BUTTON;
+			mappings[playerToSetUp].down.joystickMapping.joystick = which; mappings[playerToSetUp].down.joystickMapping.button = button;
+			//objectManager->menuManager->SetKeyConfigByButtonForItem(KEY_CONFIG_DOWN, which, button);
+			SetMenuKeyConfig();
 			objectManager->menuManager->CursorNext();
-			if(gameState == MAIN_MENU)
-			{
-				ChangeMainMenuState(PLAYER_KEY_CONFIG);
-			}
-			else if(gameState == MATCH)
-			{
-				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
-			}
+			bindingKey = BINDING_NONE;
 			SaveKeyConfig();
 			break;
-		case 2: //left
-			mappings[playerToSetUp].buttonLeft.joystick = which; mappings[playerToSetUp].buttonLeft.button = button;
-			mappings[playerToSetUp].stick = -1;
-			mappings[playerToSetUp].hat = -1;
-			mappings[playerToSetUp].keyLeft = SDLK_UNKNOWN;
-			keyToSetUp = -1;
+		case BINDING_LEFT: //left
+			mappings[playerToSetUp].left.type = KEY_SETTING_BUTTON;
+			mappings[playerToSetUp].left.joystickMapping.joystick = which; mappings[playerToSetUp].left.joystickMapping.button = button;
+			//objectManager->menuManager->SetKeyConfigByButtonForItem(KEY_CONFIG_LEFT, which, button);
+			SetMenuKeyConfig();
 			objectManager->menuManager->CursorNext();
-			if(gameState == MAIN_MENU)
-			{
-				ChangeMainMenuState(PLAYER_KEY_CONFIG);
-			}
-			else if(gameState == MATCH)
-			{
-				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
-			}
+			bindingKey = BINDING_NONE;
 			SaveKeyConfig();
 			break;
-		case 3: //right
-			mappings[playerToSetUp].buttonRight.joystick = which; mappings[playerToSetUp].buttonRight.button = button;
-			mappings[playerToSetUp].stick = -1;
-			mappings[playerToSetUp].hat = -1;
-			mappings[playerToSetUp].keyRight = SDLK_UNKNOWN;
-			keyToSetUp = -1;
+		case BINDING_RIGHT: //right
+			mappings[playerToSetUp].right.type = KEY_SETTING_BUTTON;
+			mappings[playerToSetUp].right.joystickMapping.joystick = which; mappings[playerToSetUp].right.joystickMapping.button = button;
+			//objectManager->menuManager->SetKeyConfigByButtonForItem(KEY_CONFIG_RIGHT, which, button);
+			SetMenuKeyConfig();
 			objectManager->menuManager->CursorNext();
-			if(gameState == MAIN_MENU)
-			{
-				ChangeMainMenuState(PLAYER_KEY_CONFIG);
-			}
-			else if(gameState == MATCH)
-			{
-				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
-			}
+			bindingKey = BINDING_NONE;
 			SaveKeyConfig();
 			break;
-		case 4: //light attack
-			mappings[playerToSetUp].buttonLight.joystick = which; mappings[playerToSetUp].buttonLight.button = button;
-			mappings[playerToSetUp].keyLight = SDLK_UNKNOWN;
-			keyToSetUp = -1;
+		case BINDING_LIGHT: //light attack
+			mappings[playerToSetUp].light.type = KEY_SETTING_BUTTON;
+			mappings[playerToSetUp].light.joystickMapping.joystick = which; mappings[playerToSetUp].light.joystickMapping.button = button;
+			//objectManager->menuManager->SetKeyConfigByButtonForItem(KEY_CONFIG_LIGHT_ATTACK, which, button);
+			SetMenuKeyConfig();
 			objectManager->menuManager->CursorNext();
-			if(gameState == MAIN_MENU)
-			{
-				ChangeMainMenuState(PLAYER_KEY_CONFIG);
-			}
-			else if(gameState == MATCH)
-			{
-				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
-			}
+			bindingKey = BINDING_NONE;
 			SaveKeyConfig();
 			break;
-		case 5: //heavy attack
-			mappings[playerToSetUp].buttonHeavy.joystick = which; mappings[playerToSetUp].buttonHeavy.button = button;
-			mappings[playerToSetUp].keyHeavy = SDLK_UNKNOWN;
-			keyToSetUp = -1;
+		case BINDING_HEAVY: //heavy attack
+			mappings[playerToSetUp].heavy.type = KEY_SETTING_BUTTON;
+			mappings[playerToSetUp].heavy.joystickMapping.joystick = which; mappings[playerToSetUp].heavy.joystickMapping.button = button;
+			//objectManager->menuManager->SetKeyConfigByButtonForItem(KEY_CONFIG_HEAVY_ATTACK, which, button);
+			SetMenuKeyConfig();
 			objectManager->menuManager->CursorNext();
-			if(gameState == MAIN_MENU)
-			{
-				ChangeMainMenuState(PLAYER_KEY_CONFIG);
-			}
-			else if(gameState == MATCH)
-			{
-				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
-			}
+			bindingKey = BINDING_NONE;
 			SaveKeyConfig();
 			break;
-		case 6: //jump
-			mappings[playerToSetUp].buttonJump.joystick = which; mappings[playerToSetUp].buttonJump.button = button;
-			mappings[playerToSetUp].keyJump = SDLK_UNKNOWN;
-			keyToSetUp = -1;
+		case BINDING_JUMP: //jump
+			mappings[playerToSetUp].jump.type = KEY_SETTING_BUTTON;
+			mappings[playerToSetUp].jump.joystickMapping.joystick = which; mappings[playerToSetUp].jump.joystickMapping.button = button;
+			//objectManager->menuManager->SetKeyConfigByButtonForItem(KEY_CONFIG_JUMP, which, button);
+			SetMenuKeyConfig();
 			objectManager->menuManager->CursorNext();
-			if(gameState == MAIN_MENU)
-			{
-				ChangeMainMenuState(PLAYER_KEY_CONFIG);
-			}
-			else if(gameState == MATCH)
-			{
-				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
-			}
+			bindingKey = BINDING_NONE;
 			SaveKeyConfig();
 			break;
-		case 7: //block
-			mappings[playerToSetUp].buttonBlock.joystick = which; mappings[playerToSetUp].buttonBlock.button = button;
-			mappings[playerToSetUp].keyBlock = SDLK_UNKNOWN;
-			keyToSetUp = -1;
+		case BINDING_BLOCK: //block
+			mappings[playerToSetUp].block.type = KEY_SETTING_BUTTON;
+			mappings[playerToSetUp].block.joystickMapping.joystick = which; mappings[playerToSetUp].block.joystickMapping.button = button;
+			//objectManager->menuManager->SetKeyConfigByButtonForItem(KEY_CONFIG_BLOCK, which, button);
+			SetMenuKeyConfig();
 			objectManager->menuManager->CursorNext();
-			if(gameState == MAIN_MENU)
-			{
-				ChangeMainMenuState(PLAYER_KEY_CONFIG);
-			}
-			else if(gameState == MATCH)
-			{
-				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
-			}
+			bindingKey = BINDING_NONE;
 			SaveKeyConfig();
 			break;
-		case 8: //pause
-			mappings[playerToSetUp].buttonStart.joystick = which; mappings[playerToSetUp].buttonStart.button = button;
-			mappings[playerToSetUp].keyStart = SDLK_UNKNOWN;
-			keyToSetUp = -1;
+		case BINDING_PAUSE: //pause
+			mappings[playerToSetUp].start.type = KEY_SETTING_BUTTON;
+			mappings[playerToSetUp].start.joystickMapping.joystick = which; mappings[playerToSetUp].start.joystickMapping.button = button;
+			//objectManager->menuManager->SetKeyConfigByButtonForItem(KEY_CONFIG_PAUSE, which, button);
+			SetMenuKeyConfig();
 			objectManager->menuManager->CursorNext();
-			if(gameState == MAIN_MENU)
-			{
-				ChangeMainMenuState(PLAYER_KEY_CONFIG);
-			}
-			else if(gameState == MATCH)
-			{
-				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
-			}
+			bindingKey = BINDING_NONE;
 			SaveKeyConfig();
 			break;
-		case 9: //menu confirm
-			mappings[playerToSetUp].buttonMenuConfirm.joystick = which; mappings[playerToSetUp].buttonMenuConfirm.button = button;
-			mappings[playerToSetUp].keyMenuConfirm = SDLK_UNKNOWN;
-			keyToSetUp = -1;
+		case BINDING_CONFIRM: //menu confirm
+			mappings[playerToSetUp].menuConfirm.type = KEY_SETTING_BUTTON;
+			mappings[playerToSetUp].menuConfirm.joystickMapping.joystick = which; mappings[playerToSetUp].menuConfirm.joystickMapping.button = button;
+			//objectManager->menuManager->SetKeyConfigByButtonForItem(KEY_CONFIG_MENU_CONFIRM, which, button);
+			SetMenuKeyConfig();
 			objectManager->menuManager->CursorNext();
-			if(gameState == MAIN_MENU)
-			{
-				ChangeMainMenuState(PLAYER_KEY_CONFIG);
-			}
-			else if(gameState == MATCH)
-			{
-				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
-			}
+			bindingKey = BINDING_NONE;
 			SaveKeyConfig();
 			break;
-		case 10: //menu back
-			mappings[playerToSetUp].buttonMenuBack.joystick = which; mappings[playerToSetUp].buttonMenuBack.button = button;
-			mappings[playerToSetUp].keyMenuBack = SDLK_UNKNOWN;
-			keyToSetUp = -1;
+		case BINDING_BACK: //menu back
+			mappings[playerToSetUp].menuBack.type = KEY_SETTING_BUTTON;
+			mappings[playerToSetUp].menuBack.joystickMapping.joystick = which; mappings[playerToSetUp].menuBack.joystickMapping.button = button;
+			//objectManager->menuManager->SetKeyConfigByButtonForItem(KEY_CONFIG_MENU_BACK, which, button);
+			SetMenuKeyConfig();
 			objectManager->menuManager->CursorNext();
-			if(gameState == MAIN_MENU)
-			{
-				ChangeMainMenuState(PLAYER_KEY_CONFIG);
-			}
-			else if(gameState == MATCH)
-			{
-				ChangePauseMenuState(PAUSE_PLAYER_KEY_CONFIG);
-			}
+			bindingKey = BINDING_NONE;
 			SaveKeyConfig();
 			break;
 		}
@@ -4956,62 +3788,62 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 
 	for(int i = 0; i < MAX_PLAYERS; i++)
 	{
-		if(mappings[i].buttonUp.joystick == which && mappings[i].buttonUp.button == button)
+		if(mappings[i].up.type == KEY_SETTING_BUTTON && mappings[i].up.joystickMapping.joystick == which && mappings[i].up.joystickMapping.button == button)
 		{
 			curInputs[i]->bButtonUp.pressed = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].buttonDown.joystick == which && mappings[i].buttonDown.button == button)
+		if(mappings[i].down.type == KEY_SETTING_BUTTON && mappings[i].down.joystickMapping.joystick == which && mappings[i].down.joystickMapping.button == button)
 		{
 			curInputs[i]->bButtonDown.pressed = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].buttonLeft.joystick == which && mappings[i].buttonLeft.button == button)
+		if(mappings[i].left.type == KEY_SETTING_BUTTON && mappings[i].left.joystickMapping.joystick == which && mappings[i].left.joystickMapping.button == button)
 		{
 			curInputs[i]->bButtonLeft.pressed = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].buttonRight.joystick == which && mappings[i].buttonRight.button == button)
+		if(mappings[i].right.type == KEY_SETTING_BUTTON && mappings[i].right.joystickMapping.joystick == which && mappings[i].right.joystickMapping.button == button)
 		{
 			curInputs[i]->bButtonRight.pressed = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].buttonJump.joystick == which && mappings[i].buttonJump.button == button)
+		if(mappings[i].jump.type == KEY_SETTING_BUTTON && mappings[i].jump.joystickMapping.joystick == which && mappings[i].jump.joystickMapping.button == button)
 		{
 			curInputs[i]->bButtonJump.pressed = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].buttonBlock.joystick == which && mappings[i].buttonBlock.button == button)
+		if(mappings[i].block.type == KEY_SETTING_BUTTON && mappings[i].block.joystickMapping.joystick == which && mappings[i].block.joystickMapping.button == button)
 		{
 			curInputs[i]->bButtonBlock.pressed = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].buttonLight.joystick == which && mappings[i].buttonLight.button == button)
+		if(mappings[i].light.type == KEY_SETTING_BUTTON && mappings[i].light.joystickMapping.joystick == which && mappings[i].light.joystickMapping.button == button)
 		{
 			curInputs[i]->bButtonLight.pressed = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].buttonHeavy.joystick == which && mappings[i].buttonHeavy.button == button)
+		if(mappings[i].heavy.type == KEY_SETTING_BUTTON && mappings[i].heavy.joystickMapping.joystick == which && mappings[i].heavy.joystickMapping.button == button)
 		{
 			curInputs[i]->bButtonHeavy.pressed = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].buttonStart.joystick == which && mappings[i].buttonStart.button == button)
+		if(mappings[i].start.type == KEY_SETTING_BUTTON && mappings[i].start.joystickMapping.joystick == which && mappings[i].start.joystickMapping.button == button)
 		{
 			curInputs[i]->bButtonStart.pressed = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].buttonSelect.joystick == which && mappings[i].buttonSelect.button == button)
+		if(mappings[i].select.type == KEY_SETTING_BUTTON && mappings[i].select.joystickMapping.joystick == which && mappings[i].select.joystickMapping.button == button)
 		{
 			curInputs[i]->bButtonSelect.pressed = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].buttonMenuConfirm.joystick == which && mappings[i].buttonMenuConfirm.button == button)
+		if(mappings[i].menuConfirm.type == KEY_SETTING_BUTTON && mappings[i].menuConfirm.joystickMapping.joystick == which && mappings[i].menuConfirm.joystickMapping.button == button)
 		{
 			curInputs[i]->buttonMenuConfirm.pressed = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].buttonMenuBack.joystick == which && mappings[i].buttonMenuBack.button == button)
+		if(mappings[i].menuBack.type == KEY_SETTING_BUTTON && mappings[i].menuBack.joystickMapping.joystick == which && mappings[i].menuBack.joystickMapping.button == button)
 		{
 			curInputs[i]->buttonMenuBack.pressed = true;
 			inputStateChange[i] = true;
@@ -5021,69 +3853,69 @@ void Main::JoyButtonDown(Uint8 which,Uint8 button)
 
 void Main::JoyButtonUp(Uint8 which,Uint8 button) 
 {
-	if(keyToSetUp > 0)
+	if(bindingKey != BINDING_NONE)
 	{
 		return;
 	}
 
 	for(int i = 0; i < MAX_PLAYERS; i++)
 	{
-		if(mappings[i].buttonUp.joystick == which && mappings[i].buttonUp.button == button)
+		if(mappings[i].up.type == KEY_SETTING_BUTTON && mappings[i].up.joystickMapping.joystick == which && mappings[i].up.joystickMapping.button == button)
 		{
 			curInputs[i]->bButtonUp.released = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].buttonDown.joystick == which && mappings[i].buttonDown.button == button)
+		if(mappings[i].down.type == KEY_SETTING_BUTTON && mappings[i].down.joystickMapping.joystick == which && mappings[i].down.joystickMapping.button == button)
 		{
 			curInputs[i]->bButtonDown.released = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].buttonLeft.joystick == which && mappings[i].buttonLeft.button == button)
+		if(mappings[i].left.type == KEY_SETTING_BUTTON && mappings[i].left.joystickMapping.joystick == which && mappings[i].left.joystickMapping.button == button)
 		{
 			curInputs[i]->bButtonLeft.released = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].buttonRight.joystick == which && mappings[i].buttonRight.button == button)
+		if(mappings[i].right.type == KEY_SETTING_BUTTON && mappings[i].right.joystickMapping.joystick == which && mappings[i].right.joystickMapping.button == button)
 		{
 			curInputs[i]->bButtonRight.released = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].buttonJump.joystick == which && mappings[i].buttonJump.button == button)
+		if(mappings[i].jump.type == KEY_SETTING_BUTTON && mappings[i].jump.joystickMapping.joystick == which && mappings[i].jump.joystickMapping.button == button)
 		{
 			curInputs[i]->bButtonJump.released = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].buttonBlock.joystick == which && mappings[i].buttonBlock.button == button)
+		if(mappings[i].block.type == KEY_SETTING_BUTTON && mappings[i].block.joystickMapping.joystick == which && mappings[i].block.joystickMapping.button == button)
 		{
 			curInputs[i]->bButtonBlock.released = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].buttonLight.joystick == which && mappings[i].buttonLight.button == button)
+		if(mappings[i].light.type == KEY_SETTING_BUTTON && mappings[i].light.joystickMapping.joystick == which && mappings[i].light.joystickMapping.button == button)
 		{
 			curInputs[i]->bButtonLight.released = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].buttonHeavy.joystick == which && mappings[i].buttonHeavy.button == button)
+		if(mappings[i].heavy.type == KEY_SETTING_BUTTON && mappings[i].heavy.joystickMapping.joystick == which && mappings[i].heavy.joystickMapping.button == button)
 		{
 			curInputs[i]->bButtonHeavy.released = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].buttonStart.joystick == which && mappings[i].buttonStart.button == button)
+		if(mappings[i].start.type == KEY_SETTING_BUTTON && mappings[i].start.joystickMapping.joystick == which && mappings[i].start.joystickMapping.button == button)
 		{
 			curInputs[i]->bButtonStart.released = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].buttonSelect.joystick == which && mappings[i].buttonSelect.button == button)
+		if(mappings[i].select.type == KEY_SETTING_BUTTON && mappings[i].select.joystickMapping.joystick == which && mappings[i].select.joystickMapping.button == button)
 		{
 			curInputs[i]->bButtonSelect.released = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].buttonSelect.joystick == which && mappings[i].buttonMenuConfirm.button == button)
+		if(mappings[i].menuConfirm.type == KEY_SETTING_BUTTON && mappings[i].menuConfirm.joystickMapping.joystick == which && mappings[i].menuConfirm.joystickMapping.button == button)
 		{
 			curInputs[i]->buttonMenuConfirm.released = true;
 			inputStateChange[i] = true;
 		}
-		if(mappings[i].buttonSelect.joystick == which && mappings[i].buttonMenuBack.button == button)
+		if(mappings[i].menuBack.type == KEY_SETTING_BUTTON && mappings[i].menuBack.joystickMapping.joystick == which && mappings[i].menuBack.joystickMapping.button == button)
 		{
 			curInputs[i]->buttonMenuBack.released = true;
 			inputStateChange[i] = true;

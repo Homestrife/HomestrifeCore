@@ -12,10 +12,10 @@
 #define STICK_THRESHOLD 18000 //how far a stick must be tilted before it actually registers as a direction being "pressed"
 #define STICK_HARD_THRESHOLD 32700 //how far a stick must be tilted before it actually registers as a direction being pressed hard
 
-#define MAIN_MENU_HEADER_HEIGHT 43
-#define MAIN_MENU_CURSOR_WIDTH 35
-#define MAIN_MENU_ITEM_HEIGHT 35
-#define MAIN_MENU_ITEM_SPACING 20
+#define MAIN_MENU_POS_X -940
+#define MAIN_MENU_POS_Y -520
+#define PAUSE_MENU_POS_X -200
+#define PAUSE_MENU_POS_Y -200
 #define PRESS_DESIRED_BUTTON_OFFSET_X 400
 #define VIDEO_SETTING_OFFSET_X 600
 
@@ -53,18 +53,6 @@ enum GameState
 	MATCH
 };
 
-enum MainMenuState
-{
-	TOP,
-	VERSUS,
-	FREE_FOR_ALL,
-	OPTIONS,
-	VIDEO,
-	KEY_CONFIG,
-	PLAYER_KEY_CONFIG,
-	INPUT_KEY
-};
-
 enum GameType
 {
 	FREE_FOR_ALL_2,
@@ -99,54 +87,68 @@ enum MatchPlayerState
 	LOST
 };
 
-enum PauseMenuState
+enum BindingKey
 {
-	PAUSE_TOP,
-	PAUSE_VIDEO,
-	PAUSE_KEY_CONFIG,
-	PAUSE_PLAYER_KEY_CONFIG,
-	PAUSE_INPUT_KEY
-};
-
-struct JoystickMapping
-{
-	Uint8 joystick;
-	Uint8 button;
+	BINDING_NONE,
+	BINDING_UP,
+	BINDING_DOWN,
+	BINDING_LEFT,
+	BINDING_RIGHT,
+	BINDING_LIGHT,
+	BINDING_HEAVY,
+	BINDING_JUMP,
+	BINDING_BLOCK,
+	BINDING_PAUSE,
+	BINDING_CONFIRM,
+	BINDING_BACK
 };
 
 struct InputMappings
 {
+	KeySetting up;
+	KeySetting down;
+	KeySetting left;
+	KeySetting right;
+	KeySetting jump;
+	KeySetting block;
+	KeySetting light;
+	KeySetting heavy;
+	KeySetting start;
+	KeySetting select;
+	KeySetting menuConfirm;
+	KeySetting menuBack;
+
 	//keyboard key mappings
-	SDL_Keycode keyUp;
-	SDL_Keycode keyDown;
-	SDL_Keycode keyLeft;
-	SDL_Keycode keyRight;
-	SDL_Keycode keyJump;
-	SDL_Keycode keyBlock;
-	SDL_Keycode keyLight;
-	SDL_Keycode keyHeavy;
-	SDL_Keycode keyStart;
-	SDL_Keycode keySelect;
-	SDL_Keycode keyMenuConfirm;
-	SDL_Keycode keyMenuBack;
+	//SDL_Keycode keyUp;
+	//SDL_Keycode keyDown;
+	//SDL_Keycode keyLeft;
+	//SDL_Keycode keyRight;
+	//SDL_Keycode keyJump;
+	//SDL_Keycode keyBlock;
+	//SDL_Keycode keyLight;
+	//SDL_Keycode keyHeavy;
+	//SDL_Keycode keyStart;
+	//SDL_Keycode keySelect;
+	//SDL_Keycode keyMenuConfirm;
+	//SDL_Keycode keyMenuBack;
 
 	//joystick button mappings
-	JoystickMapping buttonUp;
-	JoystickMapping buttonDown;
-	JoystickMapping buttonLeft;
-	JoystickMapping buttonRight;
-	JoystickMapping buttonJump;
-	JoystickMapping buttonBlock;
-	JoystickMapping buttonLight;
-	JoystickMapping buttonHeavy;
-	JoystickMapping buttonStart;
-	JoystickMapping buttonSelect;
-	JoystickMapping buttonMenuConfirm;
-	JoystickMapping buttonMenuBack;
+	//JoystickMapping buttonUp;
+	//JoystickMapping buttonDown;
+	//JoystickMapping buttonLeft;
+	//JoystickMapping buttonRight;
+	//JoystickMapping buttonJump;
+	//JoystickMapping buttonBlock;
+	//JoystickMapping buttonLight;
+	//JoystickMapping buttonHeavy;
+	//JoystickMapping buttonStart;
+	//JoystickMapping buttonSelect;
+	//JoystickMapping buttonMenuConfirm;
+	//JoystickMapping buttonMenuBack;
 	
 	//joystick stick and hat mapping
-	Uint8 stick;
-	Uint8 hat;
+	//Uint8 stick;
+	//Uint8 hat;
 };
 
 struct PreviousJoystickStates
@@ -173,13 +175,12 @@ protected:
 	RenderingManager * renderingManager;
 	
 	GameState gameState;
-	MainMenuState mainMenuState;
 	GameType gameType;
 	CharacterSelectState characterSelectState;
 	CharacterSelectPlayerState characterSelectPlayerState[MAX_PLAYERS];
 	MatchState matchState;
 	MatchPlayerState matchPlayerState[MAX_PLAYERS];
-	PauseMenuState pauseMenuState;
+	BindingKey bindingKey;
 
 	list<SDL_Joystick*> sticks;
 
@@ -193,6 +194,8 @@ protected:
 	int Update();
 	int Collide();
 	int SpawnObjects();
+	int SpawnMenus(HSMenu * menu);
+	int SpawnText(HSText * text);
 	int PlayAudio();
 	int PlayAudio(list<HSObject*> * objects);
 	int DeleteObjects();
@@ -204,8 +207,10 @@ protected:
 	int StartLoading();
 	int EndLoading();
 
+	int EventMenu(InputStates * inputHistory, int frame);
+	int UpdateMenu();
+
 	int InitializeMainMenu();
-	int ChangeMainMenuState(MainMenuState newState);
 	int EventMainMenu(InputStates * inputHistory, int frame);
 	int UpdateMainMenu();
 
@@ -218,7 +223,6 @@ protected:
 	int InitializeMatch();
 	int ChangeMatchState(MatchState newState);
 	int ChangeMatchPlayerState(MatchPlayerState newState, int player);
-	int ChangePauseMenuState(PauseMenuState newState);
 	int EventMatch(InputStates * inputHistory, int frame, int player);
 	int UpdateMatch();
 	int CollideMatch();
@@ -234,7 +238,6 @@ protected:
 	InputStates defaultInputs;
 
 	int playerToSetUp;
-	int keyToSetUp;
 
 	void DefaultKeyConfig();
 	int LoadKeyConfig();
@@ -244,12 +247,13 @@ protected:
 	bool LoadToHatConfig(string config, Uint8 * hat);
 	bool LoadToStickConfig(string config, Uint8 * stick);
 
+	void SetMenuVideoSettings();
+	void SetMenuKeyConfig();
+	void SetMenuKeyConfig(HSMenuFunction function, KeySetting setting);
+
+	void ApplyAndSaveVideoSettings();
 	int SaveKeyConfig();
-	void SetPlayerConfig(XMLElement * config, int player);
-	string GetKeyConfigString(SDL_Keycode key);
-	string GetJoyButtonConfigString(JoystickMapping joyButton);
-	string GetHatConfigString(Uint8 hat);
-	string GetStickConfigString(Uint8 stick);
+	void SavePlayerKeyConfig(XMLElement * config, int player);
 
 	void ClearStickForAllPlayers(Uint8 which);
 	void ClearHatForAllPlayers(Uint8 which);

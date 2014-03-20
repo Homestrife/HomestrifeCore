@@ -40,6 +40,12 @@ ObjectManager::ObjectManager()
 	fullscreenResolutionY = 0;
 	fullscreenResolutionXToApply = 0;
 	fullscreenResolutionYToApply = 0;
+	needApplyWindowedResolutionForMenu = false;
+	windowedResolutionXForMenu = 0;
+	windowedResolutionYForMenu = 0;
+	needApplyFullscreenResolutionForMenu = false;
+	fullscreenResolutionXForMenu = 0;
+	fullscreenResolutionYForMenu = 0;
 
 	stageObjectsNeedSort = false;
 	BGSpawnedObjectsNeedSort = false;
@@ -54,6 +60,7 @@ ObjectManager::ObjectManager()
 	textureRegistry.clear();
 	paletteRegistry.clear();
 	audioRegistry.clear();
+	fontRegistry.clear();
 	newObjectId = 1;
 	openGL3 = false;
 	obtainedAudioSpec = NULL;
@@ -141,6 +148,24 @@ bool ObjectSort(HSObject * first, HSObject * second)
 bool PaletteSort(PaletteInstance first, PaletteInstance second)
 {
 	if(first.orderID < second.orderID) { return true; }
+	return false;
+}
+
+bool HSMenuItemSort(HSMenuItem * first, HSMenuItem * second)
+{
+	if(first->order < second->order) { return true; }
+	return false;
+}
+
+bool MenuChooserItemSort(MenuChooserItem * first, MenuChooserItem * second)
+{
+	if(first->order < second->order) { return true; }
+	return false;
+}
+
+bool MenuKeySettingItemSort(MenuKeySettingItem * first, MenuKeySettingItem * second)
+{
+	if(first->order < second->order) { return true; }
 	return false;
 }
 
@@ -249,10 +274,10 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 			objDef->QueryFloatAttribute("hitsCounterDigitWidth", &newHUD->hitsCounterDigitWidth);
 			objDef->QueryFloatAttribute("hitsCounterDigitHeight", &newHUD->hitsCounterDigitHeight);
 			objDef->QueryFloatAttribute("hitsCounterDigitSeparation", &newHUD->hitsCounterDigitSeparation);
-			newHUD->healthMeterFilePath = objDef->Attribute("healthMeterFilePath");
-			newHUD->healthUnderMeterFilePath = objDef->Attribute("healthUnderMeterFilePath");
-			newHUD->livesCounterFilePath = objDef->Attribute("livesCounterFilePath");
-			newHUD->hitsCounterFilePath = objDef->Attribute("hitsCounterFilePath");
+			if(objDef->Attribute("healthMeterFilePath") != NULL) { newHUD->healthMeterFilePath = objDef->Attribute("healthMeterFilePath"); }
+			if(objDef->Attribute("healthUnderMeterFilePath") != NULL) { newHUD->healthUnderMeterFilePath = objDef->Attribute("healthUnderMeterFilePath"); }
+			if(objDef->Attribute("livesCounterFilePath") != NULL) { newHUD->livesCounterFilePath = objDef->Attribute("livesCounterFilePath"); }
+			if(objDef->Attribute("hitsCounterFilePath") != NULL) { newHUD->hitsCounterFilePath = objDef->Attribute("hitsCounterFilePath"); }
 		}
 
 		if(newObject->IsTerrainObject())
@@ -353,7 +378,8 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 
 				newObject->useTGAPalettes = false;
 
-				string palFilePath = paletteDef->Attribute("path");
+				string palFilePath = "";
+				if(paletteDef->Attribute("path") != NULL) { palFilePath = paletteDef->Attribute("path"); }
 				PaletteInstance newPalInst;
 				
 				//see if the palette has already been loaded
@@ -387,7 +413,7 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 					newPalInst.hsPal = newPal;
 				}
 
-				newPalInst.name = paletteDef->Attribute("name");
+				if(paletteDef->Attribute("name") != NULL) { newPalInst.name = paletteDef->Attribute("name"); }
 				paletteDef->QueryUnsignedAttribute("id", &newPalInst.orderID);
 				newObject->palettes.push_back(newPalInst);
 			}
@@ -982,7 +1008,8 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 							continue;
 						}
 
-						string textureFilePath = texDef->Attribute("textureFilePath");
+						string textureFilePath = "";
+						if(texDef->Attribute("textureFilePath") != NULL) { textureFilePath = texDef->Attribute("textureFilePath"); }
 
 						TextureInstance newTexInst;
 
@@ -1042,7 +1069,8 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 						}
 
 						//get the file path
-						string audioFilePath = audioDef->Attribute("audioFilePath");
+						string audioFilePath = "";
+						if(audioDef->Attribute("audioFilePath") != NULL) { audioFilePath = audioDef->Attribute("audioFilePath"); }
 
 						AudioInstance newAudInst;
 
@@ -1096,7 +1124,8 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 						}
 
 						//get the file path
-						string spawnObjectFilePath = spawnDef->Attribute("definitionFilePath");
+						string spawnObjectFilePath = "";
+						if(spawnDef->Attribute("definitionFilePath") != NULL) { spawnObjectFilePath = spawnDef->Attribute("definitionFilePath"); }
 
 						SpawnObject newSpawnObject;
 						newSpawnObject.parent = newObject;
@@ -1199,7 +1228,8 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 						}
 
 						//get the file path
-						string audioFilePath = hitAudioDef->Attribute("hitAudioFilePath");
+						string audioFilePath = "";
+						if(hitAudioDef->Attribute("hitAudioFilePath") != NULL) { audioFilePath = hitAudioDef->Attribute("hitAudioFilePath"); }
 
 						AudioInstance newAudInst;
 
@@ -1253,7 +1283,8 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 						}
 
 						//get the file path
-						string audioFilePath = blockedAudioDef->Attribute("blockedAudioFilePath");
+						string audioFilePath = "";
+						if(blockedAudioDef->Attribute("blockedAudioFilePath") != NULL) { audioFilePath = blockedAudioDef->Attribute("blockedAudioFilePath"); }
 
 						AudioInstance newAudInst;
 
@@ -1297,6 +1328,8 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 					}
 				}
 			}
+
+			newObject->numHolds++;
 
 			//add the hold to the object
 			if(newObject->firstHold == NULL)
@@ -1461,6 +1494,1328 @@ int ObjectManager::LoadStage(string defFilePath)
 	}
 
 	delete file;
+
+	return 0;
+}
+
+int ObjectManager::LoadHSMenu(string defFilePath, HSVect2D menuPos, HSMenu ** returnValue)
+{
+	//get the XML structure from the file
+	XMLDocument * file = new XMLDocument();
+	if(int error = file->LoadFile(defFilePath.data()) != 0)
+	{
+		stringstream sstm;
+		sstm << "Error loading definition file. Code: " << error << " File: " << defFilePath;
+		UpdateLog(sstm.str(), true);
+		return error; //couldn't load the file
+	}
+
+	if(strcmp(file->RootElement()->Value(), "HSMenu") != 0)
+	{
+		UpdateLog("XML file is not Homestrife menu definition file: " + defFilePath, true);
+		return -1; //this isn't an HSObjects definition file
+	}
+	
+	XMLElement * root = file->RootElement();
+
+	HSFont * titleFont;
+	string titleFontDefFilePath = "";
+	if(root->Attribute("titleFontDefFilePath") != NULL) { titleFontDefFilePath = root->Attribute("titleFontDefFilePath"); }
+	if(int error = LoadHSFont(titleFontDefFilePath, &titleFont) != 0) { return error; }
+
+	HSFont * itemFont;
+	string itemFontDefFilePath = "";
+	if(root->Attribute("itemFontDefFilePath") != NULL) { itemFontDefFilePath = root->Attribute("itemFontDefFilePath"); }
+	if(int error = LoadHSFont(itemFontDefFilePath, &itemFont) != 0) { return error; }
+	
+	HSObject * cursorToClone;
+	string cursorDefFilePath = "";
+	if(root->Attribute("cursorDefFilePath") != NULL) { cursorDefFilePath = root->Attribute("cursorDefFilePath"); }
+	if(cursorDefFilePath.empty())
+	{
+		UpdateLog("Menu has no cursor definition file path: + defFilePath", true);
+		return -1;
+	}
+		
+	if(int error = LoadDefinition(cursorDefFilePath, NULL, &cursorToClone) != 0) { return error; }
+
+	HSMenu * newMenu = new HSMenu(titleFont);
+	newMenu->cursorToClone = cursorToClone;
+	newMenu->pos.x = menuPos.x;
+	newMenu->pos.y = menuPos.y + titleFont->charHeight;
+	titleFont->usingCount++;
+	newMenu->itemHeight = itemFont->charHeight;
+
+	root->QueryFloatAttribute("titleSeparation", &newMenu->titleSeparation);
+	root->QueryFloatAttribute("cursorWidth", &newMenu->cursorWidth);
+	root->QueryFloatAttribute("cursorSeparation", &newMenu->cursorSeparation);
+	root->QueryFloatAttribute("itemSeparation", &newMenu->itemSeparation);
+
+	newMenu->titleHeight = titleFont->charHeight;
+
+	if(root->Attribute("titleText") != NULL) { newMenu->titleText = root->Attribute("titleText"); }
+
+	float chooserKeySettingOffsetX = 0;
+	root->QueryFloatAttribute("chooserKeySettingOffsetX", &chooserKeySettingOffsetX);
+
+	newMenu->RepositionCursor();
+
+	//loop through all the sections of the menu definition
+	for(XMLElement * i = root->FirstChildElement(); i != NULL; i = i->NextSiblingElement())
+	{
+		//get the section
+		const char * section = i->Value();
+
+		if(strcmp("MenuItem", section) == 0)
+		{
+			HSMenuItem * newItem = new HSMenuItem(itemFont);
+			itemFont->usingCount++;
+			newItem->parentMenu = newMenu;
+
+			string function = "";
+			if(i->Attribute("function") != NULL) { function = i->Attribute("function"); }
+
+			bool keyConfigItem = false;
+
+			newItem->function = NO_MENU_FUNCTION;
+			if(function.compare("BACK") == 0) { newItem->function = BACK; }
+			else if(function.compare("QUIT_GAME") == 0) { newItem->function = QUIT_GAME; }
+			else if(function.compare("RESUME_MATCH") == 0) { newItem->function = RESUME_MATCH; }
+			else if(function.compare("QUIT_MATCH") == 0) { newItem->function = QUIT_MATCH; }
+			else if(function.compare("VERSUS") == 0) { newItem->function = VERSUS; }
+			else if(function.compare("OPTIONS") == 0) { newItem->function = OPTIONS; }
+			else if(function.compare("FREE_FOR_ALL") == 0) { newItem->function = FREE_FOR_ALL; }
+			else if(function.compare("FREE_FOR_ALL_2_PLAYERS") == 0) { newItem->function = FREE_FOR_ALL_2_PLAYERS; }
+			else if(function.compare("FREE_FOR_ALL_3_PLAYERS") == 0) { newItem->function = FREE_FOR_ALL_3_PLAYERS; }
+			else if(function.compare("FREE_FOR_ALL_4_PLAYERS") == 0) { newItem->function = FREE_FOR_ALL_4_PLAYERS; }
+			else if(function.compare("VIDEO") == 0) { newItem->function = VIDEO; }
+			else if(function.compare("KEY_CONFIG") == 0) { newItem->function = KEY_CONFIG; }
+			else if(function.compare("KEY_CONFIG_PLAYER_1") == 0) { newItem->function = KEY_CONFIG_PLAYER_1; }
+			else if(function.compare("KEY_CONFIG_PLAYER_2") == 0) { newItem->function = KEY_CONFIG_PLAYER_2; }
+			else if(function.compare("KEY_CONFIG_PLAYER_3") == 0) { newItem->function = KEY_CONFIG_PLAYER_3; }
+			else if(function.compare("KEY_CONFIG_PLAYER_4") == 0) { newItem->function = KEY_CONFIG_PLAYER_4; }
+			else if(function.compare("FULL_SCREEN") == 0) { newItem->function = FULL_SCREEN; }
+			else if(function.compare("STRETCH_SCREEN") == 0) { newItem->function = STRETCH_SCREEN; }
+			else if(function.compare("FULL_SCREEN_RESOLUTION") == 0) { newItem->function = FULL_SCREEN_RESOLUTION; }
+			else if(function.compare("WINDOWED_RESOLUTION") == 0) { newItem->function = WINDOWED_RESOLUTION; }
+			else if(function.compare("APPLY_VIDEO_SETTINGS") == 0) { newItem->function = APPLY_VIDEO_SETTINGS; }
+			else if(function.compare("KEY_CONFIG_UP") == 0) { newItem->function = KEY_CONFIG_UP; keyConfigItem = true; }
+			else if(function.compare("KEY_CONFIG_DOWN") == 0) { newItem->function = KEY_CONFIG_DOWN; keyConfigItem = true; }
+			else if(function.compare("KEY_CONFIG_LEFT") == 0) { newItem->function = KEY_CONFIG_LEFT; keyConfigItem = true; }
+			else if(function.compare("KEY_CONFIG_RIGHT") == 0) { newItem->function = KEY_CONFIG_RIGHT; keyConfigItem = true; }
+			else if(function.compare("KEY_CONFIG_LIGHT_ATTACK") == 0) { newItem->function = KEY_CONFIG_LIGHT_ATTACK; keyConfigItem = true; }
+			else if(function.compare("KEY_CONFIG_HEAVY_ATTACK") == 0) { newItem->function = KEY_CONFIG_HEAVY_ATTACK; keyConfigItem = true; }
+			else if(function.compare("KEY_CONFIG_JUMP") == 0) { newItem->function = KEY_CONFIG_JUMP; keyConfigItem = true; }
+			else if(function.compare("KEY_CONFIG_BLOCK") == 0) { newItem->function = KEY_CONFIG_BLOCK; keyConfigItem = true; }
+			else if(function.compare("KEY_CONFIG_PAUSE") == 0) { newItem->function = KEY_CONFIG_PAUSE; keyConfigItem = true; }
+			else if(function.compare("KEY_CONFIG_MENU_CONFIRM") == 0) { newItem->function = KEY_CONFIG_MENU_CONFIRM; keyConfigItem = true; }
+			else if(function.compare("KEY_CONFIG_MENU_BACK") == 0) { newItem->function = KEY_CONFIG_MENU_BACK; keyConfigItem = true; }
+			
+			if(i->Attribute("itemText") != NULL) { newItem->itemText = i->Attribute("itemText"); }
+
+			i->QueryIntAttribute("order", &newItem->order);
+
+			newItem->child = NULL;
+			string childMenuDefFilePath = "";
+			if(i->Attribute("childMenuDefFilePath") != NULL) { childMenuDefFilePath = i->Attribute("childMenuDefFilePath"); }
+			if(!childMenuDefFilePath.empty())
+			{
+				HSMenu * childMenu;
+
+				LoadHSMenu(childMenuDefFilePath, menuPos, &childMenu);
+
+				childMenu->parentMenuItem = newItem;
+				newItem->child = childMenu;
+			}
+
+			newItem->chooser = NULL;
+			string chooserDefFilePath = "";
+			if(i->Attribute("chooserDefFilePath") != NULL) { chooserDefFilePath = i->Attribute("chooserDefFilePath"); }
+			if(!chooserDefFilePath.empty())
+			{
+				MenuChooser * chooser;
+
+				LoadMenuChooser(chooserDefFilePath, itemFont, &chooser);
+
+				chooser->parentMenuItem = newItem;
+
+				switch(newItem->function)
+				{
+				case FULL_SCREEN:
+					if(fullScreen) { chooser->SetByChoiceFunction(YES); }
+					else { chooser->SetByChoiceFunction(NO); }
+					break;
+				case STRETCH_SCREEN:
+					if(stretchScreen) { chooser->SetByChoiceFunction(YES); }
+					else { chooser->SetByChoiceFunction(NO); }
+					break;
+				case FULL_SCREEN_RESOLUTION:
+					if(fullscreenResolutionX == 1920) { chooser->SetByChoiceFunction(RES1920X1080); }
+					else if(fullscreenResolutionX == 1680) { chooser->SetByChoiceFunction(RES1680X945); }
+					else if(fullscreenResolutionX == 1600) { chooser->SetByChoiceFunction(RES1600X900); }
+					else if(fullscreenResolutionX == 1440) { chooser->SetByChoiceFunction(RES1440X810); }
+					else if(fullscreenResolutionX == 1400) { chooser->SetByChoiceFunction(RES1400X787); }
+					else if(fullscreenResolutionX == 1366) { chooser->SetByChoiceFunction(RES1366X768); }
+					else if(fullscreenResolutionX == 1360) { chooser->SetByChoiceFunction(RES1360X765); }
+					else if(fullscreenResolutionX == 1280) { chooser->SetByChoiceFunction(RES1280X720); }
+					else if(fullscreenResolutionX == 1152) { chooser->SetByChoiceFunction(RES1152X648); }
+					else if(fullscreenResolutionX == 1024) { chooser->SetByChoiceFunction(RES1024X576); }
+					else if(fullscreenResolutionX == 800) { chooser->SetByChoiceFunction(RES800X450); }
+					else if(fullscreenResolutionX == 640) { chooser->SetByChoiceFunction(RES640X360); }
+					break;
+				case WINDOWED_RESOLUTION:
+					if(windowedResolutionX == 1920) { chooser->SetByChoiceFunction(RES1920X1080); }
+					else if(windowedResolutionX == 1680) { chooser->SetByChoiceFunction(RES1680X945); }
+					else if(windowedResolutionX == 1600) { chooser->SetByChoiceFunction(RES1600X900); }
+					else if(windowedResolutionX == 1440) { chooser->SetByChoiceFunction(RES1440X810); }
+					else if(windowedResolutionX == 1400) { chooser->SetByChoiceFunction(RES1400X787); }
+					else if(windowedResolutionX == 1366) { chooser->SetByChoiceFunction(RES1366X768); }
+					else if(windowedResolutionX == 1360) { chooser->SetByChoiceFunction(RES1360X765); }
+					else if(windowedResolutionX == 1280) { chooser->SetByChoiceFunction(RES1280X720); }
+					else if(windowedResolutionX == 1152) { chooser->SetByChoiceFunction(RES1152X648); }
+					else if(windowedResolutionX == 1024) { chooser->SetByChoiceFunction(RES1024X576); }
+					else if(windowedResolutionX == 800) { chooser->SetByChoiceFunction(RES800X450); }
+					else if(windowedResolutionX == 640) { chooser->SetByChoiceFunction(RES640X360); }
+					break;
+				}
+
+				newItem->chooser = chooser;
+			}
+
+			newItem->currentKeySetting = NULL;
+			if(keyConfigItem)
+			{
+				MenuKeySetting * keysetting;
+
+				CreateMenuKeySetting(itemFont, &keysetting);
+
+				keysetting->parentMenuItem = newItem;
+
+				newItem->currentKeySetting = keysetting;
+			}
+
+			newMenu->items.push_back(newItem);
+		}
+	}
+
+	newMenu->items.sort(HSMenuItemSort);
+
+	delete file;
+	
+	HSVect2D textPos;
+	textPos.x = newMenu->pos.x + newMenu->cursorWidth + newMenu->cursorSeparation;
+	textPos.y = newMenu->pos.y + newMenu->titleSeparation + newMenu->itemHeight;
+
+	list<HSMenuItem*>::iterator itIt;
+	for(itIt = newMenu->items.begin(); itIt != newMenu->items.end(); itIt++)
+	{
+		(*itIt)->pos.x = textPos.x;
+		(*itIt)->pos.y = textPos.y;
+
+		if((*itIt)->chooser != NULL)
+		{
+			(*itIt)->chooser->pos.x = textPos.x + chooserKeySettingOffsetX;
+			(*itIt)->chooser->pos.y = textPos.y;
+		}
+
+		if((*itIt)->currentKeySetting != NULL)
+		{
+			(*itIt)->currentKeySetting->pos.x = textPos.x + chooserKeySettingOffsetX;
+			(*itIt)->currentKeySetting->pos.y = textPos.y;
+		}
+
+		textPos.y += itemFont->charHeight + newMenu->itemSeparation;
+	}
+
+	if(returnValue != NULL)
+	{
+		*returnValue = newMenu;
+	}
+
+	return 0;
+}
+
+int ObjectManager::LoadMenuChooser(string defFilePath, HSFont * font, MenuChooser ** returnValue)
+{
+	//get the XML structure from the file
+	XMLDocument * file = new XMLDocument();
+	if(int error = file->LoadFile(defFilePath.data()) != 0)
+	{
+		stringstream sstm;
+		sstm << "Error loading definition file. Code: " << error << " File: " << defFilePath;
+		UpdateLog(sstm.str(), true);
+		return error; //couldn't load the file
+	}
+
+	if(strcmp(file->RootElement()->Value(), "HSChooser") != 0)
+	{
+		UpdateLog("XML file is not Homestrife chooser definition file: " + defFilePath, true);
+		return -1; //this isn't an HSObjects definition file
+	}
+
+	XMLElement * root = file->RootElement();
+
+	MenuChooser * newChooser = new MenuChooser(font);
+	font->usingCount++;
+
+	//loop through all the sections of the font definition
+	for(XMLElement * i = root->FirstChildElement(); i != NULL; i = i->NextSiblingElement())
+	{
+		//get the section
+		const char * section = i->Value();
+
+		if(strcmp("ChooserItem", section) != 0) { continue; }
+
+		MenuChooserItem * newItem = new MenuChooserItem();
+		newItem->parentChooser = newChooser;
+		
+		i->QueryIntAttribute("order", &newItem->order);
+		string function = "";
+		if(i->Attribute("function") != NULL) { function = i->Attribute("function"); }
+		
+		newItem->function = NO_CHOOSER_FUNCTION;
+		if(function.compare("YES") == 0) { newItem->function = YES; newItem->itemText = "Yes"; }
+		else if(function.compare("NO") == 0) { newItem->function = NO; newItem->itemText = "No"; }
+		else if(function.compare("RES640X360") == 0) { newItem->function = RES640X360; newItem->itemText = "640x360"; }
+		else if(function.compare("RES800X450") == 0) { newItem->function = RES800X450; newItem->itemText = "800x450"; }
+		else if(function.compare("RES1024X576") == 0) { newItem->function = RES1024X576; newItem->itemText = "1024x576"; }
+		else if(function.compare("RES1152X648") == 0) { newItem->function = RES1152X648; newItem->itemText = "1152x648"; }
+		else if(function.compare("RES1280X720") == 0) { newItem->function = RES1280X720; newItem->itemText = "1280x720"; }
+		else if(function.compare("RES1360X765") == 0) { newItem->function = RES1360X765; newItem->itemText = "1360x765"; }
+		else if(function.compare("RES1366X768") == 0) { newItem->function = RES1366X768; newItem->itemText = "1366x768"; }
+		else if(function.compare("RES1400X787") == 0) { newItem->function = RES1400X787; newItem->itemText = "1400x787"; }
+		else if(function.compare("RES1440X810") == 0) { newItem->function = RES1440X810; newItem->itemText = "1440x810"; }
+		else if(function.compare("RES1600X900") == 0) { newItem->function = RES1600X900; newItem->itemText = "1600x900"; }
+		else if(function.compare("RES1680X945") == 0) { newItem->function = RES1680X945; newItem->itemText = "1680x945"; }
+		else if(function.compare("RES1920X1080") == 0) { newItem->function = RES1920X1080; newItem->itemText = "1920x1080"; }
+
+		newChooser->items.push_back(newItem);
+	}
+
+	delete file;
+
+	newChooser->items.sort(MenuChooserItemSort);
+
+	if(returnValue != NULL)
+	{
+		*returnValue = newChooser;
+	}
+
+	return 0;
+}
+
+int ObjectManager::CreateMenuKeySetting(HSFont * font, MenuKeySetting ** returnValue)
+{
+	MenuKeySetting * newKeySetting = new MenuKeySetting(font);
+	font->usingCount++;
+
+	//keyboard
+	MenuKeySettingItem * keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_BACKSPACE; keySettingItem->itemText = "Backspace"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_TAB; keySettingItem->itemText = "Tab"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_CLEAR; keySettingItem->itemText = "Clear"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_PAUSE; keySettingItem->itemText = "Pause"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_SPACE; keySettingItem->itemText = "Space"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_EXCLAIM; keySettingItem->itemText = "!"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_QUOTEDBL; keySettingItem->itemText = "\""; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_HASH; keySettingItem->itemText = "#"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_DOLLAR; keySettingItem->itemText = "$"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_AMPERSAND; keySettingItem->itemText = "&"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_QUOTE; keySettingItem->itemText = "'"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_LEFTPAREN; keySettingItem->itemText = "("; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_RIGHTPAREN; keySettingItem->itemText = ")"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_ASTERISK; keySettingItem->itemText = "*"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_PLUS; keySettingItem->itemText = "+"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_COMMA; keySettingItem->itemText = ","; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_MINUS; keySettingItem->itemText = "-"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_PERIOD; keySettingItem->itemText = "."; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_SLASH; keySettingItem->itemText = "/"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_0; keySettingItem->itemText = "0"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_1; keySettingItem->itemText = "1"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_2; keySettingItem->itemText = "2"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_3; keySettingItem->itemText = "3"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_4; keySettingItem->itemText = "4"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_5; keySettingItem->itemText = "5"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_6; keySettingItem->itemText = "6"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_7; keySettingItem->itemText = "7"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_8; keySettingItem->itemText = "8"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_9; keySettingItem->itemText = "9"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_COLON; keySettingItem->itemText = ":"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_SEMICOLON; keySettingItem->itemText = ";"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_LESS; keySettingItem->itemText = "<"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_EQUALS; keySettingItem->itemText = "="; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_GREATER; keySettingItem->itemText = ">"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_QUESTION; keySettingItem->itemText = "?"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_AT; keySettingItem->itemText = "@"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_LEFTBRACKET; keySettingItem->itemText = "["; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_BACKSLASH; keySettingItem->itemText = "\\"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_RIGHTBRACKET; keySettingItem->itemText = "]"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_CARET; keySettingItem->itemText = "^"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_UNDERSCORE; keySettingItem->itemText = "_"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_BACKQUOTE; keySettingItem->itemText = "`"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_a; keySettingItem->itemText = "A"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_b; keySettingItem->itemText = "B"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_c; keySettingItem->itemText = "C"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_d; keySettingItem->itemText = "D"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_e; keySettingItem->itemText = "E"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_f; keySettingItem->itemText = "F"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_g; keySettingItem->itemText = "G"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_h; keySettingItem->itemText = "H"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_i; keySettingItem->itemText = "I"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_j; keySettingItem->itemText = "J"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_k; keySettingItem->itemText = "K"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_l; keySettingItem->itemText = "L"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_m; keySettingItem->itemText = "M"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_n; keySettingItem->itemText = "N"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_o; keySettingItem->itemText = "O"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_p; keySettingItem->itemText = "P"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_q; keySettingItem->itemText = "Q"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_r; keySettingItem->itemText = "R"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_s; keySettingItem->itemText = "S"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_t; keySettingItem->itemText = "T"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_u; keySettingItem->itemText = "U"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_v; keySettingItem->itemText = "V"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_w; keySettingItem->itemText = "W"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_x; keySettingItem->itemText = "X"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_y; keySettingItem->itemText = "Y"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_z; keySettingItem->itemText = "Z"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_DELETE; keySettingItem->itemText = "Delete"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_KP_0; keySettingItem->itemText = "Numpad 0"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_KP_1; keySettingItem->itemText = "Numpad 1"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_KP_2; keySettingItem->itemText = "Numpad 2"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_KP_3; keySettingItem->itemText = "Numpad 3"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_KP_4; keySettingItem->itemText = "Numpad 4"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_KP_5; keySettingItem->itemText = "Numpad 5"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_KP_6; keySettingItem->itemText = "Numpad 6"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_KP_7; keySettingItem->itemText = "Numpad 7"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_KP_8; keySettingItem->itemText = "Numpad 8"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_KP_9; keySettingItem->itemText = "Numpad 9"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_KP_PERIOD; keySettingItem->itemText = "Numpad ."; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_KP_DIVIDE; keySettingItem->itemText = "Numpad /"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_KP_MULTIPLY; keySettingItem->itemText = "Numpad *"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_KP_MINUS; keySettingItem->itemText = "Numpad -"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_KP_PLUS; keySettingItem->itemText = "Numpad +"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_KP_EQUALS; keySettingItem->itemText = "Numpad ="; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_INSERT; keySettingItem->itemText = "Insert"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_HOME; keySettingItem->itemText = "Home"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_END; keySettingItem->itemText = "End"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_PAGEUP; keySettingItem->itemText = "Page Up"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_PAGEDOWN; keySettingItem->itemText = "Page Down"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_RSHIFT; keySettingItem->itemText = "Right Shift"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_LSHIFT; keySettingItem->itemText = "Left Shift"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_RCTRL; keySettingItem->itemText = "Right Ctrl"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_LCTRL; keySettingItem->itemText = "Left Ctrl"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_RALT; keySettingItem->itemText = "Right Alt"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
+	keySettingItem->keySetting.keycode = SDLK_LALT; keySettingItem->itemText = "Left Alt"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	//Joystick 0 buttons
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 0; keySettingItem->keySetting.joystickMapping.button = 0; keySettingItem->itemText = "Joy 0 Button 0";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 0; keySettingItem->keySetting.joystickMapping.button = 1; keySettingItem->itemText = "Joy 0 Button 1";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 0; keySettingItem->keySetting.joystickMapping.button = 2; keySettingItem->itemText = "Joy 0 Button 2";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 0; keySettingItem->keySetting.joystickMapping.button = 3; keySettingItem->itemText = "Joy 0 Button 3";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 0; keySettingItem->keySetting.joystickMapping.button = 4; keySettingItem->itemText = "Joy 0 Button 4";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 0; keySettingItem->keySetting.joystickMapping.button = 5; keySettingItem->itemText = "Joy 0 Button 5";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 0; keySettingItem->keySetting.joystickMapping.button = 6; keySettingItem->itemText = "Joy 0 Button 6";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 0; keySettingItem->keySetting.joystickMapping.button = 7; keySettingItem->itemText = "Joy 0 Button 7";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 0; keySettingItem->keySetting.joystickMapping.button = 8; keySettingItem->itemText = "Joy 0 Button 8";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 0; keySettingItem->keySetting.joystickMapping.button = 9; keySettingItem->itemText = "Joy 0 Button 9";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 0; keySettingItem->keySetting.joystickMapping.button = 10; keySettingItem->itemText = "Joy 0 Button 10";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 0; keySettingItem->keySetting.joystickMapping.button = 11; keySettingItem->itemText = "Joy 0 Button 11";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 0; keySettingItem->keySetting.joystickMapping.button = 12; keySettingItem->itemText = "Joy 0 Button 12";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 0; keySettingItem->keySetting.joystickMapping.button = 13; keySettingItem->itemText = "Joy 0 Button 13";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 0; keySettingItem->keySetting.joystickMapping.button = 14; keySettingItem->itemText = "Joy 0 Button 14";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 0; keySettingItem->keySetting.joystickMapping.button = 15; keySettingItem->itemText = "Joy 0 Button 15";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 0; keySettingItem->keySetting.joystickMapping.button = 16; keySettingItem->itemText = "Joy 0 Button 16";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 0; keySettingItem->keySetting.joystickMapping.button = 17; keySettingItem->itemText = "Joy 0 Button 17";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 0; keySettingItem->keySetting.joystickMapping.button = 18; keySettingItem->itemText = "Joy 0 Button 18";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 0; keySettingItem->keySetting.joystickMapping.button = 19; keySettingItem->itemText = "Joy 0 Button 19";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	//Joystick 1 buttons
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 1; keySettingItem->keySetting.joystickMapping.button = 0; keySettingItem->itemText = "Joy 1 Button 0";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 1; keySettingItem->keySetting.joystickMapping.button = 1; keySettingItem->itemText = "Joy 1 Button 1";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 1; keySettingItem->keySetting.joystickMapping.button = 2; keySettingItem->itemText = "Joy 1 Button 2";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 1; keySettingItem->keySetting.joystickMapping.button = 3; keySettingItem->itemText = "Joy 1 Button 3";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 1; keySettingItem->keySetting.joystickMapping.button = 4; keySettingItem->itemText = "Joy 1 Button 4";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 1; keySettingItem->keySetting.joystickMapping.button = 5; keySettingItem->itemText = "Joy 1 Button 5";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 1; keySettingItem->keySetting.joystickMapping.button = 6; keySettingItem->itemText = "Joy 1 Button 6";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 1; keySettingItem->keySetting.joystickMapping.button = 7; keySettingItem->itemText = "Joy 1 Button 7";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 1; keySettingItem->keySetting.joystickMapping.button = 8; keySettingItem->itemText = "Joy 1 Button 8";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 1; keySettingItem->keySetting.joystickMapping.button = 9; keySettingItem->itemText = "Joy 1 Button 9";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 1; keySettingItem->keySetting.joystickMapping.button = 10; keySettingItem->itemText = "Joy 1 Button 10";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 1; keySettingItem->keySetting.joystickMapping.button = 11; keySettingItem->itemText = "Joy 1 Button 11";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 1; keySettingItem->keySetting.joystickMapping.button = 12; keySettingItem->itemText = "Joy 1 Button 12";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 1; keySettingItem->keySetting.joystickMapping.button = 13; keySettingItem->itemText = "Joy 1 Button 13";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 1; keySettingItem->keySetting.joystickMapping.button = 14; keySettingItem->itemText = "Joy 1 Button 14";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 1; keySettingItem->keySetting.joystickMapping.button = 15; keySettingItem->itemText = "Joy 1 Button 15";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 1; keySettingItem->keySetting.joystickMapping.button = 16; keySettingItem->itemText = "Joy 1 Button 16";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 1; keySettingItem->keySetting.joystickMapping.button = 17; keySettingItem->itemText = "Joy 1 Button 17";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 1; keySettingItem->keySetting.joystickMapping.button = 18; keySettingItem->itemText = "Joy 1 Button 18";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 1; keySettingItem->keySetting.joystickMapping.button = 19; keySettingItem->itemText = "Joy 1 Button 19";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	//Joystick 2 buttons
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 2; keySettingItem->keySetting.joystickMapping.button = 0; keySettingItem->itemText = "Joy 2 Button 0";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 2; keySettingItem->keySetting.joystickMapping.button = 1; keySettingItem->itemText = "Joy 2 Button 1";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 2; keySettingItem->keySetting.joystickMapping.button = 2; keySettingItem->itemText = "Joy 2 Button 2";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 2; keySettingItem->keySetting.joystickMapping.button = 3; keySettingItem->itemText = "Joy 2 Button 3";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 2; keySettingItem->keySetting.joystickMapping.button = 4; keySettingItem->itemText = "Joy 2 Button 4";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 2; keySettingItem->keySetting.joystickMapping.button = 5; keySettingItem->itemText = "Joy 2 Button 5";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 2; keySettingItem->keySetting.joystickMapping.button = 6; keySettingItem->itemText = "Joy 2 Button 6";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 2; keySettingItem->keySetting.joystickMapping.button = 7; keySettingItem->itemText = "Joy 2 Button 7";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 2; keySettingItem->keySetting.joystickMapping.button = 8; keySettingItem->itemText = "Joy 2 Button 8";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 2; keySettingItem->keySetting.joystickMapping.button = 9; keySettingItem->itemText = "Joy 2 Button 9";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 2; keySettingItem->keySetting.joystickMapping.button = 10; keySettingItem->itemText = "Joy 2 Button 10";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 2; keySettingItem->keySetting.joystickMapping.button = 11; keySettingItem->itemText = "Joy 2 Button 11";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 2; keySettingItem->keySetting.joystickMapping.button = 12; keySettingItem->itemText = "Joy 2 Button 12";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 2; keySettingItem->keySetting.joystickMapping.button = 13; keySettingItem->itemText = "Joy 2 Button 13";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 2; keySettingItem->keySetting.joystickMapping.button = 14; keySettingItem->itemText = "Joy 2 Button 14";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 2; keySettingItem->keySetting.joystickMapping.button = 15; keySettingItem->itemText = "Joy 2 Button 15";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 2; keySettingItem->keySetting.joystickMapping.button = 16; keySettingItem->itemText = "Joy 2 Button 16";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 2; keySettingItem->keySetting.joystickMapping.button = 17; keySettingItem->itemText = "Joy 2 Button 17";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 2; keySettingItem->keySetting.joystickMapping.button = 18; keySettingItem->itemText = "Joy 2 Button 18";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 2; keySettingItem->keySetting.joystickMapping.button = 19; keySettingItem->itemText = "Joy 2 Button 19";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	//Joystick 3 buttons
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 3; keySettingItem->keySetting.joystickMapping.button = 0; keySettingItem->itemText = "Joy 3 Button 0";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 3; keySettingItem->keySetting.joystickMapping.button = 1; keySettingItem->itemText = "Joy 3 Button 1";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 3; keySettingItem->keySetting.joystickMapping.button = 2; keySettingItem->itemText = "Joy 3 Button 2";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 3; keySettingItem->keySetting.joystickMapping.button = 3; keySettingItem->itemText = "Joy 3 Button 3";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 3; keySettingItem->keySetting.joystickMapping.button = 4; keySettingItem->itemText = "Joy 3 Button 4";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 3; keySettingItem->keySetting.joystickMapping.button = 5; keySettingItem->itemText = "Joy 3 Button 5";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 3; keySettingItem->keySetting.joystickMapping.button = 6; keySettingItem->itemText = "Joy 3 Button 6";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 3; keySettingItem->keySetting.joystickMapping.button = 7; keySettingItem->itemText = "Joy 3 Button 7";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 3; keySettingItem->keySetting.joystickMapping.button = 8; keySettingItem->itemText = "Joy 3 Button 8";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 3; keySettingItem->keySetting.joystickMapping.button = 9; keySettingItem->itemText = "Joy 3 Button 9";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 3; keySettingItem->keySetting.joystickMapping.button = 10; keySettingItem->itemText = "Joy 3 Button 10";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 3; keySettingItem->keySetting.joystickMapping.button = 11; keySettingItem->itemText = "Joy 3 Button 11";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 3; keySettingItem->keySetting.joystickMapping.button = 12; keySettingItem->itemText = "Joy 3 Button 12";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 3; keySettingItem->keySetting.joystickMapping.button = 13; keySettingItem->itemText = "Joy 3 Button 13";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 3; keySettingItem->keySetting.joystickMapping.button = 14; keySettingItem->itemText = "Joy 3 Button 14";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 3; keySettingItem->keySetting.joystickMapping.button = 15; keySettingItem->itemText = "Joy 3 Button 15";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 3; keySettingItem->keySetting.joystickMapping.button = 16; keySettingItem->itemText = "Joy 3 Button 16";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 3; keySettingItem->keySetting.joystickMapping.button = 17; keySettingItem->itemText = "Joy 3 Button 17";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 3; keySettingItem->keySetting.joystickMapping.button = 18; keySettingItem->itemText = "Joy 3 Button 18";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_BUTTON;
+	keySettingItem->keySetting.joystickMapping.joystick = 3; keySettingItem->keySetting.joystickMapping.button = 19; keySettingItem->itemText = "Joy 3 Button 19";
+	keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	//joystick hats
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_HAT;
+	keySettingItem->keySetting.hat = 0; keySettingItem->itemText = "Joy 0 Hat"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_HAT;
+	keySettingItem->keySetting.hat = 1; keySettingItem->itemText = "Joy 1 Hat"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_HAT;
+	keySettingItem->keySetting.hat = 2; keySettingItem->itemText = "Joy 2 Hat"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_HAT;
+	keySettingItem->keySetting.hat = 3; keySettingItem->itemText = "Joy 3 Hat"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	//joystick sticks
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_STICK;
+	keySettingItem->keySetting.stick = 0; keySettingItem->itemText = "Joy 0 Stick"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_STICK;
+	keySettingItem->keySetting.stick = 1; keySettingItem->itemText = "Joy 1 Stick"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_STICK;
+	keySettingItem->keySetting.stick = 2; keySettingItem->itemText = "Joy 2 Stick"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_STICK;
+	keySettingItem->keySetting.stick = 3; keySettingItem->itemText = "Joy 3 Stick"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	//other
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_ENTER;
+	keySettingItem->itemText = "Enter desired key"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+	
+	keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_NONE;
+	keySettingItem->itemText = "NO SETTING"; keySettingItem->parentKeySetting = newKeySetting;
+	newKeySetting->items.push_back(keySettingItem);
+
+	newKeySetting->items.sort(MenuKeySettingItemSort);
+
+	if(returnValue != NULL)
+	{
+		*returnValue = newKeySetting;
+	}
+
+	return 0;
+}
+
+int ObjectManager::LoadHSFont(string defFilePath, HSFont ** returnValue)
+{
+	//get the XML structure from the file
+	XMLDocument * file = new XMLDocument();
+	if(int error = file->LoadFile(defFilePath.data()) != 0)
+	{
+		stringstream sstm;
+		sstm << "Error loading definition file. Code: " << error << " File: " << defFilePath;
+		UpdateLog(sstm.str(), true);
+		return error; //couldn't load the file
+	}
+
+	if(strcmp(file->RootElement()->Value(), "HSFont") != 0)
+	{
+		UpdateLog("XML file is not Homestrife font definition file: " + defFilePath, true);
+		return -1; //this isn't an HSObjects definition file
+	}
+
+	XMLElement * root = file->RootElement();
+
+	list<HSFont*>::iterator fIt;
+	for(fIt = fontRegistry.begin(); fIt != fontRegistry.end(); fIt++)
+	{
+		if((*fIt)->fontFilePath.compare(defFilePath) == 0)
+		{
+			if(returnValue != NULL)
+			{
+				*returnValue = *fIt;
+			}
+
+			return 0;
+		}
+	}
+
+	HSFont * newFont = new HSFont();
+	newFont->fontFilePath = defFilePath;
+
+	root->QueryFloatAttribute("charHeight", &newFont->charHeight);
+	root->QueryFloatAttribute("charSeparation", &newFont->charSeparation);
+	root->QueryFloatAttribute("spaceWidth", &newFont->spaceWidth);
+
+	//loop through all the sections of the font definition
+	for(XMLElement * i = root->FirstChildElement(); i != NULL; i = i->NextSiblingElement())
+	{
+		//get the section
+		const char * section = i->Value();
+
+		if(strcmp("lcA", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcA) != 0) { return error; } }
+		else if(strcmp("lcB", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcB) != 0) { return error; } }
+		else if(strcmp("lcC", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcC) != 0) { return error; } }
+		else if(strcmp("lcD", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcD) != 0) { return error; } }
+		else if(strcmp("lcE", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcE) != 0) { return error; } }
+		else if(strcmp("lcF", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcF) != 0) { return error; } }
+		else if(strcmp("lcG", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcG) != 0) { return error; } }
+		else if(strcmp("lcH", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcH) != 0) { return error; } }
+		else if(strcmp("lcI", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcI) != 0) { return error; } }
+		else if(strcmp("lcJ", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcJ) != 0) { return error; } }
+		else if(strcmp("lcK", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcK) != 0) { return error; } }
+		else if(strcmp("lcL", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcL) != 0) { return error; } }
+		else if(strcmp("lcM", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcM) != 0) { return error; } }
+		else if(strcmp("lcN", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcN) != 0) { return error; } }
+		else if(strcmp("lcO", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcO) != 0) { return error; } }
+		else if(strcmp("lcP", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcP) != 0) { return error; } }
+		else if(strcmp("lcQ", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcQ) != 0) { return error; } }
+		else if(strcmp("lcR", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcR) != 0) { return error; } }
+		else if(strcmp("lcS", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcS) != 0) { return error; } }
+		else if(strcmp("lcT", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcT) != 0) { return error; } }
+		else if(strcmp("lcU", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcU) != 0) { return error; } }
+		else if(strcmp("lcV", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcV) != 0) { return error; } }
+		else if(strcmp("lcW", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcW) != 0) { return error; } }
+		else if(strcmp("lcX", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcX) != 0) { return error; } }
+		else if(strcmp("lcY", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcY) != 0) { return error; } }
+		else if(strcmp("lcZ", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcZ) != 0) { return error; } }
+		else if(strcmp("ucA", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucA) != 0) { return error; } }
+		else if(strcmp("ucB", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucB) != 0) { return error; } }
+		else if(strcmp("ucC", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucC) != 0) { return error; } }
+		else if(strcmp("ucD", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucD) != 0) { return error; } }
+		else if(strcmp("ucE", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucE) != 0) { return error; } }
+		else if(strcmp("ucF", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucF) != 0) { return error; } }
+		else if(strcmp("ucG", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucG) != 0) { return error; } }
+		else if(strcmp("ucH", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucH) != 0) { return error; } }
+		else if(strcmp("ucI", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucI) != 0) { return error; } }
+		else if(strcmp("ucJ", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucJ) != 0) { return error; } }
+		else if(strcmp("ucK", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucK) != 0) { return error; } }
+		else if(strcmp("ucL", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucL) != 0) { return error; } }
+		else if(strcmp("ucM", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucM) != 0) { return error; } }
+		else if(strcmp("ucN", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucN) != 0) { return error; } }
+		else if(strcmp("ucO", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucO) != 0) { return error; } }
+		else if(strcmp("ucP", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucP) != 0) { return error; } }
+		else if(strcmp("ucQ", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucQ) != 0) { return error; } }
+		else if(strcmp("ucR", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucR) != 0) { return error; } }
+		else if(strcmp("ucS", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucS) != 0) { return error; } }
+		else if(strcmp("ucT", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucT) != 0) { return error; } }
+		else if(strcmp("ucU", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucU) != 0) { return error; } }
+		else if(strcmp("ucV", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucV) != 0) { return error; } }
+		else if(strcmp("ucW", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucW) != 0) { return error; } }
+		else if(strcmp("ucX", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucX) != 0) { return error; } }
+		else if(strcmp("ucY", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucY) != 0) { return error; } }
+		else if(strcmp("ucZ", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucZ) != 0) { return error; } }
+		else if(strcmp("num0", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.num0) != 0) { return error; } }
+		else if(strcmp("num1", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.num1) != 0) { return error; } }
+		else if(strcmp("num2", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.num2) != 0) { return error; } }
+		else if(strcmp("num3", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.num3) != 0) { return error; } }
+		else if(strcmp("num4", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.num4) != 0) { return error; } }
+		else if(strcmp("num5", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.num5) != 0) { return error; } }
+		else if(strcmp("num6", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.num6) != 0) { return error; } }
+		else if(strcmp("num7", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.num7) != 0) { return error; } }
+		else if(strcmp("num8", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.num8) != 0) { return error; } }
+		else if(strcmp("num9", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.num9) != 0) { return error; } }
+		else if(strcmp("exclamation", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.exclamation) != 0) { return error; } }
+		else if(strcmp("ampersand", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ampersand) != 0) { return error; } }
+		else if(strcmp("parenLeft", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.parenLeft) != 0) { return error; } }
+		else if(strcmp("parenRight", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.parenRight) != 0) { return error; } }
+		else if(strcmp("backslash", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.backslash) != 0) { return error; } }
+		else if(strcmp("backslash", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.backslash) != 0) { return error; } }
+		else if(strcmp("forwardslash", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.forwardslash) != 0) { return error; } }
+		else if(strcmp("colon", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.colon) != 0) { return error; } }
+		else if(strcmp("quoteSingle", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.quoteSingle) != 0) { return error; } }
+		else if(strcmp("quoteDouble", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.quoteDouble) != 0) { return error; } }
+		else if(strcmp("comma", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.comma) != 0) { return error; } }
+		else if(strcmp("period", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.period) != 0) { return error; } }
+		else if(strcmp("question", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.question) != 0) { return error; } }
+		else if(strcmp("lessThan", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lessThan) != 0) { return error; } }
+		else if(strcmp("greaterThan", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.greaterThan) != 0) { return error; } }
+		else if(strcmp("at", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.at) != 0) { return error; } }
+		else if(strcmp("hash", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.hash) != 0) { return error; } }
+		else if(strcmp("dollar", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.dollar) != 0) { return error; } }
+		else if(strcmp("percent", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.percent) != 0) { return error; } }
+		else if(strcmp("carat", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.carat) != 0) { return error; } }
+		else if(strcmp("asterisk", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.asterisk) != 0) { return error; } }
+		else if(strcmp("minus", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.minus) != 0) { return error; } }
+		else if(strcmp("underscore", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.underscore) != 0) { return error; } }
+		else if(strcmp("plus", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.plus) != 0) { return error; } }
+		else if(strcmp("equals", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.equals) != 0) { return error; } }
+		else if(strcmp("bracketLeft", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.bracketLeft) != 0) { return error; } }
+		else if(strcmp("bracketRight", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.bracketRight) != 0) { return error; } }
+		else if(strcmp("semicolon", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.semicolon) != 0) { return error; } }
+		else if(strcmp("quoteBack", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.quoteBack) != 0) { return error; } }
+	}
+
+	delete file;
+
+	if(returnValue != NULL)
+	{
+		*returnValue = newFont;
+	}
+
+	return 0;
+}
+
+int ObjectManager::LoadHSCharacter(XMLElement * xml, HSCharacter * hsChar)
+{
+	if(hsChar == NULL) { return 0; }
+
+	xml->QueryFloatAttribute("charWidth", &hsChar->charWidth);
+
+	HSObject * newObject;
+	string defFilePath = "";
+	if(xml->Attribute("defFilePath") != NULL) { defFilePath = xml->Attribute("defFilePath"); }
+
+	if(defFilePath.empty()) { return 0; }
+
+	if(int error = LoadDefinition(defFilePath, NULL, &newObject) != 0) { return error; }
+
+	hsChar->character = newObject;
 
 	return 0;
 }
@@ -1722,282 +3077,41 @@ void ObjectManager::NextStage()
 	}
 }
 
-void ObjectManager::MakeVideoSettingsInvisible()
+void ObjectManager::UpdateMenu()
 {
-	fullscreenYes->visible = false;
-	fullscreenNo->visible = false;
-	stretchYes->visible = false;
-	stretchNo->visible = false;
-	fullscreen640x360->visible = false;
-	fullscreen800x450->visible = false;
-	fullscreen1024x576->visible = false;
-	fullscreen1152x648->visible = false;
-	fullscreen1280x720->visible = false;
-	fullscreen1360x765->visible = false;
-	fullscreen1366x768->visible = false;
-	fullscreen1400x787->visible = false;
-	fullscreen1440x810->visible = false;
-	fullscreen1600x900->visible = false;
-	fullscreen1680x945->visible = false;
-	fullscreen1920x1080->visible = false;
-	windowed640x360->visible = false;
-	windowed800x450->visible = false;
-	windowed1024x576->visible = false;
-	windowed1152x648->visible = false;
-	windowed1280x720->visible = false;
-	windowed1360x765->visible = false;
-	windowed1366x768->visible = false;
-	windowed1400x787->visible = false;
-	windowed1440x810->visible = false;
-	windowed1600x900->visible = false;
-	windowed1680x945->visible = false;
-	windowed1920x1080->visible = false;
-}
+	if(menuManager == NULL) { return; }
 
-void ObjectManager::SetVideoSettingVisibility()
-{
-	MakeVideoSettingsInvisible();
+	MenuManager * mm = menuManager;
 
-	if(fullScreenToApply) { fullscreenYes->visible = true; }
-	else { fullscreenNo->visible = true; }
-	if(stretchScreenToApply) { stretchYes->visible = true; }
-	else { stretchNo->visible = true; }
-	if(fullscreenResolutionXToApply == 640) { fullscreen640x360->visible = true; }
-	else if(fullscreenResolutionXToApply == 800) { fullscreen800x450->visible = true; }
-	else if(fullscreenResolutionXToApply == 1024) { fullscreen1024x576->visible = true; }
-	else if(fullscreenResolutionXToApply == 1152) { fullscreen1152x648->visible = true; }
-	else if(fullscreenResolutionXToApply == 1280) { fullscreen1280x720->visible = true; }
-	else if(fullscreenResolutionXToApply == 1360) { fullscreen1360x765->visible = true; }
-	else if(fullscreenResolutionXToApply == 1366) { fullscreen1366x768->visible = true; }
-	else if(fullscreenResolutionXToApply == 1400) { fullscreen1400x787->visible = true; }
-	else if(fullscreenResolutionXToApply == 1440) { fullscreen1440x810->visible = true; }
-	else if(fullscreenResolutionXToApply == 1600) { fullscreen1600x900->visible = true; }
-	else if(fullscreenResolutionXToApply == 1680) { fullscreen1680x945->visible = true; }
-	else if(fullscreenResolutionXToApply == 1920) { fullscreen1920x1080->visible = true; }
-	if(windowedResolutionXToApply == 640) { windowed640x360->visible = true; }
-	else if(windowedResolutionXToApply == 800) { windowed800x450->visible = true; }
-	else if(windowedResolutionXToApply == 1024) { windowed1024x576->visible = true; }
-	else if(windowedResolutionXToApply == 1152) { windowed1152x648->visible = true; }
-	else if(windowedResolutionXToApply == 1280) { windowed1280x720->visible = true; }
-	else if(windowedResolutionXToApply == 1360) { windowed1360x765->visible = true; }
-	else if(windowedResolutionXToApply == 1366) { windowed1366x768->visible = true; }
-	else if(windowedResolutionXToApply == 1400) { windowed1400x787->visible = true; }
-	else if(windowedResolutionXToApply == 1440) { windowed1440x810->visible = true; }
-	else if(windowedResolutionXToApply == 1600) { windowed1600x900->visible = true; }
-	else if(windowedResolutionXToApply == 1680) { windowed1680x945->visible = true; }
-	else if(windowedResolutionXToApply == 1920) { windowed1920x1080->visible = true; }
-}
+	if(needApplyFullscreenResolutionForMenu)
+	{
+		mm->SetChoiceForItem(FULL_SCREEN_RESOLUTION, mm->GetResolutionChooserFunction(fullscreenResolutionXForMenu, fullscreenResolutionYForMenu));
+		needApplyFullscreenResolutionForMenu = false;
+	}
 
-void ObjectManager::NextFullscreenResolution()
-{
-	if(fullscreenResolutionXToApply == 1920)
+	if(needApplyWindowedResolutionForMenu)
 	{
-		fullscreenResolutionXToApply = 640; fullscreenResolutionYToApply = 360;
-	}
-	else if(fullscreenResolutionXToApply == 1680)
-	{
-		fullscreenResolutionXToApply = 1920; fullscreenResolutionYToApply = 1080;
-	}
-	else if(fullscreenResolutionXToApply == 1600)
-	{
-		fullscreenResolutionXToApply = 1680; fullscreenResolutionYToApply = 945;
-	}
-	else if(fullscreenResolutionXToApply == 1440)
-	{
-		fullscreenResolutionXToApply = 1600; fullscreenResolutionYToApply = 900;
-	}
-	else if(fullscreenResolutionXToApply == 1400)
-	{
-		fullscreenResolutionXToApply = 1440; fullscreenResolutionYToApply = 810;
-	}
-	else if(fullscreenResolutionXToApply == 1366)
-	{
-		fullscreenResolutionXToApply = 1400; fullscreenResolutionYToApply = 787;
-	}
-	else if(fullscreenResolutionXToApply == 1360)
-	{
-		fullscreenResolutionXToApply = 1366; fullscreenResolutionYToApply = 768;
-	}
-	else if(fullscreenResolutionXToApply == 1280)
-	{
-		fullscreenResolutionXToApply = 1360; fullscreenResolutionYToApply = 765;
-	}
-	else if(fullscreenResolutionXToApply == 1152)
-	{
-		fullscreenResolutionXToApply = 1280; fullscreenResolutionYToApply = 720;
-	}
-	else if(fullscreenResolutionXToApply == 1024)
-	{
-		fullscreenResolutionXToApply = 1152; fullscreenResolutionYToApply = 648;
-	}
-	else if(fullscreenResolutionXToApply == 800)
-	{
-		fullscreenResolutionXToApply = 1024; fullscreenResolutionYToApply = 576;
-	}
-	else if(fullscreenResolutionXToApply == 640)
-	{
-		fullscreenResolutionXToApply = 800; fullscreenResolutionYToApply = 450;
-	}
-}
-
-void ObjectManager::PrevFullscreenResolution()
-{
-	if(fullscreenResolutionXToApply == 1920)
-	{
-		fullscreenResolutionXToApply = 1680; fullscreenResolutionYToApply = 945;
-	}
-	else if(fullscreenResolutionXToApply == 1680)
-	{
-		fullscreenResolutionXToApply = 1600; fullscreenResolutionYToApply = 900;
-	}
-	else if(fullscreenResolutionXToApply == 1600)
-	{
-		fullscreenResolutionXToApply = 1440; fullscreenResolutionYToApply = 810;
-	}
-	else if(fullscreenResolutionXToApply == 1440)
-	{
-		fullscreenResolutionXToApply = 1400; fullscreenResolutionYToApply = 787;
-	}
-	else if(fullscreenResolutionXToApply == 1400)
-	{
-		fullscreenResolutionXToApply = 1366; fullscreenResolutionYToApply = 768;
-	}
-	else if(fullscreenResolutionXToApply == 1366)
-	{
-		fullscreenResolutionXToApply = 1360; fullscreenResolutionYToApply = 765;
-	}
-	else if(fullscreenResolutionXToApply == 1360)
-	{
-		fullscreenResolutionXToApply = 1280; fullscreenResolutionYToApply = 720;
-	}
-	else if(fullscreenResolutionXToApply == 1280)
-	{
-		fullscreenResolutionXToApply = 1152; fullscreenResolutionYToApply = 648;
-	}
-	else if(fullscreenResolutionXToApply == 1152)
-	{
-		fullscreenResolutionXToApply = 1024; fullscreenResolutionYToApply = 576;
-	}
-	else if(fullscreenResolutionXToApply == 1024)
-	{
-		fullscreenResolutionXToApply = 800; fullscreenResolutionYToApply = 450;
-	}
-	else if(fullscreenResolutionXToApply == 800)
-	{
-		fullscreenResolutionXToApply = 640; fullscreenResolutionYToApply = 360;
-	}
-	else if(fullscreenResolutionXToApply == 640)
-	{
-		fullscreenResolutionXToApply = 1920; fullscreenResolutionYToApply = 1080;
-	}
-}
-
-void ObjectManager::NextWindowedResolution()
-{
-	if(windowedResolutionXToApply == 1920)
-	{
-		windowedResolutionXToApply = 640; windowedResolutionYToApply = 360;
-	}
-	else if(windowedResolutionXToApply == 1680)
-	{
-		windowedResolutionXToApply = 1920; windowedResolutionYToApply = 1080;
-	}
-	else if(windowedResolutionXToApply == 1600)
-	{
-		windowedResolutionXToApply = 1680; windowedResolutionYToApply = 945;
-	}
-	else if(windowedResolutionXToApply == 1440)
-	{
-		windowedResolutionXToApply = 1600; windowedResolutionYToApply = 900;
-	}
-	else if(windowedResolutionXToApply == 1400)
-	{
-		windowedResolutionXToApply = 1440; windowedResolutionYToApply = 810;
-	}
-	else if(windowedResolutionXToApply == 1366)
-	{
-		windowedResolutionXToApply = 1400; windowedResolutionYToApply = 787;
-	}
-	else if(windowedResolutionXToApply == 1360)
-	{
-		windowedResolutionXToApply = 1366; windowedResolutionYToApply = 768;
-	}
-	else if(windowedResolutionXToApply == 1280)
-	{
-		windowedResolutionXToApply = 1360; windowedResolutionYToApply = 765;
-	}
-	else if(windowedResolutionXToApply == 1152)
-	{
-		windowedResolutionXToApply = 1280; windowedResolutionYToApply = 720;
-	}
-	else if(windowedResolutionXToApply == 1024)
-	{
-		windowedResolutionXToApply = 1152; windowedResolutionYToApply = 648;
-	}
-	else if(windowedResolutionXToApply == 800)
-	{
-		windowedResolutionXToApply = 1024; windowedResolutionYToApply = 576;
-	}
-	else if(windowedResolutionXToApply == 640)
-	{
-		windowedResolutionXToApply = 800; windowedResolutionYToApply = 450;
-	}
-}
-
-void ObjectManager::PrevWindowedResolution()
-{
-	if(windowedResolutionXToApply == 1920)
-	{
-		windowedResolutionXToApply = 1680; windowedResolutionYToApply = 945;
-	}
-	else if(windowedResolutionXToApply == 1680)
-	{
-		windowedResolutionXToApply = 1600; windowedResolutionYToApply = 900;
-	}
-	else if(windowedResolutionXToApply == 1600)
-	{
-		windowedResolutionXToApply = 1440; windowedResolutionYToApply = 810;
-	}
-	else if(windowedResolutionXToApply == 1440)
-	{
-		windowedResolutionXToApply = 1400; windowedResolutionYToApply = 787;
-	}
-	else if(windowedResolutionXToApply == 1400)
-	{
-		windowedResolutionXToApply = 1366; windowedResolutionYToApply = 768;
-	}
-	else if(windowedResolutionXToApply == 1366)
-	{
-		windowedResolutionXToApply = 1360; windowedResolutionYToApply = 765;
-	}
-	else if(windowedResolutionXToApply == 1360)
-	{
-		windowedResolutionXToApply = 1280; windowedResolutionYToApply = 720;
-	}
-	else if(windowedResolutionXToApply == 1280)
-	{
-		windowedResolutionXToApply = 1152; windowedResolutionYToApply = 648;
-	}
-	else if(windowedResolutionXToApply == 1152)
-	{
-		windowedResolutionXToApply = 1024; windowedResolutionYToApply = 576;
-	}
-	else if(windowedResolutionXToApply == 1024)
-	{
-		windowedResolutionXToApply = 800; windowedResolutionYToApply = 450;
-	}
-	else if(windowedResolutionXToApply == 800)
-	{
-		windowedResolutionXToApply = 640; windowedResolutionYToApply = 360;
-	}
-	else if(windowedResolutionXToApply == 640)
-	{
-		windowedResolutionXToApply = 1920; windowedResolutionYToApply = 1080;
+		mm->SetChoiceForItem(WINDOWED_RESOLUTION, mm->GetResolutionChooserFunction(windowedResolutionXForMenu, windowedResolutionYForMenu));
+		needApplyWindowedResolutionForMenu = false;
 	}
 }
 
 int ObjectManager::ApplyVideoSettings()
 {
+	if(menuManager == NULL) { return 0; }
+	
+	MenuChooserFunction fullscreenFunc = menuManager->GetChooserFuncByMenuFunc(FULL_SCREEN);
+	MenuChooserFunction stretchScreenfunc = menuManager->GetChooserFuncByMenuFunc(STRETCH_SCREEN);
+	MenuChooserFunction fullscreenResFunc = menuManager->GetChooserFuncByMenuFunc(FULL_SCREEN_RESOLUTION);
+	MenuChooserFunction windowedResFunc = menuManager->GetChooserFuncByMenuFunc(WINDOWED_RESOLUTION);
+
+	fullScreenToApply = menuManager->GetYesNoBoolean(fullscreenFunc);
+	stretchScreenToApply = menuManager->GetYesNoBoolean(stretchScreenfunc);
+	fullscreenResolutionXToApply = menuManager->GetResolutionXInt(fullscreenResFunc);
+	fullscreenResolutionYToApply = menuManager->GetResolutionYInt(fullscreenResFunc);
+	windowedResolutionXToApply = menuManager->GetResolutionXInt(windowedResFunc);
+	windowedResolutionYToApply = menuManager->GetResolutionYInt(windowedResFunc);
+
 	stretchScreen = stretchScreenToApply;
 	fullscreenResolutionX = fullscreenResolutionXToApply;
 	fullscreenResolutionY = fullscreenResolutionYToApply;
@@ -2020,10 +3134,13 @@ int ObjectManager::CloneObject(SpawnObject * objectToClone, list<HSObject*> * ob
 
 	//get a value from the input object's hFlip, to be applied to x-coordinate spawn object variables
 	int hFlip = 1;
-	if(objectToClone->parent->hFlip) { hFlip = -1; }
+	if(objectToClone->parent != NULL && objectToClone->parent->hFlip) { hFlip = -1; }
 
 	//apply the spawn object values
-	newObject->hFlip = objectToClone->parent->hFlip;
+	if(objectToClone->parent != NULL)
+	{
+		newObject->hFlip = objectToClone->parent->hFlip;
+	}
 	newObject->pos.x += objectToClone->parentOffset.x * hFlip;
 	newObject->pos.y += objectToClone->parentOffset.y;
 	newObject->vel.x = objectToClone->vel.x * hFlip;
@@ -2089,8 +3206,11 @@ int ObjectManager::CloneObject(HSObject * objectToClone, list<HSObject*> * objec
 	}
 
 	//apply the input object's current values
-	newObject->pos.x = objectToClone->parent->pos.x;
-	newObject->pos.y = objectToClone->parent->pos.y;
+	if(objectToClone->parent != NULL)
+	{
+		newObject->pos.x = objectToClone->parent->pos.x;
+		newObject->pos.y = objectToClone->parent->pos.y;
+	}
 	newObject->prevPos.x = newObject->pos.x;
 	newObject->prevPos.y = newObject->pos.y;
 	newObject->parent = objectToClone->parent;
@@ -2701,6 +3821,14 @@ int ObjectManager::ClearAllObjects()
 	}
 
 	audioRegistry.clear();
+
+	list<HSFont*>::iterator fIt;
+	for ( fIt=fontRegistry.begin(); fIt != fontRegistry.end(); fIt++)
+	{
+		delete (*fIt);
+	}
+
+	fontRegistry.clear();
 
 	list<CurrentAudioEntry*>::iterator curAudIt;
 	for ( curAudIt=currentAudio.begin(); curAudIt != currentAudio.end(); curAudIt++)

@@ -11,3 +11,12 @@
 *.lai
 *.la
 *.a
+
+# Directories
+data/
+Debug/
+Release/
+
+# Some bullshit
+log.txt
+Homestrife.vcxproj.user

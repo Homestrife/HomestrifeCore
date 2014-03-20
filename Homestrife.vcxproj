@@ -87,9 +87,11 @@
   <ItemGroup>
     <ClCompile Include="audio.cpp" />
     <ClCompile Include="fighter.cpp" />
+    <ClCompile Include="hsfont.cpp" />
     <ClCompile Include="glextused.cpp" />
     <ClCompile Include="hslog.cpp" />
     <ClCompile Include="hsobject.cpp" />
+    <ClCompile Include="HSText.cpp" />
     <ClCompile Include="HUD.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="menu.cpp" />
@@ -103,11 +105,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="audio.h" />
+    <ClInclude Include="hsfont.h" />
     <ClInclude Include="hslog.h" />
     <ClInclude Include="fighter.h" />
     <ClInclude Include="glext.h" />
     <ClInclude Include="glextused.h" />
     <ClInclude Include="hsobject.h" />
+    <ClInclude Include="HSText.h" />
     <ClInclude Include="HUD.h" />
     <ClInclude Include="main.h" />
     <ClInclude Include="menu.h" />

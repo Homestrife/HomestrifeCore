@@ -170,6 +170,7 @@ public:
 	HSObjectHold * firstHold; //the first of a list of all of the object's animation holds
 	HSObjectHold * lastHold; //the last of the list
 	HSObjectHold * curHold; //the object's current animation hold
+	int numHolds;
 
 	HSObject * parent; //the object that created this, if any
 	bool followParent; //whether or not this should follow its parent's movements

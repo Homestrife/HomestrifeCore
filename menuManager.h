@@ -6,29 +6,58 @@
 class MenuManager
 {
 public:
-	MenuManager(Menu * root);
+	MenuManager(HSMenu * root);
 	~MenuManager();
 
-	int GetCursorIndex();
-	HSVect2D GetCursorPos();
+	HSMenu * GetRoot();
+	HSMenuFunction GetCurrentFunction();
 
-	void SetHeader(HSObject * header);
+	void ChoiceNext();
+	void ChoicePrev();
+
 	void CursorNext();
 	void CursorPrev();
 	void ToParent();
 	void ToChild();
-	void RefreshVisibility();
-	void Hide(bool hide);
-	MenuItem MakeMenuItem(HSObject * graphic);
-	MenuItem MakeMenuItem(HSObject * graphic, Menu * child);
+
+	MenuChooserFunction GetChooserFuncByMenuFunc(HSMenuFunction menuFunc);
+	KeySetting GetKeyConfigByMenuFunc(HSMenuFunction menuFunc);
+
+	void SetHidden(bool hidden);
+
+	void SetCurrentTitleText(string text);
+	void SetChoiceForItem(HSMenuFunction menuFunction, MenuChooserFunction chooserFunction);
+	void SetKeyConfigByKeyForItem(HSMenuFunction menuFunction, SDL_Keycode keycode);
+	void SetKeyConfigByButtonForItem(HSMenuFunction menuFunction, Uint8 joystick, Uint8 button);
+	void SetKeyConfigByHatForItem(HSMenuFunction menuFunction, Uint8 joystick);
+	void SetKeyConfigByStickForItem(HSMenuFunction menuFunction, Uint8 joystick);
+	void SetKeyConfigEnterForItem(HSMenuFunction menuFunction);
+	void SetKeyConfigNoSettingForItem(HSMenuFunction menuFunction);
+	
+	bool GetYesNoBoolean(MenuChooserFunction function);
+	int GetResolutionXInt(MenuChooserFunction function);
+	int GetResolutionYInt(MenuChooserFunction function);
+	string GetYesNoConfigString(MenuChooserFunction function);
+	string GetResolutionXConfigString(MenuChooserFunction function);
+	string GetResolutionYConfigString(MenuChooserFunction function);
+	string GetKeyConfigString(KeySetting setting);
+	string GetKeyConfigString(SDL_Keycode key);
+	string GetJoyButtonConfigString(JoystickMapping joyButton);
+	string GetHatConfigString(Uint8 hat);
+	string GetStickConfigString(Uint8 stick);
+
+	MenuChooserFunction GetYesNoChooserFunction(bool isYes);
+	MenuChooserFunction GetResolutionChooserFunction(int resolutionX, int resolutionY);
 
 protected:
-	Menu * _root;
-	Menu * _current;
+	HSMenu * _root;
+	HSMenu * _current;
 	bool _hidden;
 
-	void SetInvisible(Menu * menu);
-	void DeleteMenu(Menu * menu);
+	void RefreshVisibility();
+	void RefreshVisibility(HSMenu * menu);
+
+	void SetSpawnNotifications(HSMenu * menu);
 };
 
 #endif
