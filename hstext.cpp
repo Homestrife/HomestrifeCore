@@ -1,4 +1,4 @@
-#include "HSText.h"
+#include "hstext.h"
 
 HSText::HSText(HSFont * font)
 {
