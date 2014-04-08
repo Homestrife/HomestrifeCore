@@ -5,22 +5,19 @@
 # 'make clean'  removes all .o and executable files
 #
 
-# define the C compiler to use
+# define the compiler to use
 CC = g++
 
 # define any compile-time flags
 CFLAGS =
 
 # define any directories containing header files other than /usr/include
-#
-# INCLUDES = -I/home/newhall/include  -I../include
-INCLUDES =  -I/home/joshluke/Development/SDL2/include
+INCLUDES = -I/home/joshluke/Development/SDL2/include
 
 # define library paths in addition to /usr/lib
 #   if I wanted to include libraries not in /usr/lib I'd specify
 #   their path using -Lpath, something like:
-# LFLAGS = -L/home/newhall/lib  -L../lib
-LFLAGS = -L/hoe/joshluke/Development/SDL2/lib
+LFLAGS = -L/home/joshluke/Development/SDL2/lib
 
 # define any libraries to link into executable:
 #   if I want to link in libraries (libx.so or libx.a) I use the -llibname 
@@ -36,7 +33,7 @@ SRCS = $(wildcard *.cpp)
 # This uses Suffix Replacement within a macro:
 #   $(name:string1=string2)
 #         For each word in 'name' replace 'string1' with 'string2'
-# Below we are replacing the suffix .c of all words in the macro SRCS
+# Below we are replacing the suffix .cpp of all words in the macro SRCS
 # with the .o suffix
 #
 OBJS = $(SRCS:.cpp=.o)
@@ -58,9 +55,9 @@ all: $(MAIN)
 $(MAIN): $(OBJS) 
 	$(CC) $(CFLAGS) $(INCLUDES) -o $(MAIN) $(OBJS) $(LFLAGS) $(LIBS)
 
-# this is a suffix replacement rule for building .o's from .c's
+# this is a suffix replacement rule for building .o's from .cpp's
 # it uses automatic variables $<: the name of the prerequisite of
-# the rule(a .c file) and $@: the name of the target of the rule (a .o file) 
+# the rule(a .cpp file) and $@: the name of the target of the rule (a .o file) 
 # (see the gnu make manual section about automatic variables)
 .cpp.o:
 	$(CC) $(CFLAGS) $(INCLUDES) -c $<  -o $@
