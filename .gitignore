@@ -20,3 +20,5 @@ Release/
 # Some bullshit
 log.txt
 Homestrife.vcxproj.user
+*.swp
+homestrife
