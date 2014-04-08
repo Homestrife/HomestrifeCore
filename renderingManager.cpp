@@ -348,7 +348,7 @@ int RenderingManager::Initialize()
 	if(verPos != string::npos) { shader_fragIndexed_source_string.insert(verPos + 12, "\n"); }
 
 	//add more newlines after semicolons so warning/error positions are meaningful
-	unsigned int scPos = shader_vert_source_string.find(";", 0);
+	size_t scPos = shader_vert_source_string.find(";", 0);
 	while(scPos != string::npos)
 	{
 		shader_vert_source_string.insert(scPos+1, "\n");
@@ -655,7 +655,6 @@ int RenderingManager::Initialize()
 		string glErrorString = "OpenGL error in SetFullScreen(): " + GetGLErrorText(glError);
 		UpdateLog(glErrorString, true);
 	}
-
 	return 0;
 }
 
@@ -671,7 +670,7 @@ int RenderingManager::LoadVideoConfig()
 {
 	//get the XML structure from the file
 	XMLDocument * file = new XMLDocument();
-	if(int error = file->LoadFile("data\\config\\videoConfig.xml") != 0)
+	if(int error = file->LoadFile("data/config/videoConfig.xml") != 0)
 	{
 		//file doesn't exist, so just set some defaults and then save the configuration
 		DefaultVideoConfig();
@@ -767,7 +766,7 @@ int RenderingManager::SaveVideoConfig()
 
 	file->InsertEndChild(config);
 
-	file->SaveFile("data\\config\\videoConfig.xml");
+	file->SaveFile("data/config/videoConfig.xml");
 
 	return 0;
 }
@@ -1317,7 +1316,7 @@ int RenderingManager::LoadTexturesAndPalettes()
 		if((*palIt)->textureID != 0) { continue; }
 
 		if(int i = LoadHSPToPalette(*palIt) != 0) { return i; }
-	}
+	}\
 
 	return 0;
 }

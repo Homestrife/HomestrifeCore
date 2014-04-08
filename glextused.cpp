@@ -26,12 +26,20 @@ bool custom_array_objects_enabled = false;
 	#include <GL/glxext.h>
 	#define WIN32_OR_X11
 #else
-	void setupExtensions()
-	{ shading_enabled = false; buffer_objects_enabled = false; default_array_objects_enabled = false; custom_array_objects_enabled = false; }; // just fail otherwise?
+  /* Josh:
+   * I'm not sure when this should be called, but removing it made it compile on Linux, so
+   */
+	//void setupExtensions()
+	//{ shading_enabled = false; buffer_objects_enabled = false; default_array_objects_enabled = false; custom_array_objects_enabled = false; }; // just fail otherwise?
 #endif
 
+/* Josh:
+ * I moved this out of the #else statement above, if it doesn't get defined then bad things happen
+ */
+#define WIN32_OR_X11
+
 #ifdef WIN32_OR_X11
-PFNGLACTIVETEXTUREPROC				glActiveTexture = NULL;
+//PFNGLACTIVETEXTUREPROC				glActiveTexture = NULL; // Commented out for Linux
 //PFNGLMULTITEXCOORD2FARBPROC			glMultiTexCoord2fARB = NULL;
 PFNGLCREATEPROGRAMPROC				glCreateProgram = NULL;
 PFNGLDELETESHADERPROC				glDeleteShader = NULL;
@@ -107,8 +115,8 @@ void setupExtensions()
       findString("GL_ARB_vertex_shader",extensionList) &&
       findString("GL_ARB_fragment_shader",extensionList) )
   {*/
-    glActiveTexture = (PFNGLACTIVETEXTUREPROC)
-      SDL_GL_GetProcAddress("glActiveTexture");
+    //glActiveTexture = (PFNGLACTIVETEXTUREPROC)
+    //  SDL_GL_GetProcAddress("glActiveTexture"); Commented out for Linux
     //glMultiTexCoord2fARB = (PFNGLMULTITEXCOORD2FARBPROC)
     //  SDL_GL_GetProcAddress("glMultiTexCoord2fARB");
     glCreateProgram = (PFNGLCREATEPROGRAMPROC)
@@ -314,7 +322,7 @@ string loadSource(string filePath)
 	string source;
 	string line;
 
-	ifstream file(filePath);
+	ifstream file(filePath.c_str()); // Changed to c_str because I guess g++ is more strict
 	if(file.is_open())
 	{
 		while(file.good())

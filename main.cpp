@@ -136,6 +136,7 @@ int Main::Execute()
 
 void Main::DebugOutput()
 {
+#ifdef _WIN32 //This is only able to be done on Windows
 	CONSOLE_SCREEN_BUFFER_INFO Info;
 	GetConsoleScreenBufferInfo(GetStdHandle (STD_OUTPUT_HANDLE), &Info) ;
 	SHORT Width = Info.srWindow.Right - Info.srWindow.Left + 1 ;
@@ -171,6 +172,7 @@ void Main::DebugOutput()
 	}
 	
 	cout << endl;
+#endif
 }
 
 void AudioCallback(void *unused, Uint8 *stream, int len)
@@ -737,7 +739,7 @@ int Main::ChangeGameState(GameState newState)
 
 int Main::StartLoading()
 {
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\loading\\loading.xml", &objectManager->HUDObjects, &objectManager->loading) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/loading/loading.xml", &objectManager->HUDObjects, &objectManager->loading) != 0) { return error; }
 	objectManager->loading->pos.x = -90;
 	objectManager->loading->pos.y = -18;
 
@@ -968,7 +970,7 @@ int Main::InitializeMainMenu()
 	menuPos.x = MAIN_MENU_POS_X;
 	menuPos.y = MAIN_MENU_POS_Y;
 	
-	if(int error = objectManager->LoadHSMenu("data\\hud\\Menus\\Main Menu\\Main Menu.xml", menuPos, &mainMenu) != 0) { return error; }
+	if(int error = objectManager->LoadHSMenu("data/hud/Menus/Main Menu/Main Menu.xml", menuPos, &mainMenu) != 0) { return error; }
 
 	objectManager->menuManager = new MenuManager(mainMenu);
 	objectManager->menuManager->SetHidden(false);
@@ -1020,7 +1022,7 @@ int Main::InitializeCharacterSelect()
 
 	//hud
 	HSObject * newObject;
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\characterSelect\\characterSelect.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/characterSelect/characterSelect.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = CHARACTER_SELECT_POS_X;
 	newObject->pos.y = CHARACTER_SELECT_POS_Y;
 	objectManager->characterSelect = newObject;
@@ -1033,32 +1035,32 @@ int Main::InitializeCharacterSelect()
 		pcIt->demoObject->pos.y = CHAR_SELECT_PLAYER_TOP_POS_Y + hudYOffset;
 	}
 
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player1.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/player/player1.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = PLAYER_LEFT_POS_X;
 	newObject->pos.y = PLAYER_TOP_POS_Y + hudYOffset;
 	objectManager->playerOne = newObject;
 
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\selectCharacter\\selectCharacter.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/selectCharacter/selectCharacter.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = SELECT_CHARACTER_LEFT_POS_X;
 	newObject->pos.y = SELECT_PALETTE_TOP_POS_Y + hudYOffset;
 	objectManager->selectCharacterOne = newObject;
 
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\selectPalette\\selectPalette.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/selectPalette/selectPalette.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = SELECT_PALETTE_LEFT_POS_X;
 	newObject->pos.y = SELECT_PALETTE_TOP_POS_Y + hudYOffset;
 	objectManager->selectPaletteOne = newObject;
 	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\leftArrow\\leftArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/leftArrow/leftArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = SELECT_CHARACTER_LEFT_POS_X - 55;
 	newObject->pos.y = SELECT_PALETTE_TOP_POS_Y + hudYOffset;
 	objectManager->selectPaletteLeftOne = newObject;
 	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\rightArrow\\rightArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/rightArrow/rightArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = SELECT_CHARACTER_LEFT_POS_X + 363;
 	newObject->pos.y = SELECT_PALETTE_TOP_POS_Y + hudYOffset;
 	objectManager->selectPaletteRightOne = newObject;
 	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\ready\\ready.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/ready/ready.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = READY_LEFT_POS_X;
 	newObject->pos.y = SELECT_PALETTE_TOP_POS_Y + hudYOffset;
 	objectManager->readyOne = newObject;
@@ -1071,32 +1073,32 @@ int Main::InitializeCharacterSelect()
 		pcIt->demoObject->hFlip = true;
 	}
 
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player2.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/player/player2.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = PLAYER_RIGHT_POS_X;
 	newObject->pos.y = PLAYER_TOP_POS_Y + hudYOffset;
 	objectManager->playerTwo = newObject;
 
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\selectCharacter\\selectCharacter.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/selectCharacter/selectCharacter.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = SELECT_CHARACTER_RIGHT_POS_X;
 	newObject->pos.y = SELECT_PALETTE_TOP_POS_Y + hudYOffset;
 	objectManager->selectCharacterTwo = newObject;
 
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\selectPalette\\selectPalette.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/selectPalette/selectPalette.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = SELECT_PALETTE_RIGHT_POS_X;
 	newObject->pos.y = SELECT_PALETTE_TOP_POS_Y + hudYOffset;
 	objectManager->selectPaletteTwo = newObject;
 	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\leftArrow\\leftArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/leftArrow/leftArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = SELECT_CHARACTER_RIGHT_POS_X - 55;
 	newObject->pos.y = SELECT_PALETTE_TOP_POS_Y + hudYOffset;
 	objectManager->selectPaletteLeftTwo = newObject;
 	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\rightArrow\\rightArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/rightArrow/rightArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = SELECT_CHARACTER_RIGHT_POS_X + 363;
 	newObject->pos.y = SELECT_PALETTE_TOP_POS_Y + hudYOffset;
 	objectManager->selectPaletteRightTwo = newObject;
 	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\ready\\ready.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/ready/ready.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = READY_RIGHT_POS_X;
 	newObject->pos.y = SELECT_PALETTE_TOP_POS_Y + hudYOffset;
 	objectManager->readyTwo = newObject;
@@ -1110,32 +1112,32 @@ int Main::InitializeCharacterSelect()
 			pcIt->demoObject->pos.y = CHAR_SELECT_PLAYER_BOTTOM_POS_Y;
 		}
 
-		if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player3.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+		if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/player/player3.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 		newObject->pos.x = PLAYER_LEFT_POS_X;
 		newObject->pos.y = PLAYER_BOTTOM_POS_Y;
 		objectManager->playerThree = newObject;
 
-		if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\selectCharacter\\selectCharacter.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+		if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/selectCharacter/selectCharacter.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 		newObject->pos.x = SELECT_CHARACTER_LEFT_POS_X;
 		newObject->pos.y = SELECT_PALETTE_BOTTOM_POS_Y;
 		objectManager->selectCharacterThree = newObject;
 
-		if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\selectPalette\\selectPalette.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+		if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/selectPalette/selectPalette.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 		newObject->pos.x = SELECT_PALETTE_LEFT_POS_X;
 		newObject->pos.y = SELECT_PALETTE_BOTTOM_POS_Y;
 		objectManager->selectPaletteThree = newObject;
 	
-		if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\leftArrow\\leftArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+		if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/leftArrow/leftArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 		newObject->pos.x = SELECT_CHARACTER_LEFT_POS_X - 55;
 		newObject->pos.y = SELECT_PALETTE_BOTTOM_POS_Y;
 		objectManager->selectPaletteLeftThree = newObject;
 	
-		if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\rightArrow\\rightArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+		if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/rightArrow/rightArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 		newObject->pos.x = SELECT_CHARACTER_LEFT_POS_X + 363;
 		newObject->pos.y = SELECT_PALETTE_BOTTOM_POS_Y;
 		objectManager->selectPaletteRightThree = newObject;
 	
-		if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\ready\\ready.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+		if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/ready/ready.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 		newObject->pos.x = READY_LEFT_POS_X;
 		newObject->pos.y = SELECT_PALETTE_BOTTOM_POS_Y;
 		objectManager->readyThree = newObject;
@@ -1151,54 +1153,54 @@ int Main::InitializeCharacterSelect()
 			pcIt->demoObject->hFlip = true;
 		}
 
-		if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player4.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+		if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/player/player4.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 		newObject->pos.x = PLAYER_RIGHT_POS_X;
 		newObject->pos.y = PLAYER_BOTTOM_POS_Y;
 		objectManager->playerFour = newObject;
 
-		if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\selectCharacter\\selectCharacter.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+		if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/selectCharacter/selectCharacter.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 		newObject->pos.x = SELECT_CHARACTER_RIGHT_POS_X;
 		newObject->pos.y = SELECT_PALETTE_BOTTOM_POS_Y;
 		objectManager->selectCharacterFour = newObject;
 
-		if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\selectPalette\\selectPalette.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+		if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/selectPalette/selectPalette.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 		newObject->pos.x = SELECT_PALETTE_RIGHT_POS_X;
 		newObject->pos.y = SELECT_PALETTE_BOTTOM_POS_Y;
 		objectManager->selectPaletteFour = newObject;
 	
-		if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\leftArrow\\leftArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+		if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/leftArrow/leftArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 		newObject->pos.x = SELECT_CHARACTER_RIGHT_POS_X - 55;
 		newObject->pos.y = SELECT_PALETTE_BOTTOM_POS_Y;
 		objectManager->selectPaletteLeftFour = newObject;
 	
-		if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\rightArrow\\rightArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+		if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/rightArrow/rightArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 		newObject->pos.x = SELECT_CHARACTER_RIGHT_POS_X + 363;
 		newObject->pos.y = SELECT_PALETTE_BOTTOM_POS_Y;
 		objectManager->selectPaletteRightFour = newObject;
 	
-		if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\ready\\ready.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+		if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/ready/ready.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 		newObject->pos.x = READY_RIGHT_POS_X;
 		newObject->pos.y = SELECT_PALETTE_BOTTOM_POS_Y;
 		objectManager->readyFour = newObject;
 	}
 
 	//stage select
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\stageSelect\\stageSelect.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/stageSelect/stageSelect.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = STAGE_SELECT_POS_X;
 	newObject->pos.y = CHARACTER_SELECT_POS_Y;
 	objectManager->stageSelect = newObject;
 
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\selectStage\\selectStage.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/selectStage/selectStage.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = SELECT_STAGE_POS_X;
 	newObject->pos.y = SELECT_STAGE_POS_Y;
 	objectManager->selectStage = newObject;
 	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\leftArrow\\leftArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/leftArrow/leftArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = SELECT_STAGE_POS_X - 55;
 	newObject->pos.y = SELECT_STAGE_POS_Y;
 	objectManager->selectStageLeft = newObject;
 	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\rightArrow\\rightArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/rightArrow/rightArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->pos.x = SELECT_STAGE_POS_X + 280;
 	newObject->pos.y = SELECT_STAGE_POS_Y;
 	objectManager->selectStageRight = newObject;
@@ -1675,12 +1677,12 @@ int Main::InitializeMatch()
 
 	//load HUD
 	HSObject * newHUD;
-	if(int error = objectManager->LoadDefinition("data\\hud\\TestHUD\\john Hud.xml", &objectManager->HUDObjects, &newHUD) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data/hud/TestHUD/john Hud.xml", &objectManager->HUDObjects, &newHUD) != 0) { return error; }
 	objectManager->playerHUDs[0] = (HUD*)newHUD;
 	((HUD*)newHUD)->pos.x = (MAX_GAME_RESOLUTION_X / -2) + 20;
 	((HUD*)newHUD)->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + 20;
 
-	if(int error = objectManager->LoadDefinition("data\\hud\\TestHUD\\john Hud.xml", &objectManager->HUDObjects, &newHUD) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data/hud/TestHUD/john Hud.xml", &objectManager->HUDObjects, &newHUD) != 0) { return error; }
 	objectManager->playerHUDs[1] = (HUD*)newHUD;
 	((HUD*)newHUD)->pos.x = (MAX_GAME_RESOLUTION_X / 2) - 560;
 	((HUD*)newHUD)->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + 20;
@@ -1688,7 +1690,7 @@ int Main::InitializeMatch()
 
 	if(gameType == FREE_FOR_ALL_3 || gameType == FREE_FOR_ALL_4)
 	{
-		if(int error = objectManager->LoadDefinition("data\\hud\\TestHUD\\john Hud.xml", &objectManager->HUDObjects, &newHUD) != 0) { return error; }
+		if(int error = objectManager->LoadDefinition("data/hud/TestHUD/john Hud.xml", &objectManager->HUDObjects, &newHUD) != 0) { return error; }
 		objectManager->playerHUDs[2] = (HUD*)newHUD;
 		((HUD*)newHUD)->pos.x = (MAX_GAME_RESOLUTION_X / -2) + 20;
 		((HUD*)newHUD)->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + 900;
@@ -1697,7 +1699,7 @@ int Main::InitializeMatch()
 
 	if(gameType == FREE_FOR_ALL_4)
 	{
-		if(int error = objectManager->LoadDefinition("data\\hud\\TestHUD\\john Hud.xml", &objectManager->HUDObjects, &newHUD) != 0) { return error; }
+		if(int error = objectManager->LoadDefinition("data/hud/TestHUD/john Hud.xml", &objectManager->HUDObjects, &newHUD) != 0) { return error; }
 		objectManager->playerHUDs[3] = (HUD*)newHUD;
 		((HUD*)newHUD)->pos.x = (MAX_GAME_RESOLUTION_X / 2) - 560;
 		((HUD*)newHUD)->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + 900;
@@ -1710,38 +1712,38 @@ int Main::InitializeMatch()
 	menuPos.x = PAUSE_MENU_POS_X;
 	menuPos.y = PAUSE_MENU_POS_Y;
 
-	if(int error = objectManager->LoadHSMenu("data\\hud\\Menus\\Pause Menu\\Pause Menu.xml", menuPos, &pauseMenu) !=0) { return error; }
+	if(int error = objectManager->LoadHSMenu("data/hud/Menus/Pause Menu/Pause Menu.xml", menuPos, &pauseMenu) !=0) { return error; }
 
 	objectManager->menuManager = new MenuManager(pauseMenu);
 	objectManager->menuManager->SetHidden(true);
 
 	//load win text
 	HSObject * newObject;
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player1.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/player/player1.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->visible = false;
 	newObject->pos.x = -82;
 	newObject->pos.y = -45;
 	objectManager->playerOne = newObject;
 	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player2.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/player/player2.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->visible = false;
 	newObject->pos.x = -82;
 	newObject->pos.y = -45;
 	objectManager->playerTwo = newObject;
 	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player3.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/player/player3.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->visible = false;
 	newObject->pos.x = -82;
 	newObject->pos.y = -45;
 	objectManager->playerThree = newObject;
 	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\player\\player4.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/player/player4.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->visible = false;
 	newObject->pos.x = -82;
 	newObject->pos.y = -45;
 	objectManager->playerFour = newObject;
 	
-	if(int error = objectManager->LoadDefinition("data\\hud\\MainMenuGUI\\wins\\wins.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
+	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/wins/wins.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
 	newObject->visible = false;
 	newObject->pos.x = -53;
 	newObject->pos.y = 10;
@@ -1958,7 +1960,7 @@ int Main::LoadKeyConfig()
 {
 	//get the XML structure from the file
 	XMLDocument * file = new XMLDocument();
-	if(int error = file->LoadFile("data\\config\\keyConfig.xml") != 0)
+	if(int error = file->LoadFile("data/config/keyConfig.xml") != 0)
 	{
 		//file doesn't exist, so just set some defaults and then save the configuration
 		DefaultKeyConfig();
@@ -2498,7 +2500,7 @@ void Main::ApplyAndSaveVideoSettings()
 
 	file->InsertEndChild(config);
 
-	file->SaveFile("data\\config\\videoConfig.xml");
+	file->SaveFile("data/config/videoConfig.xml");
 }
 
 int Main::SaveKeyConfig()
@@ -2526,7 +2528,7 @@ int Main::SaveKeyConfig()
 
 	file->InsertEndChild(config);
 
-	file->SaveFile("data\\config\\keyConfig.xml");
+	file->SaveFile("data/config/keyConfig.xml");
 
 	return 0;
 }

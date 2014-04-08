@@ -85,10 +85,16 @@ int LoadTGAToTexture(HSTexture * hsTex, bool openGL3, bool useTGAPalette)
 
 	//open the file
 	string texFilePath = hsTex->textureFilePath;
-	if(GLuint error = fopen_s(&file, texFilePath.data(), "rb") != 0)
-	{
+	file = fopen(texFilePath.data(), "rb");
+	//if(GLuint error = fopen_s(&file, texFilePath.data(), "rb") != 0)
+	//{
+		//UpdateLog("Could not open texture file: " + texFilePath, true);
+		//return error; //couldn't open the file
+	//}
+
+	if(!file) {
 		UpdateLog("Could not open texture file: " + texFilePath, true);
-		return error; //couldn't open the file
+		return 1; //couldn't open the file		
 	}
 
 	//gather all the general info about the TGA file
@@ -457,13 +463,13 @@ int LoadHSPToPalette(HSPalette * hsPal)
 		return -1; //given palette is null
 	}
 
-	FILE * file;
+	FILE * file = fopen(hsPal->paletteFilePath.data(), "rb");
 
-	if(GLuint error = fopen_s(&file, hsPal->paletteFilePath.data(), "rb") != 0)
-	{
-		UpdateLog("Could not open palette file: " + hsPal->paletteFilePath, true);
-		return error; //couldn't open the file
-	}
+	//if(GLuint error = fopen_s(&file, hsPal->paletteFilePath.data(), "rb") != 0)
+	//{
+		//UpdateLog("Could not open palette file: " + hsPal->paletteFilePath, true);
+		//return error; //couldn't open the file
+	//}
 
 	GLubyte * paletteData = (GLubyte*)malloc(1024 * sizeof(GLubyte));
 

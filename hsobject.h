@@ -2,8 +2,10 @@
 #define __HSOBJECT_H_
 
 //this only works for windows!
+#ifdef _WIN32
 #include <direct.h>
 #define GetCurrentWorkingDirectory _getcwd
+#endif
 
 #include "texture.h"
 #include "audio.h"

@@ -10,14 +10,14 @@ public:
 	MenuItem(HSObject * grahpic);
 	~MenuItem();
 
-	Menu * GetChild();
+	HSMenu * GetChild();
 	HSObject * GetGraphic();
 
-	void SetChild(Menu * child);
+	void SetChild(HSMenu * child);
 	void SetGraphic(HSObject * graphic);
 
 protected:
-	Menu * _child;
+	HSMenu * _child;
 	HSObject * _graphic;
 };
 

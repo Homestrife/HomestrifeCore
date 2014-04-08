@@ -15,7 +15,7 @@ MenuItem::~MenuItem()
 
 }
 
-Menu * MenuItem::GetChild()
+HSMenu * MenuItem::GetChild()
 {
 	return _child;
 }
@@ -25,7 +25,7 @@ HSObject * MenuItem::GetGraphic()
 	return _graphic;
 }
 
-void MenuItem::SetChild(Menu * child)
+void MenuItem::SetChild(HSMenu * child)
 {
 	_child = child;
 }

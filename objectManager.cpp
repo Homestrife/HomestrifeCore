@@ -2825,17 +2825,17 @@ int ObjectManager::LoadPlayableCharacters(bool loadPlayer[MAX_PLAYERS])
 	//load selectable characters
 	//get the XML structure from the file
 	XMLDocument * file = new XMLDocument();
-	if(int error = file->LoadFile("data\\characters\\playableCharacters.xml") != 0)
+	if(int error = file->LoadFile("data/characters/playableCharacters.xml") != 0)
 	{
 		stringstream sstm;
-		sstm << "Error loading definition file. Code: " << error << " File: data\\characters\\playableCharacters.xml";
+		sstm << "Error loading definition file. Code: " << error << " File: data/characters/playableCharacters.xml";
 		UpdateLog(sstm.str(), true);
 		return error; //couldn't load the file
 	}
 
 	if(strcmp(file->RootElement()->Value(), "PlayableCharacters") != 0)
 	{
-		UpdateLog("XML file is not Homestrife character list definition file: data\\characters\\playableCharacters.xml", true);
+		UpdateLog("XML file is not Homestrife character list definition file: data/characters/playableCharacters.xml", true);
 		return -1;
 	}
 
@@ -2963,17 +2963,17 @@ int ObjectManager::LoadPlayableStages()
 	//load selectable stages
 	//get the XML structure from the file
 	XMLDocument * file = new XMLDocument();
-	if(int error = file->LoadFile("data\\stages\\playableStages.xml") != 0)
+	if(int error = file->LoadFile("data/stages/playableStages.xml") != 0)
 	{
 		stringstream sstm;
-		sstm << "Error loading definition file. Code: " << error << " File: data\\stages\\playableStages.xml";
+		sstm << "Error loading definition file. Code: " << error << " File: data/stages/playableStages.xml";
 		UpdateLog(sstm.str(), true);
 		return error; //couldn't load the file
 	}
 
 	if(strcmp(file->RootElement()->Value(), "PlayableStages") != 0)
 	{
-		UpdateLog("XML file is not Homestrife stage list definition file: data\\stages\\playableStages.xml", true);
+		UpdateLog("XML file is not Homestrife stage list definition file: data/stages/playableStages.xml", true);
 		return -1;
 	}
 
