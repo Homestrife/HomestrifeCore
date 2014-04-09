@@ -39,7 +39,12 @@ bool custom_array_objects_enabled = false;
 #define WIN32_OR_X11
 
 #ifdef WIN32_OR_X11
-//PFNGLACTIVETEXTUREPROC				glActiveTexture = NULL; // Commented out for Linux
+
+//Only windows
+#ifdef _WIN32
+PFNGLACTIVETEXTUREPROC				glActiveTexture = NULL;
+#endif
+
 //PFNGLMULTITEXCOORD2FARBPROC			glMultiTexCoord2fARB = NULL;
 PFNGLCREATEPROGRAMPROC				glCreateProgram = NULL;
 PFNGLDELETESHADERPROC				glDeleteShader = NULL;
@@ -115,8 +120,11 @@ void setupExtensions()
       findString("GL_ARB_vertex_shader",extensionList) &&
       findString("GL_ARB_fragment_shader",extensionList) )
   {*/
-    //glActiveTexture = (PFNGLACTIVETEXTUREPROC)
-    //  SDL_GL_GetProcAddress("glActiveTexture"); Commented out for Linux
+// For some reason this shouldn't be here for Linux soooo
+#ifdef _WIN32
+    glActiveTexture = (PFNGLACTIVETEXTUREPROC)
+      SDL_GL_GetProcAddress("glActiveTexture");
+#endif
     //glMultiTexCoord2fARB = (PFNGLMULTITEXCOORD2FARBPROC)
     //  SDL_GL_GetProcAddress("glMultiTexCoord2fARB");
     glCreateProgram = (PFNGLCREATEPROGRAMPROC)
@@ -167,7 +175,7 @@ void setupExtensions()
 	  SDL_GL_GetProcAddress("glGetAttribLocation");
 
     if( false
-     || glActiveTexture == NULL
+     // || glActiveTexture == NULL
      //|| glMultiTexCoord2fARB == NULL
      || glCreateProgram == NULL
      || glDeleteShader == NULL

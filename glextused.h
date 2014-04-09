@@ -30,7 +30,11 @@ extern string linkProgram(GLenum program);
 	#include "glext.h"
 
 	/* Shading language prototypes. */
-	//extern PFNGLACTIVETEXTUREPROC				glActiveTexture; //Commented out for Linux
+	
+// Only windows
+#ifdef _WIN32
+	extern PFNGLACTIVETEXTUREPROC				glActiveTexture;
+#endif
 	//extern PFNGLMULTITEXCOORD2FARBPROC		glMultiTexCoord2fARB;
 	extern PFNGLCREATEPROGRAMPROC				glCreateProgram;
 	//extern PFNGLDELETEOBJECTARBPROC			glDeleteObjectARB;
