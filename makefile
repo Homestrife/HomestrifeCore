@@ -9,20 +9,20 @@
 CC = g++
 
 # define any compile-time flags
-CFLAGS =
+CFLAGS = #-m32 
 
 # define any directories containing header files other than /usr/include
-INCLUDES = -I/home/joshluke/Development/SDL2/include
+INCLUDES = -I../SDL2/include
 
 # define library paths in addition to /usr/lib
 #   if I wanted to include libraries not in /usr/lib I'd specify
 #   their path using -Lpath, something like:
-LFLAGS = -L/home/joshluke/Development/SDL2/lib
+LFLAGS = -L../SDL2/lib/x86_64
 
 # define any libraries to link into executable:
 #   if I want to link in libraries (libx.so or libx.a) I use the -llibname 
 #   option, something like (this will link in libmylib.so and libm.so:
-LIBS = -lSDL2 -lSDL2main -lglut -lGL -lGLU
+LIBS = -lSDL2 -lglut -lGL -lGLU
 
 # define the source files
 SRCS = $(wildcard *.cpp)
