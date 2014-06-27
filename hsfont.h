@@ -3,10 +3,19 @@
 
 #include "hsobject.h"
 
+enum TextJustification
+{
+	JUSTIFICATION_LEFT,
+	JUSTIFICATION_CENTER,
+	JUSTIFICATION_RIGHT
+};
+
 struct HSCharToClone
 {
 	HSObject * character;
 	HSVect2D pos;
+	float width;
+	int depth;
 };
 
 struct HSCharacter
@@ -110,6 +119,8 @@ struct Characters
 	HSCharacter bracketRight;
 	HSCharacter semicolon;
 	HSCharacter quoteBack;
+
+	HSCharacter space;
 };
 
 class HSFont
@@ -120,13 +131,12 @@ public:
 	Characters characters;
 	float charHeight;
 	float charSeparation;
-	float spaceWidth;
 
 	HSFont();
 	~HSFont();
 
-	list<HSCharToClone> GenerateText(string text, HSVect2D pos);
-	void GenerateCharacter(HSCharacter character, HSVect2D * pos, list<HSCharToClone> * charList);
+	list<HSCharToClone> GenerateText(string text, HSVect2D pos, int depth, TextJustification justification);
+	void GenerateCharacter(HSCharacter character, float * textWidth, int depth, list<HSCharToClone> * charList);
 
 protected:
 };

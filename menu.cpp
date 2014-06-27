@@ -1,39 +1,46 @@
 #include "menu.h"
 
-/////////////////
-//MenuChooserItem//
-/////////////////
+///////////////////
+//TextChooserItem//
+///////////////////
 
-MenuChooserItem::MenuChooserItem()
+TextChooserItem::TextChooserItem()
 {
 	itemText = "";
 	parentChooser = NULL;
-	function = NO_CHOOSER_FUNCTION;
-	order = 0;
 }
 
-/////////////
-//HSChooser//
-/////////////
-
-MenuChooser::MenuChooser(HSFont * font) : HSText(font)
+bool TextChooserItem::IsMenuChooserItem()
 {
-	parentMenuItem = NULL;
+	return false;
+}
+
+bool TextChooserItem::IsMusicChooserItem()
+{
+	return false;
+}
+
+///////////////
+//TextChooser//
+///////////////
+
+TextChooser::TextChooser(HSFont * font) : HSText(font)
+{
 	items.clear();
 	_choice = 0;
 	_visible = false;
 }
 
-MenuChooser::~MenuChooser()
+TextChooser::~TextChooser()
 {
-	list<MenuChooserItem*>::iterator ciIt;
+	list<TextChooserItem*>::iterator ciIt;
 	for(ciIt = items.begin(); ciIt != items.end(); ciIt++)
 	{
 		delete *ciIt;
 	}
 }
 
-void MenuChooser::ChoiceNext()
+void TextChooser::ChoiceNext()
 {
 	_choice++;
 
@@ -44,7 +51,7 @@ void MenuChooser::ChoiceNext()
 	RefreshChooser();
 }
 
-void MenuChooser::ChoicePrev()
+void TextChooser::ChoicePrev()
 {
 	_choice--;
 
@@ -60,49 +67,13 @@ void MenuChooser::ChoicePrev()
 	RefreshChooser();
 }
 
-MenuChooserFunction MenuChooser::GetCurrentChooserFunction()
-{
-	int cur = 0;
-
-	list<MenuChooserItem*>::iterator ciIt;
-	for(ciIt = items.begin(); ciIt != items.end(); ciIt++)
-	{
-		if(cur == _choice)
-		{
-			return (*ciIt)->function;
-		}
-
-		cur++;
-	}
-
-	return NO_CHOOSER_FUNCTION;
-}
-
-void MenuChooser::SetByChoiceFunction(MenuChooserFunction function)
-{
-	int cur = 0;
-
-	list<MenuChooserItem*>::iterator ciIt;
-	for(ciIt = items.begin(); ciIt != items.end(); ciIt++)
-	{
-		if(function == (*ciIt)->function)
-		{
-			_choice = cur;
-			break;
-		}
-
-		cur++;
-	}
-	RefreshChooser();
-}
-
-void MenuChooser::RefreshChooser()
+void TextChooser::RefreshChooser()
 {
 	if(_visible)
 	{
 		int cur = 0;
 
-		list<MenuChooserItem*>::iterator ciIt;
+		list<TextChooserItem*>::iterator ciIt;
 		for(ciIt = items.begin(); ciIt != items.end(); ciIt++)
 		{
 			if(cur == _choice)
@@ -118,13 +89,160 @@ void MenuChooser::RefreshChooser()
 	{
 		DeleteText();
 	}
-
-	parentMenuItem->ChooserOrKeySettingChanged();
 }
 
-void MenuChooser::SetVisible(bool visible)
+void TextChooser::SetVisible(bool visible)
 {
 	_visible = visible;
+	RefreshChooser();
+}
+
+////////////////////
+//ImageChooserItem//
+////////////////////
+
+ImageChooserItem::ImageChooserItem()
+{
+	itemImage = NULL;
+}
+
+bool ImageChooserItem::IsStageChooserItem()
+{
+	return false;
+}
+
+////////////////
+//ImageChooser//
+////////////////
+
+ImageChooser::ImageChooser()
+{
+	items.clear();
+	imagePos.x = 0;
+	imagePos.y = 0;
+	imageDepth = 0;
+	_visible = false;
+	_choice = 0;
+}
+
+ImageChooser::~ImageChooser()
+{
+	list<ImageChooserItem*>::iterator ciIt;
+	for(ciIt = items.begin(); ciIt != items.end(); ciIt++)
+	{
+		delete *ciIt;
+	}
+}
+
+void ImageChooser::ChoiceNext()
+{
+	_choice++;
+
+	if(_choice >= items.size())
+	{
+		_choice = 0;
+	}
+	RefreshChooser();
+}
+
+void ImageChooser::ChoicePrev()
+{
+	_choice--;
+
+	if(_choice < 0)
+	{
+		_choice = items.size() - 1;
+
+		if(_choice < 0)
+		{
+			_choice = 0;
+		}
+	}
+	RefreshChooser();
+}
+
+void ImageChooser::RefreshChooser()
+{
+	int cur = 0;
+
+	list<ImageChooserItem*>::iterator ciIt;
+	for(ciIt = items.begin(); ciIt != items.end(); ciIt++)
+	{
+		if(_visible && cur == _choice)
+		{
+			(*ciIt)->itemImage->visible = true;
+		}
+		else
+		{
+			(*ciIt)->itemImage->visible = false;
+		}
+
+		cur++;
+	}
+}
+
+void ImageChooser::SetVisible(bool visible)
+{
+	_visible = visible;
+	RefreshChooser();
+}
+
+/////////////////
+//MenuChooserItem//
+/////////////////
+
+MenuChooserItem::MenuChooserItem()
+{
+	function = NO_CHOOSER_FUNCTION;
+}
+
+bool MenuChooserItem::IsMenuChooserItem()
+{
+	return true;
+}
+
+///////////////
+//MenuChooser//
+///////////////
+
+MenuChooser::MenuChooser(HSFont * font) : TextChooser(font)
+{
+	parentMenuItem = NULL;
+}
+
+MenuChooserFunction MenuChooser::GetCurrentChooserFunction()
+{
+	int cur = 0;
+
+	list<TextChooserItem*>::iterator ciIt;
+	for(ciIt = items.begin(); ciIt != items.end(); ciIt++)
+	{
+		if(cur == _choice && (*ciIt)->IsMenuChooserItem())
+		{
+			return ((MenuChooserItem*)(*ciIt))->function;
+		}
+
+		cur++;
+	}
+
+	return NO_CHOOSER_FUNCTION;
+}
+
+void MenuChooser::SetByChoiceFunction(MenuChooserFunction function)
+{
+	int cur = 0;
+
+	list<TextChooserItem*>::iterator ciIt;
+	for(ciIt = items.begin(); ciIt != items.end(); ciIt++)
+	{
+		if((*ciIt)->IsMenuChooserItem() && function == ((MenuChooserItem*)(*ciIt))->function)
+		{
+			_choice = cur;
+			break;
+		}
+
+		cur++;
+	}
 	RefreshChooser();
 }
 
@@ -142,7 +260,6 @@ MenuKeySettingItem::MenuKeySettingItem()
 	keySetting.joystickMapping.joystick = 0;
 	keySetting.hat = 0;
 	keySetting.stick = 0;
-	order = 0;
 }
 
 ////////////////
@@ -339,7 +456,6 @@ HSMenuItem::HSMenuItem(HSFont * font) : HSText(font)
 	parentMenu = NULL;
 	child = NULL;
 	chooser = NULL;
-	order = 0;
 	function = NO_MENU_FUNCTION;
 	currentKeySetting = NULL;
 	itemHeight = font->charHeight;

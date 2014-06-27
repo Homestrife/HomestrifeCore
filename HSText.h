@@ -3,12 +3,14 @@
 
 #include "hsfont.h"
 
-class HSText
+class HSText : public HSOrderable
 {
 public:
 	HSVect2D pos;
 	list<HSCharToClone> charListToClone;
 	list<HSObject*> characterList;
+	TextJustification justification;
+	int depth;
 
 	HSText(HSFont * font);
 	~HSText();

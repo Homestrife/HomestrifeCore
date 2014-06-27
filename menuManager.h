@@ -40,11 +40,6 @@ public:
 	string GetYesNoConfigString(MenuChooserFunction function);
 	string GetResolutionXConfigString(MenuChooserFunction function);
 	string GetResolutionYConfigString(MenuChooserFunction function);
-	string GetKeyConfigString(KeySetting setting);
-	string GetKeyConfigString(SDL_Keycode key);
-	string GetJoyButtonConfigString(JoystickMapping joyButton);
-	string GetHatConfigString(Uint8 hat);
-	string GetStickConfigString(Uint8 stick);
 
 	MenuChooserFunction GetYesNoChooserFunction(bool isYes);
 	MenuChooserFunction GetResolutionChooserFunction(int resolutionX, int resolutionY);

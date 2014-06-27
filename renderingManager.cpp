@@ -1449,7 +1449,11 @@ int RenderingManager::Render()
 		list<TextureInstance>::iterator texIt;
 		for ( texIt=(*objIt)->curHold->textures.begin(); texIt != (*objIt)->curHold->textures.end(); texIt++)
 		{
+			//a quick kludge to keep the HUD from being affected by parallax. Should add some sort of shader input variable later
+			float depth = (*objIt)->depth;
+			(*objIt)->depth = 0;
 			RenderTexture((*objIt), (*texIt));
+			(*objIt)->depth = depth;
 		}
 	}
 
