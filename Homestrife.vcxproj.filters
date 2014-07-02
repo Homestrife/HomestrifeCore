@@ -66,6 +66,9 @@
     <ClCompile Include="HSText.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="characterSelect.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="main.h">
@@ -120,6 +123,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="HSText.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="characterSelect.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -7,16 +7,12 @@ HSText::HSText(HSFont * font)
 	_font = font;
 	characterList.clear();
 	charListToClone.clear();
+	justification = JUSTIFICATION_LEFT;
+	depth = 0;
 }
 
 HSText::~HSText()
 {
-	/*list<HSObject*>::iterator obIt;
-	for(obIt = characterList.begin(); obIt != characterList.end(); obIt++)
-	{
-		delete *obIt;
-	}*/
-
 	if(_font != NULL)
 	{
 		_font->usingCount--;
@@ -30,7 +26,7 @@ HSText::~HSText()
 void HSText::SetText(string text)
 {
 	DeleteText();
-	charListToClone = _font->GenerateText(text, pos);
+	charListToClone = _font->GenerateText(text, pos, depth, justification);
 }
 
 void HSText::DeleteText()
@@ -45,4 +41,5 @@ void HSText::DeleteText()
 	}
 
 	characterList.clear();
+	charListToClone.clear();
 }

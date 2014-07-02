@@ -6,9 +6,29 @@
 #include "fighter.h"
 #include "HUD.h"
 #include "menuManager.h"
+#include "characterSelect.h"
 
-#define MAX_PLAYERS 4
 #define RINGOUT_BUFFER 500 //how far below the bottom of the stage something must fall before its considered "ringed out"
+
+#define CHARACTER_SELECT_CURSOR_DEPTH 0
+#define CHARACTER_SELECT_TITLE_DEPTH 1
+#define CHARACTER_SELECT_NAME_DEPTH 2
+#define CHARACTER_SELECT_INSTRUCTIONS_DEPTH 3
+#define CHARACTER_SELECT_PANEL_BORDER_DEPTH 4
+#define CHARACTER_SELECT_PANEL_DEPTH 5
+#define CHARACTER_SELECT_PORTRAIT_BORDER_DEPTH 6
+#define CHARACTER_SELECT_PORTRAIT_DEPTH 7
+#define CHARACTER_SELECT_BACKGROUND_DEPTH 8
+
+#define STAGE_SELECT_TITLE_DEPTH 0
+#define STAGE_SELECT_NAME_DEPTH 1
+#define STAGE_SELECT_PREVIEW_BORDER_DEPTH 2
+#define STAGE_SELECT_PREVIEW_DEPTH 3
+#define STAGE_SELECT_BACKGROUND_DEPTH 4
+
+#define MUSIC_SELECT_TITLE_DEPTH 0
+#define MUSIC_SELECT_NAME_DEPTH 1
+#define MUSIC_SELECT_BACKGROUND_DEPTH 2
 
 struct CurrentAudioEntry
 {
@@ -16,18 +36,6 @@ struct CurrentAudioEntry
 	Uint32 curPosition; //current position in the audio playthrough
 	HSObject * sourceObj; //object that triggered the audio
 	bool exclusive; //whether or not the object can be cut off by other exclusive sounds from the same object
-};
-
-struct PlayableCharacter
-{
-	string defFilePath;
-	HSObject * demoObject;
-};
-
-struct PlayableStage
-{
-	string defFilePath;
-	HSObject * demoObject;
 };
 
 extern list<CurrentAudioEntry*> currentAudio;
@@ -106,91 +114,32 @@ public:
 	HSObject * players[MAX_PLAYERS];
 	HSObject * focusObject[MAX_PLAYERS];
 
-	PlayableCharacter selectedCharacters[MAX_PLAYERS];
-	int selectedPalettes[MAX_PLAYERS];
-	PlayableStage selectedStage;
-
 	MenuManager * menuManager;
+	CharacterSelectManager * characterSelectManager;
+	CharacterSelectChoices characterSelectChoices;
 
-	list<PlayableCharacter> characterList[MAX_PLAYERS];
-	list<PlayableStage> stageList;
 	HSObject * loading;
-	HSObject * characterSelect;
 	HSObject * playerOne;
 	HSObject * playerTwo;
 	HSObject * playerThree;
 	HSObject * playerFour;
 	HSObject * wins;
-	HSObject * pressDesiredButton;
-	HSObject * readyOne;
-	HSObject * readyTwo;
-	HSObject * readyThree;
-	HSObject * readyFour;
-	HSObject * selectCharacterOne;
-	HSObject * selectCharacterTwo;
-	HSObject * selectCharacterThree;
-	HSObject * selectCharacterFour;
-	HSObject * selectPaletteOne;
-	HSObject * selectPaletteTwo;
-	HSObject * selectPaletteThree;
-	HSObject * selectPaletteFour;
-	HSObject * selectPaletteLeftOne;
-	HSObject * selectPaletteLeftTwo;
-	HSObject * selectPaletteLeftThree;
-	HSObject * selectPaletteLeftFour;
-	HSObject * selectPaletteRightOne;
-	HSObject * selectPaletteRightTwo;
-	HSObject * selectPaletteRightThree;
-	HSObject * selectPaletteRightFour;
-	HSObject * stageSelect;
-	HSObject * selectStage;
-	HSObject * selectStageLeft;
-	HSObject * selectStageRight;
-	HSObject * fullscreenYes;
-	HSObject * fullscreenNo;
-	HSObject * stretchYes;
-	HSObject * stretchNo;
-	HSObject * fullscreen640x360;
-	HSObject * fullscreen800x450;
-	HSObject * fullscreen1024x576;
-	HSObject * fullscreen1152x648;
-	HSObject * fullscreen1280x720;
-	HSObject * fullscreen1360x765;
-	HSObject * fullscreen1366x768;
-	HSObject * fullscreen1400x787;
-	HSObject * fullscreen1440x810;
-	HSObject * fullscreen1600x900;
-	HSObject * fullscreen1680x945;
-	HSObject * fullscreen1920x1080;
-	HSObject * windowed640x360;
-	HSObject * windowed800x450;
-	HSObject * windowed1024x576;
-	HSObject * windowed1152x648;
-	HSObject * windowed1280x720;
-	HSObject * windowed1360x765;
-	HSObject * windowed1366x768;
-	HSObject * windowed1400x787;
-	HSObject * windowed1440x810;
-	HSObject * windowed1600x900;
-	HSObject * windowed1680x945;
-	HSObject * windowed1920x1080;
 
 	void SortAllObjects();
 
 	int LoadDefinition(string defFilePath, list<HSObject*> * objects, HSObject ** returnValue = NULL);
 	int LoadStage(string defFilePath);
 	int LoadHSMenu(string defFilePath, HSVect2D menuPos, HSMenu ** returnValue = NULL);
+	
 	int LoadMenuChooser(string defFilePath, HSFont * font, MenuChooser ** returnValue = NULL);
 	int CreateMenuKeySetting(HSFont * font, MenuKeySetting ** returnValue = NULL);
 	int LoadHSFont(string defFilePath, HSFont ** returnValue = NULL);
 	int LoadHSCharacter(XMLElement * xml, HSCharacter * hsChar);
 
-	int LoadPlayableCharacters(bool loadPlayer[MAX_PLAYERS]);
-	void PreviousCharacter(int player);
-	void NextCharacter(int player);
-	int LoadPlayableStages();
-	void PreviousStage();
-	void NextStage();
+	int LoadCharacterSelect(string defFilePath, string pcFilePath, string psFilePath, string pmFilePath);
+	int LoadPlayableCharacters(string pcFilePath, string panelBorderFilePath);
+	int LoadPlayableStages(string psFilePath);
+	int LoadPlayableMusic(string pmFilePath);
 
 	void UpdateMenu();
 	int ApplyVideoSettings();

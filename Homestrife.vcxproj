@@ -88,6 +88,7 @@
   <ItemGroup>
     <ClCompile Include="audio.cpp" />
     <ClCompile Include="fighter.cpp" />
+    <ClCompile Include="characterSelect.cpp" />
     <ClCompile Include="hsfont.cpp" />
     <ClCompile Include="glextused.cpp" />
     <ClCompile Include="hslog.cpp" />
@@ -106,6 +107,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="audio.h" />
+    <ClInclude Include="characterSelect.h" />
     <ClInclude Include="hsfont.h" />
     <ClInclude Include="hslog.h" />
     <ClInclude Include="fighter.h" />

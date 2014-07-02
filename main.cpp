@@ -12,7 +12,7 @@ Main::Main()
 	renderingManager = new RenderingManager(objectManager);
 	
 	gameState = MAIN_MENU;
-	gameType = FREE_FOR_ALL_2;
+	gameType = GAME_TYPE_FREE_FOR_ALL;
 	bindingKey = BINDING_NONE;
 
 	lastFrameTicks = 0;
@@ -505,9 +505,15 @@ int Main::SpawnObjects()
 
 	objectManager->SortAllObjects();
 
-	if(objectManager->menuManager == NULL) { return 0; }
+	if(objectManager->menuManager != NULL)
+	{
+		if(int error = SpawnMenus(objectManager->menuManager->GetRoot()) != 0) { return error; }
+	}
 
-	if(int error = SpawnMenus(objectManager->menuManager->GetRoot()) != 0) { return error; }
+	if(objectManager->characterSelectManager != NULL)
+	{
+		if(int error = SpawnCharacterSelect(objectManager->characterSelectManager) != 0) { return error; }
+	}
 
 	return 0;
 }
@@ -552,6 +558,27 @@ int Main::SpawnMenus(HSMenu * menu)
 	return 0;
 }
 
+int Main::SpawnCharacterSelect(CharacterSelectManager * manager)
+{
+	if(manager == NULL) { return 0; }
+
+	if(int error = SpawnText(manager->characterSelect->title) != 0) { return error; }
+
+	for(int i = 0; i < MAX_PLAYERS; i++)
+	{
+		if(int error = SpawnText(manager->characterSelect->characterName[i]) != 0) { return error; }
+		if(int error = SpawnText(manager->characterSelect->portraitInstructions[i]) != 0) { return error; }
+	}
+
+	if(int error = SpawnText(manager->stageChooser->title) != 0) { return error; }
+	if(int error = SpawnText(manager->stageChooser->stageName) != 0) { return error; }
+	
+	if(int error = SpawnText(manager->musicChooser->title) != 0) { return error; }
+	if(int error = SpawnText(manager->musicChooser) != 0) { return error; }
+
+	return 0;
+}
+
 int Main::SpawnText(HSText * text)
 {
 	if(text == NULL || text->charListToClone.empty()) { return 0; }
@@ -559,10 +586,13 @@ int Main::SpawnText(HSText * text)
 	list<HSCharToClone>::iterator ctcIt;
 	for(ctcIt = text->charListToClone.begin(); ctcIt != text->charListToClone.end(); ctcIt++)
 	{
+		if(ctcIt->character == NULL) { continue; }
+
 		HSObject * newChar;
 		if(int error = objectManager->CloneObject(ctcIt->character, &objectManager->HUDObjects, &newChar) != 0) { return error; }
 		newChar->pos.x = ctcIt->pos.x;
 		newChar->pos.y = ctcIt->pos.y;
+		newChar->depth = ctcIt->depth;
 
 		text->characterList.push_back(newChar);
 	}
@@ -803,17 +833,9 @@ int Main::EventMenu(InputStates * inputHistory, int frame)
 
 		switch(function)
 		{
-		case FREE_FOR_ALL_2_PLAYERS:
-			gameType = FREE_FOR_ALL_2;
-			ChangeGameState(CHARACTER_SELECT);
-			break;
-		case FREE_FOR_ALL_3_PLAYERS:
-			gameType = FREE_FOR_ALL_3;
-			ChangeGameState(CHARACTER_SELECT);
-			break;
-		case FREE_FOR_ALL_4_PLAYERS:
-			gameType = FREE_FOR_ALL_4;
-			ChangeGameState(CHARACTER_SELECT);
+		case FREE_FOR_ALL:
+			gameType = GAME_TYPE_FREE_FOR_ALL;
+			if(int error = ChangeGameState(CHARACTER_SELECT) != 0) { return error; }
 			break;
 		case KEY_CONFIG_UP:
 			bindingKey = BINDING_UP;
@@ -890,7 +912,6 @@ int Main::EventMenu(InputStates * inputHistory, int frame)
 		case KEY_CONFIG:
 		case VERSUS:
 		case OPTIONS:
-		case FREE_FOR_ALL:
 			objectManager->menuManager->ToChild();
 			break;
 		case FULL_SCREEN:
@@ -909,7 +930,7 @@ int Main::EventMenu(InputStates * inputHistory, int frame)
 			ChangeMatchState(IN_PROGRESS);
 			break;
 		case QUIT_MATCH:
-			ChangeGameState(CHARACTER_SELECT);
+			if(int error = ChangeGameState(CHARACTER_SELECT) != 0) { return error; }
 			break;
 		case QUIT_GAME:
 			Exit();
@@ -980,7 +1001,7 @@ int Main::InitializeMainMenu()
 
 int Main::EventMainMenu(InputStates * inputHistory, int frame)
 {
-	EventMenu(inputHistory, frame);
+	if(int error = EventMenu(inputHistory, frame) != 0) { return error; }
 
 	return 0;
 }
@@ -994,617 +1015,48 @@ int Main::UpdateMainMenu()
 
 int Main::InitializeCharacterSelect()
 {
-	bool toPlay[MAX_PLAYERS];
-
-	toPlay[0] = true;
-	toPlay[1] = true;
-	toPlay[2] = false;
-	toPlay[3] = false;
-
-	if(gameType == FREE_FOR_ALL_3 || gameType == FREE_FOR_ALL_4)
-	{
-		toPlay[2] = true;
-	}
-
-	if(gameType == FREE_FOR_ALL_4)
-	{
-		toPlay[3] = true;
-	}
+	objectManager->characterSelectManager = new CharacterSelectManager();
 	
-	if(int error = objectManager->LoadPlayableCharacters(toPlay) != 0) { return error; }
-	if(int error = objectManager->LoadPlayableStages() != 0) { return error; }
+	if(int error = objectManager->LoadCharacterSelect("data\\hud\\Menus\\Character Select\\CharacterSelect.xml", "data\\characters\\playableCharacters.xml", "data\\stages\\playableStages.xml", "data\\music\\playableMusic.xml") != 0) { return error; }
 
-	float hudYOffset = 0;
-	if(gameType == FREE_FOR_ALL_2)
-	{
-		hudYOffset = 350;
-	}
-
-	//hud
-	HSObject * newObject;
-	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/characterSelect/characterSelect.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = CHARACTER_SELECT_POS_X;
-	newObject->pos.y = CHARACTER_SELECT_POS_Y;
-	objectManager->characterSelect = newObject;
-	
-	//player 1 hud
-	list<PlayableCharacter>::iterator pcIt;
-	for(pcIt = objectManager->characterList[0].begin(); pcIt != objectManager->characterList[0].end(); pcIt++)
-	{
-		pcIt->demoObject->pos.x = CHAR_SELECT_PLAYER_LEFT_POS_X;
-		pcIt->demoObject->pos.y = CHAR_SELECT_PLAYER_TOP_POS_Y + hudYOffset;
-	}
-
-	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/player/player1.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = PLAYER_LEFT_POS_X;
-	newObject->pos.y = PLAYER_TOP_POS_Y + hudYOffset;
-	objectManager->playerOne = newObject;
-
-	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/selectCharacter/selectCharacter.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = SELECT_CHARACTER_LEFT_POS_X;
-	newObject->pos.y = SELECT_PALETTE_TOP_POS_Y + hudYOffset;
-	objectManager->selectCharacterOne = newObject;
-
-	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/selectPalette/selectPalette.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = SELECT_PALETTE_LEFT_POS_X;
-	newObject->pos.y = SELECT_PALETTE_TOP_POS_Y + hudYOffset;
-	objectManager->selectPaletteOne = newObject;
-	
-	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/leftArrow/leftArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = SELECT_CHARACTER_LEFT_POS_X - 55;
-	newObject->pos.y = SELECT_PALETTE_TOP_POS_Y + hudYOffset;
-	objectManager->selectPaletteLeftOne = newObject;
-	
-	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/rightArrow/rightArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = SELECT_CHARACTER_LEFT_POS_X + 363;
-	newObject->pos.y = SELECT_PALETTE_TOP_POS_Y + hudYOffset;
-	objectManager->selectPaletteRightOne = newObject;
-	
-	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/ready/ready.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = READY_LEFT_POS_X;
-	newObject->pos.y = SELECT_PALETTE_TOP_POS_Y + hudYOffset;
-	objectManager->readyOne = newObject;
-	
-	//player 2 hud
-	for(pcIt = objectManager->characterList[1].begin(); pcIt != objectManager->characterList[1].end(); pcIt++)
-	{
-		pcIt->demoObject->pos.x = CHAR_SELECT_PLAYER_RIGHT_POS_X;
-		pcIt->demoObject->pos.y = CHAR_SELECT_PLAYER_TOP_POS_Y + hudYOffset;
-		pcIt->demoObject->hFlip = true;
-	}
-
-	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/player/player2.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = PLAYER_RIGHT_POS_X;
-	newObject->pos.y = PLAYER_TOP_POS_Y + hudYOffset;
-	objectManager->playerTwo = newObject;
-
-	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/selectCharacter/selectCharacter.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = SELECT_CHARACTER_RIGHT_POS_X;
-	newObject->pos.y = SELECT_PALETTE_TOP_POS_Y + hudYOffset;
-	objectManager->selectCharacterTwo = newObject;
-
-	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/selectPalette/selectPalette.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = SELECT_PALETTE_RIGHT_POS_X;
-	newObject->pos.y = SELECT_PALETTE_TOP_POS_Y + hudYOffset;
-	objectManager->selectPaletteTwo = newObject;
-	
-	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/leftArrow/leftArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = SELECT_CHARACTER_RIGHT_POS_X - 55;
-	newObject->pos.y = SELECT_PALETTE_TOP_POS_Y + hudYOffset;
-	objectManager->selectPaletteLeftTwo = newObject;
-	
-	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/rightArrow/rightArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = SELECT_CHARACTER_RIGHT_POS_X + 363;
-	newObject->pos.y = SELECT_PALETTE_TOP_POS_Y + hudYOffset;
-	objectManager->selectPaletteRightTwo = newObject;
-	
-	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/ready/ready.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = READY_RIGHT_POS_X;
-	newObject->pos.y = SELECT_PALETTE_TOP_POS_Y + hudYOffset;
-	objectManager->readyTwo = newObject;
-	
-	//player 3 hud
-	if(gameType == FREE_FOR_ALL_3 || gameType == FREE_FOR_ALL_4)
-	{
-		for(pcIt = objectManager->characterList[2].begin(); pcIt != objectManager->characterList[2].end(); pcIt++)
-		{
-			pcIt->demoObject->pos.x = CHAR_SELECT_PLAYER_LEFT_POS_X;
-			pcIt->demoObject->pos.y = CHAR_SELECT_PLAYER_BOTTOM_POS_Y;
-		}
-
-		if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/player/player3.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-		newObject->pos.x = PLAYER_LEFT_POS_X;
-		newObject->pos.y = PLAYER_BOTTOM_POS_Y;
-		objectManager->playerThree = newObject;
-
-		if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/selectCharacter/selectCharacter.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-		newObject->pos.x = SELECT_CHARACTER_LEFT_POS_X;
-		newObject->pos.y = SELECT_PALETTE_BOTTOM_POS_Y;
-		objectManager->selectCharacterThree = newObject;
-
-		if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/selectPalette/selectPalette.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-		newObject->pos.x = SELECT_PALETTE_LEFT_POS_X;
-		newObject->pos.y = SELECT_PALETTE_BOTTOM_POS_Y;
-		objectManager->selectPaletteThree = newObject;
-	
-		if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/leftArrow/leftArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-		newObject->pos.x = SELECT_CHARACTER_LEFT_POS_X - 55;
-		newObject->pos.y = SELECT_PALETTE_BOTTOM_POS_Y;
-		objectManager->selectPaletteLeftThree = newObject;
-	
-		if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/rightArrow/rightArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-		newObject->pos.x = SELECT_CHARACTER_LEFT_POS_X + 363;
-		newObject->pos.y = SELECT_PALETTE_BOTTOM_POS_Y;
-		objectManager->selectPaletteRightThree = newObject;
-	
-		if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/ready/ready.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-		newObject->pos.x = READY_LEFT_POS_X;
-		newObject->pos.y = SELECT_PALETTE_BOTTOM_POS_Y;
-		objectManager->readyThree = newObject;
-	}
-	
-	//player 4 hud
-	if(gameType == FREE_FOR_ALL_4)
-	{
-		for(pcIt = objectManager->characterList[3].begin(); pcIt != objectManager->characterList[3].end(); pcIt++)
-		{
-			pcIt->demoObject->pos.x = CHAR_SELECT_PLAYER_RIGHT_POS_X;
-			pcIt->demoObject->pos.y = CHAR_SELECT_PLAYER_BOTTOM_POS_Y;
-			pcIt->demoObject->hFlip = true;
-		}
-
-		if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/player/player4.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-		newObject->pos.x = PLAYER_RIGHT_POS_X;
-		newObject->pos.y = PLAYER_BOTTOM_POS_Y;
-		objectManager->playerFour = newObject;
-
-		if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/selectCharacter/selectCharacter.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-		newObject->pos.x = SELECT_CHARACTER_RIGHT_POS_X;
-		newObject->pos.y = SELECT_PALETTE_BOTTOM_POS_Y;
-		objectManager->selectCharacterFour = newObject;
-
-		if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/selectPalette/selectPalette.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-		newObject->pos.x = SELECT_PALETTE_RIGHT_POS_X;
-		newObject->pos.y = SELECT_PALETTE_BOTTOM_POS_Y;
-		objectManager->selectPaletteFour = newObject;
-	
-		if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/leftArrow/leftArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-		newObject->pos.x = SELECT_CHARACTER_RIGHT_POS_X - 55;
-		newObject->pos.y = SELECT_PALETTE_BOTTOM_POS_Y;
-		objectManager->selectPaletteLeftFour = newObject;
-	
-		if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/rightArrow/rightArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-		newObject->pos.x = SELECT_CHARACTER_RIGHT_POS_X + 363;
-		newObject->pos.y = SELECT_PALETTE_BOTTOM_POS_Y;
-		objectManager->selectPaletteRightFour = newObject;
-	
-		if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/ready/ready.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-		newObject->pos.x = READY_RIGHT_POS_X;
-		newObject->pos.y = SELECT_PALETTE_BOTTOM_POS_Y;
-		objectManager->readyFour = newObject;
-	}
-
-	//stage select
-	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/stageSelect/stageSelect.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = STAGE_SELECT_POS_X;
-	newObject->pos.y = CHARACTER_SELECT_POS_Y;
-	objectManager->stageSelect = newObject;
-
-	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/selectStage/selectStage.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = SELECT_STAGE_POS_X;
-	newObject->pos.y = SELECT_STAGE_POS_Y;
-	objectManager->selectStage = newObject;
-	
-	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/leftArrow/leftArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = SELECT_STAGE_POS_X - 55;
-	newObject->pos.y = SELECT_STAGE_POS_Y;
-	objectManager->selectStageLeft = newObject;
-	
-	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/rightArrow/rightArrow.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->pos.x = SELECT_STAGE_POS_X + 280;
-	newObject->pos.y = SELECT_STAGE_POS_Y;
-	objectManager->selectStageRight = newObject;
-
-	ChangeCharacterSelectState(PLAYERS_SELECTING);
-
-	if(toPlay[0]) { ChangeCharacterSelectPlayerState(SELECTING_CHARACTER, 0); }
-	if(toPlay[1]) { ChangeCharacterSelectPlayerState(SELECTING_CHARACTER, 1); }
-	if(toPlay[2]) { ChangeCharacterSelectPlayerState(SELECTING_CHARACTER, 2); }
-	if(toPlay[3]) { ChangeCharacterSelectPlayerState(SELECTING_CHARACTER, 3); }
-
-	objectManager->centerCameraInstantly = true;
-
-	return 0;
-}
-
-int Main::ChangeCharacterSelectState(CharacterSelectState newState)
-{
-	characterSelectState = newState;
-
-	switch(characterSelectState)
-	{
-	case PLAYERS_SELECTING:
-		//make all stage select assets invisible
-		objectManager->stageSelect->visible = false;
-		objectManager->selectStage->visible = false;
-		objectManager->selectStageLeft->visible = false;
-		objectManager->selectStageRight->visible = false;
-		objectManager->selectedStage.demoObject->visible = false;
-
-		//make all character selct assets visible
-		objectManager->characterSelect->visible = true;
-		if(objectManager->selectedCharacters[0].demoObject != NULL)
-		{
-			objectManager->selectedCharacters[0].demoObject->visible = true;
-			objectManager->playerOne->visible = true;
-
-			if(characterSelectPlayerState[0] == READY)
-			{
-				objectManager->readyOne->visible = true;
-			}
-			else if(characterSelectPlayerState[0] == SELECTING_PALETTE)
-			{
-				objectManager->selectPaletteOne->visible = true;
-				objectManager->selectPaletteLeftOne->visible = true;
-				objectManager->selectPaletteRightOne->visible = true;
-			}
-		}
-		if(objectManager->selectedCharacters[1].demoObject != NULL)
-		{
-			objectManager->selectedCharacters[1].demoObject->visible = true;
-			objectManager->playerTwo->visible = true;
-
-			if(characterSelectPlayerState[1] == READY)
-			{
-				objectManager->readyTwo->visible = true;
-			}
-			else if(characterSelectPlayerState[1] == SELECTING_PALETTE)
-			{
-				objectManager->selectPaletteTwo->visible = true;
-				objectManager->selectPaletteLeftTwo->visible = true;
-				objectManager->selectPaletteRightTwo->visible = true;
-			}
-		}
-		if(objectManager->selectedCharacters[2].demoObject != NULL)
-		{
-			objectManager->selectedCharacters[2].demoObject->visible = true;
-			objectManager->playerThree->visible = true;
-
-			if(characterSelectPlayerState[2] == READY)
-			{
-				objectManager->readyThree->visible = true;
-			}
-			else if(characterSelectPlayerState[2] == SELECTING_PALETTE)
-			{
-				objectManager->selectPaletteThree->visible = true;
-				objectManager->selectPaletteLeftThree->visible = true;
-				objectManager->selectPaletteRightThree->visible = true;
-			}
-		}
-		if(objectManager->selectedCharacters[3].demoObject != NULL)
-		{
-			objectManager->selectedCharacters[3].demoObject->visible = true;
-			objectManager->playerFour->visible = true;
-
-			if(characterSelectPlayerState[3] == READY)
-			{
-				objectManager->readyFour->visible = true;
-			}
-			else if(characterSelectPlayerState[3] == SELECTING_PALETTE)
-			{
-				objectManager->selectPaletteFour->visible = true;
-				objectManager->selectPaletteLeftFour->visible = true;
-				objectManager->selectPaletteRightFour->visible = true;
-			}
-		}
-		break;
-	case STAGE_SELECT:
-		//make all character select assets invisible
-		objectManager->characterSelect->visible = false;
-		if(objectManager->selectedCharacters[0].demoObject != NULL)
-		{
-			objectManager->selectedCharacters[0].demoObject->visible = false;
-			objectManager->playerOne->visible = false;
-			objectManager->readyOne->visible = false;
-		}
-		if(objectManager->selectedCharacters[1].demoObject != NULL)
-		{
-			objectManager->selectedCharacters[1].demoObject->visible = false;
-			objectManager->playerTwo->visible = false;
-			objectManager->readyTwo->visible = false;
-		}
-		if(objectManager->selectedCharacters[2].demoObject != NULL)
-		{
-			objectManager->selectedCharacters[2].demoObject->visible = false;
-			objectManager->playerThree->visible = false;
-			objectManager->readyThree->visible = false;
-		}
-		if(objectManager->selectedCharacters[3].demoObject != NULL)
-		{
-			objectManager->selectedCharacters[3].demoObject->visible = false;
-			objectManager->playerFour->visible = false;
-			objectManager->readyFour->visible = false;
-		}
-
-		//make all stage select assets visible
-		objectManager->stageSelect->visible = true;
-		objectManager->selectStage->visible = true;
-		objectManager->selectStageLeft->visible = true;
-		objectManager->selectStageRight->visible = true;
-		objectManager->selectedStage.demoObject->visible = true;
-		break;
-	}
-
-	return 0;
-}
-
-int Main::ChangeCharacterSelectPlayerState(CharacterSelectPlayerState newState, int player)
-{
-	characterSelectPlayerState[player] = newState;
-
-	switch(characterSelectPlayerState[player])
-	{
-	case SELECTING_CHARACTER:
-		objectManager->selectedPalettes[player] = 0;
-		objectManager->selectedCharacters[player].demoObject->SetPalette(0);
-		switch(player)
-		{
-		case 0:
-			objectManager->readyOne->visible = false;
-			objectManager->selectPaletteLeftOne->visible = true;
-			objectManager->selectPaletteRightOne->visible = true;
-			objectManager->selectCharacterOne->visible = true;
-			objectManager->selectPaletteOne->visible = false;
-			break;
-		case 1:
-			objectManager->readyTwo->visible = false;
-			objectManager->selectPaletteLeftTwo->visible = true;
-			objectManager->selectPaletteRightTwo->visible = true;
-			objectManager->selectCharacterTwo->visible = true;
-			objectManager->selectPaletteTwo->visible = false;
-			break;
-		case 2:
-			if(objectManager->selectedCharacters[2].demoObject != NULL)
-			{
-				objectManager->readyThree->visible = false;
-				objectManager->selectPaletteLeftThree->visible = true;
-				objectManager->selectPaletteRightThree->visible = true;
-				objectManager->selectCharacterThree->visible = true;
-				objectManager->selectPaletteThree->visible = false;
-			}
-			break;
-		case 3:
-			if(objectManager->selectedCharacters[3].demoObject != NULL)
-			{
-				objectManager->readyFour->visible = false;
-				objectManager->selectPaletteLeftFour->visible = true;
-				objectManager->selectPaletteRightFour->visible = true;
-				objectManager->selectCharacterFour->visible = true;
-				objectManager->selectPaletteFour->visible = false;
-			}
-			break;
-		}
-		break;
-	case SELECTING_PALETTE:
-		switch(player)
-		{
-		case 0:
-			objectManager->readyOne->visible = false;
-			objectManager->selectPaletteLeftOne->visible = true;
-			objectManager->selectPaletteRightOne->visible = true;
-			objectManager->selectCharacterOne->visible = false;
-			objectManager->selectPaletteOne->visible = true;
-			break;
-		case 1:
-			objectManager->readyTwo->visible = false;
-			objectManager->selectPaletteLeftTwo->visible = true;
-			objectManager->selectPaletteRightTwo->visible = true;
-			objectManager->selectCharacterTwo->visible = false;
-			objectManager->selectPaletteTwo->visible = true;
-			break;
-		case 2:
-			if(objectManager->selectedCharacters[2].demoObject != NULL)
-			{
-				objectManager->readyThree->visible = false;
-				objectManager->selectPaletteLeftThree->visible = true;
-				objectManager->selectPaletteRightThree->visible = true;
-				objectManager->selectCharacterThree->visible = false;
-				objectManager->selectPaletteThree->visible = true;
-			}
-			break;
-		case 3:
-			if(objectManager->selectedCharacters[3].demoObject != NULL)
-			{
-				objectManager->readyFour->visible = false;
-				objectManager->selectPaletteLeftFour->visible = true;
-				objectManager->selectPaletteRightFour->visible = true;
-				objectManager->selectCharacterFour->visible = false;
-				objectManager->selectPaletteFour->visible = true;
-			}
-			break;
-		}
-		break;
-	case READY:
-		switch(player)
-		{
-		case 0:
-			objectManager->readyOne->visible = true;
-			objectManager->selectPaletteLeftOne->visible = false;
-			objectManager->selectPaletteRightOne->visible = false;
-			objectManager->selectCharacterOne->visible = false;
-			objectManager->selectPaletteOne->visible = false;
-			break;
-		case 1:
-			objectManager->readyTwo->visible = true;
-			objectManager->selectPaletteRightTwo->visible = false;
-			objectManager->selectPaletteLeftTwo->visible = false;
-			objectManager->selectCharacterTwo->visible = false;
-			objectManager->selectPaletteTwo->visible = false;
-			break;
-		case 2:
-			if(objectManager->selectedCharacters[2].demoObject != NULL)
-			{
-				objectManager->readyThree->visible = true;
-				objectManager->selectPaletteLeftThree->visible = false;
-				objectManager->selectPaletteRightThree->visible = false;
-				objectManager->selectCharacterThree->visible = false;
-				objectManager->selectPaletteThree->visible = false;
-			}
-			break;
-		case 3:
-			if(objectManager->selectedCharacters[3].demoObject != NULL)
-			{
-				objectManager->readyFour->visible = true;
-				objectManager->selectPaletteLeftFour->visible = false;
-				objectManager->selectPaletteRightFour->visible = false;
-				objectManager->selectCharacterFour->visible = false;
-				objectManager->selectPaletteFour->visible = false;
-			}
-			break;
-		}
-		break;
-	}
+	objectManager->characterSelectManager->ChangeCharacterSelectState(CHARACTERS_SELECT);
 
 	return 0;
 }
 
 int Main::EventCharacterSelect(InputStates * inputHistory, int frame, int player)
 {
+	if(inputHistory->frame == frame && (inputHistory->bButtonUp.pressed || inputHistory->bHatUp.pressed || inputHistory->bKeyUp.pressed || inputHistory->bStickUp.pressed))
+	{
+		objectManager->characterSelectManager->PlayerUp(player);
+	}
+	else if(inputHistory->frame == frame && (inputHistory->bButtonDown.pressed || inputHistory->bHatDown.pressed || inputHistory->bKeyDown.pressed || inputHistory->bStickDown.pressed))
+	{
+		objectManager->characterSelectManager->PlayerDown(player);
+	}
+
 	if(inputHistory->frame == frame && (inputHistory->bButtonLeft.pressed || inputHistory->bHatLeft.pressed || inputHistory->bKeyLeft.pressed || inputHistory->bStickLeft.pressed))
 	{
-		switch(characterSelectState)
-		{
-		case PLAYERS_SELECTING:
-			switch(characterSelectPlayerState[player])
-			{
-			case SELECTING_CHARACTER:
-				objectManager->PreviousCharacter(player);
-				break;
-			case SELECTING_PALETTE:
-				if(objectManager->selectedCharacters[player].demoObject != NULL)
-				{
-					objectManager->selectedCharacters[player].demoObject->PrevPalette();
-				}
-				break;
-			case READY:
-				break;
-			}
-			break;
-		case STAGE_SELECT:
-			objectManager->PreviousStage();
-			break;
-		}
+		objectManager->characterSelectManager->PlayerLeft(player);
 	}
 	else if(inputHistory->frame == frame && (inputHistory->bButtonRight.pressed || inputHistory->bHatRight.pressed || inputHistory->bKeyRight.pressed || inputHistory->bStickRight.pressed))
 	{
-		switch(characterSelectState)
-		{
-		case PLAYERS_SELECTING:
-			switch(characterSelectPlayerState[player])
-			{
-			case SELECTING_CHARACTER:
-				objectManager->NextCharacter(player);
-				break;
-			case SELECTING_PALETTE:
-				if(objectManager->selectedCharacters[player].demoObject != NULL)
-				{
-					objectManager->selectedCharacters[player].demoObject->NextPalette();
-				}
-				break;
-			case READY:
-				break;
-			}
-			break;
-		case STAGE_SELECT:
-			objectManager->NextStage();
-			break;
-		}
+		objectManager->characterSelectManager->PlayerRight(player);
 	}
 
 	if(inputHistory->frame == frame && (inputHistory->buttonMenuConfirm.pressed || inputHistory->keyMenuConfirm.pressed))
 	{
-		switch(characterSelectState)
+		if(objectManager->characterSelectManager->PlayerConfirm(player))
 		{
-		case PLAYERS_SELECTING:
-			switch(characterSelectPlayerState[player])
-			{
-			case SELECTING_CHARACTER:
-				ChangeCharacterSelectPlayerState(SELECTING_PALETTE, player);
-				break;
-			case SELECTING_PALETTE:
-				{
-					objectManager->selectedPalettes[player] = objectManager->selectedCharacters[player].demoObject->GetPalette();
-					bool searchFailed = true;
-					while(searchFailed)
-					{
-						searchFailed = false;
-						for(int i = 0; i < MAX_PLAYERS; i++)
-						{
-							if(i != player && characterSelectPlayerState[i] == READY && objectManager->selectedCharacters[player].defFilePath == objectManager->selectedCharacters[i].defFilePath && objectManager->selectedPalettes[player] == objectManager->selectedPalettes[i])
-							{
-								objectManager->selectedCharacters[player].demoObject->NextPalette();
-								objectManager->selectedPalettes[player] = objectManager->selectedCharacters[player].demoObject->GetPalette();
-								searchFailed = true;
-								break;
-							}
-						}
-					}
-					ChangeCharacterSelectPlayerState(READY, player);
-					
-					bool ready = true;
-
-					if(characterSelectPlayerState[0] != READY || characterSelectPlayerState[1] != READY)
-					{
-						ready = false;
-					}
-
-					if((gameType == FREE_FOR_ALL_3 || gameType == FREE_FOR_ALL_4) && characterSelectPlayerState[2] != READY)
-					{
-						ready = false;
-					}
-
-					if(gameType == FREE_FOR_ALL_4 && characterSelectPlayerState[3] != READY)
-					{
-						ready = false;
-					}
-
-					if(ready)
-					{
-						if(int i = ChangeCharacterSelectState(STAGE_SELECT) != 0) { return i; }
-					}
-					break;
-				}
-			case READY:
-				break;
-			}
-			break;
-		case STAGE_SELECT:
-			if(int i = ChangeGameState(MATCH) != 0) { return i; }
-			break;
+			objectManager->characterSelectChoices = objectManager->characterSelectManager->GetChoices();
+			ChangeGameState(MATCH);
 		}
 	}
 	else if(inputHistory->frame == frame && (inputHistory->buttonMenuBack.pressed || inputHistory->keyMenuBack.pressed))
 	{
-		switch(characterSelectState)
+		if(objectManager->characterSelectManager->PlayerCancel(player))
 		{
-		case PLAYERS_SELECTING:
-			switch(characterSelectPlayerState[player])
-			{
-			case SELECTING_CHARACTER:
-				if(int i = ChangeGameState(MAIN_MENU) != 0) { return i; }
-				break;
-			case SELECTING_PALETTE:
-				ChangeCharacterSelectPlayerState(SELECTING_CHARACTER, player);
-				break;
-			case READY:
-				ChangeCharacterSelectPlayerState(SELECTING_PALETTE, player);
-				break;
-			}
-			break;
-		case STAGE_SELECT:
-			ChangeCharacterSelectPlayerState(SELECTING_PALETTE, player);
-			ChangeCharacterSelectState(PLAYERS_SELECTING);
-			break;
+			ChangeGameState(MAIN_MENU);
 		}
 	}
 
@@ -1620,75 +1072,51 @@ int Main::UpdateCharacterSelect()
 int Main::InitializeMatch()
 {
 	//load stage/background
-	objectManager->LoadStage(objectManager->selectedStage.defFilePath);
+	objectManager->LoadStage(objectManager->characterSelectChoices.stageDefFilePath);
 
-	//load characters
-	HSObject * fighterOne;
-	if(int error = objectManager->LoadDefinition(objectManager->selectedCharacters[0].defFilePath, &objectManager->fighterObjects, &fighterOne) != 0) { return error; }
-	fighterOne->pos.x = objectManager->spawnPoints[0].x;
-	fighterOne->pos.y = objectManager->spawnPoints[0].y;
-	objectManager->players[0] = fighterOne;
-	fighterOne->SetPalette(objectManager->selectedPalettes[0]);
-	((Fighter*)fighterOne)->state = STANDING;
-	((Fighter*)fighterOne)->curHealth = ((Fighter*)fighterOne)->health;
-	fighterOne->ChangeHold(((Fighter*)fighterOne)->fighterEventHolds.standing);
-	objectManager->focusObject[0] = fighterOne;
-	
-	HSObject * fighterTwo;
-	if(int error = objectManager->LoadDefinition(objectManager->selectedCharacters[1].defFilePath, &objectManager->fighterObjects, &fighterTwo) != 0) { return error; }
-	fighterTwo->pos.x = objectManager->spawnPoints[1].x;
-	fighterTwo->pos.y = objectManager->spawnPoints[1].y;
-	objectManager->players[1] = fighterTwo;
-	fighterTwo->SetPalette(objectManager->selectedPalettes[1]);
-	((Fighter*)fighterTwo)->state = STANDING;
-	((Fighter*)fighterTwo)->facing = LEFT;
-	((Fighter*)fighterTwo)->curHealth = ((Fighter*)fighterTwo)->health;
-	fighterTwo->ChangeHold(((Fighter*)fighterTwo)->fighterEventHolds.standing);
-	objectManager->focusObject[1] = fighterTwo;
-
-	if(gameType == FREE_FOR_ALL_3 || gameType == FREE_FOR_ALL_4)
+	for(int i = 0; i < MAX_PLAYERS; i++)
 	{
-		HSObject * fighterThree;
-		if(int error = objectManager->LoadDefinition(objectManager->selectedCharacters[2].defFilePath, &objectManager->fighterObjects, &fighterThree) != 0) { return error; }
-		fighterThree->pos.x = objectManager->spawnPoints[2].x;
-		fighterThree->pos.y = objectManager->spawnPoints[2].y;
-		objectManager->players[2] = fighterThree;
-		fighterThree->SetPalette(objectManager->selectedPalettes[2]);
-		((Fighter*)fighterThree)->state = STANDING;
-		((Fighter*)fighterThree)->curHealth = ((Fighter*)fighterThree)->health;
-		fighterThree->ChangeHold(((Fighter*)fighterThree)->fighterEventHolds.standing);
-		objectManager->focusObject[2] = fighterThree;
-	}
+		if(objectManager->characterSelectChoices.participating[i])
+		{
+			//load fighter
+			HSObject * fighter;
+			if(int error = objectManager->LoadDefinition(objectManager->characterSelectChoices.characterDefFilePaths[i], &objectManager->fighterObjects, &fighter) != 0) { return error; }
+			fighter->pos.x = objectManager->spawnPoints[i].x;
+			fighter->pos.y = objectManager->spawnPoints[i].y;
+			objectManager->players[i] = fighter;
+			fighter->SetPalette(objectManager->characterSelectChoices.characterPalettes[i]);
+			((Fighter*)fighter)->state = STANDING;
+			((Fighter*)fighter)->curHealth = ((Fighter*)fighter)->health;
+			fighter->ChangeHold(((Fighter*)fighter)->fighterEventHolds.standing);
+			objectManager->focusObject[i] = fighter;
 
-	if(gameType == FREE_FOR_ALL_4)
-	{
-		HSObject * fighterFour;
-		if(int error = objectManager->LoadDefinition(objectManager->selectedCharacters[3].defFilePath, &objectManager->fighterObjects, &fighterFour) != 0) { return error; }
-		fighterFour->pos.x = objectManager->spawnPoints[3].x;
-		fighterFour->pos.y = objectManager->spawnPoints[3].y;
-		objectManager->players[3] = fighterFour;
-		fighterFour->SetPalette(objectManager->selectedPalettes[3]);
-		((Fighter*)fighterFour)->state = STANDING;
-		((Fighter*)fighterFour)->facing = LEFT;
-		((Fighter*)fighterFour)->curHealth = ((Fighter*)fighterFour)->health;
-		fighterFour->ChangeHold(((Fighter*)fighterFour)->fighterEventHolds.standing);
-		objectManager->focusObject[3] = fighterFour;
+			if(i % 2 == 1)
+			{
+				((Fighter*)fighter)->facing = LEFT;
+			}
+		}
 	}
 
 	//load HUD
 	HSObject * newHUD;
-	if(int error = objectManager->LoadDefinition("data/hud/TestHUD/john Hud.xml", &objectManager->HUDObjects, &newHUD) != 0) { return error; }
-	objectManager->playerHUDs[0] = (HUD*)newHUD;
-	((HUD*)newHUD)->pos.x = (MAX_GAME_RESOLUTION_X / -2) + 20;
-	((HUD*)newHUD)->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + 20;
+	if(objectManager->characterSelectChoices.participating[0])
+	{
+		if(int error = objectManager->LoadDefinition("data\\hud\\TestHUD\\john Hud.xml", &objectManager->HUDObjects, &newHUD) != 0) { return error; }
+		objectManager->playerHUDs[0] = (HUD*)newHUD;
+		((HUD*)newHUD)->pos.x = (MAX_GAME_RESOLUTION_X / -2) + 20;
+		((HUD*)newHUD)->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + 20;
+	}
+	
+	if(objectManager->characterSelectChoices.participating[1])
+	{
+		if(int error = objectManager->LoadDefinition("data\\hud\\TestHUD\\john Hud.xml", &objectManager->HUDObjects, &newHUD) != 0) { return error; }
+		objectManager->playerHUDs[1] = (HUD*)newHUD;
+		((HUD*)newHUD)->pos.x = (MAX_GAME_RESOLUTION_X / 2) - 560;
+		((HUD*)newHUD)->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + 20;
+		((HUD*)newHUD)->comboCounterXPosition = COUNTER_RIGHT;
+	}
 
-	if(int error = objectManager->LoadDefinition("data/hud/TestHUD/john Hud.xml", &objectManager->HUDObjects, &newHUD) != 0) { return error; }
-	objectManager->playerHUDs[1] = (HUD*)newHUD;
-	((HUD*)newHUD)->pos.x = (MAX_GAME_RESOLUTION_X / 2) - 560;
-	((HUD*)newHUD)->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + 20;
-	((HUD*)newHUD)->comboCounterXPosition = COUNTER_RIGHT;
-
-	if(gameType == FREE_FOR_ALL_3 || gameType == FREE_FOR_ALL_4)
+	if(objectManager->characterSelectChoices.participating[2])
 	{
 		if(int error = objectManager->LoadDefinition("data/hud/TestHUD/john Hud.xml", &objectManager->HUDObjects, &newHUD) != 0) { return error; }
 		objectManager->playerHUDs[2] = (HUD*)newHUD;
@@ -1697,7 +1125,7 @@ int Main::InitializeMatch()
 		((HUD*)newHUD)->comboCounterYPosition = COUNTER_ABOVE;
 	}
 
-	if(gameType == FREE_FOR_ALL_4)
+	if(objectManager->characterSelectChoices.participating[3])
 	{
 		if(int error = objectManager->LoadDefinition("data/hud/TestHUD/john Hud.xml", &objectManager->HUDObjects, &newHUD) != 0) { return error; }
 		objectManager->playerHUDs[3] = (HUD*)newHUD;
@@ -1834,7 +1262,7 @@ int Main::EventMatch(InputStates * inputHistory, int frame, int player)
 		}
 		break;
 	case PAUSED:
-		EventMenu(inputHistory, frame);
+		if(int error = EventMenu(inputHistory, frame) != 0) { return error; }
 		break;
 	case RESULTS:
 		if(inputHistory->frame == frame && (inputHistory->bButtonStart.pressed || inputHistory->bKeyStart.pressed
@@ -1943,17 +1371,17 @@ void Main::DefaultKeyConfig()
 	mappings[0].menuConfirm.type = KEY_SETTING_KEY; mappings[0].menuConfirm.keycode = mappings[0].light.keycode;
 	mappings[0].menuBack.type = KEY_SETTING_KEY; mappings[0].menuBack.keycode = mappings[0].jump.keycode;
 	
-	mappings[1].up.type = KEY_SETTING_KEY; mappings[0].up.keycode = SDLK_p;
-	mappings[1].down.type = KEY_SETTING_KEY; mappings[0].down.keycode = SDLK_SEMICOLON;
-	mappings[1].left.type = KEY_SETTING_KEY; mappings[0].left.keycode = SDLK_l;
-	mappings[1].right.type = KEY_SETTING_KEY; mappings[0].right.keycode = SDLK_QUOTE;
-	mappings[1].jump.type = KEY_SETTING_KEY; mappings[0].jump.keycode = SDLK_KP_5;
-	mappings[1].light.type = KEY_SETTING_KEY; mappings[0].light.keycode = SDLK_KP_4;
-	mappings[1].heavy.type = KEY_SETTING_KEY; mappings[0].heavy.keycode = SDLK_KP_1;
-	mappings[1].block.type = KEY_SETTING_KEY; mappings[0].block.keycode = SDLK_KP_6;
-	mappings[1].start.type = KEY_SETTING_KEY; mappings[0].start.keycode = SDLK_KP_0;
-	mappings[1].menuConfirm.type = KEY_SETTING_KEY; mappings[0].menuConfirm.keycode = mappings[0].light.keycode;
-	mappings[1].menuBack.type = KEY_SETTING_KEY; mappings[0].menuBack.keycode = mappings[0].jump.keycode;
+	mappings[1].up.type = KEY_SETTING_KEY; mappings[1].up.keycode = SDLK_p;
+	mappings[1].down.type = KEY_SETTING_KEY; mappings[1].down.keycode = SDLK_SEMICOLON;
+	mappings[1].left.type = KEY_SETTING_KEY; mappings[1].left.keycode = SDLK_l;
+	mappings[1].right.type = KEY_SETTING_KEY; mappings[1].right.keycode = SDLK_QUOTE;
+	mappings[1].jump.type = KEY_SETTING_KEY; mappings[1].jump.keycode = SDLK_KP_5;
+	mappings[1].light.type = KEY_SETTING_KEY; mappings[1].light.keycode = SDLK_KP_4;
+	mappings[1].heavy.type = KEY_SETTING_KEY; mappings[1].heavy.keycode = SDLK_KP_1;
+	mappings[1].block.type = KEY_SETTING_KEY; mappings[1].block.keycode = SDLK_KP_6;
+	mappings[1].start.type = KEY_SETTING_KEY; mappings[1].start.keycode = SDLK_KP_0;
+	mappings[1].menuConfirm.type = KEY_SETTING_KEY; mappings[1].menuConfirm.keycode = mappings[1].light.keycode;
+	mappings[1].menuBack.type = KEY_SETTING_KEY; mappings[1].menuBack.keycode = mappings[1].jump.keycode;
 }
 
 int Main::LoadKeyConfig()
@@ -2535,21 +1963,286 @@ int Main::SaveKeyConfig()
 
 void Main::SavePlayerKeyConfig(XMLElement * config, int player)
 {
-	if(objectManager->menuManager == NULL) { return; }
+	config->SetAttribute("up", GetKeyConfigString(mappings[player].up).data());
+	config->SetAttribute("down", GetKeyConfigString(mappings[player].down).data());
+	config->SetAttribute("left", GetKeyConfigString(mappings[player].left).data());
+	config->SetAttribute("right", GetKeyConfigString(mappings[player].right).data());
+	config->SetAttribute("light", GetKeyConfigString(mappings[player].light).data());
+	config->SetAttribute("heavy", GetKeyConfigString(mappings[player].heavy).data());
+	config->SetAttribute("jump", GetKeyConfigString(mappings[player].jump).data());
+	config->SetAttribute("block", GetKeyConfigString(mappings[player].block).data());
+	config->SetAttribute("menuConfirm", GetKeyConfigString(mappings[player].menuConfirm).data());
+	config->SetAttribute("menuBack", GetKeyConfigString(mappings[player].menuBack).data());
+	config->SetAttribute("pause", GetKeyConfigString(mappings[player].start).data());
+}
 
-	MenuManager * mm = objectManager->menuManager;
+string Main::GetKeyConfigString(KeySetting setting)
+{
+	if(setting.type == KEY_SETTING_KEY)
+	{
+		return GetKeyConfigString(setting.keycode);
+	}
+	else if(setting.type == KEY_SETTING_BUTTON)
+	{
+		return GetJoyButtonConfigString(setting.joystickMapping);
+	}
+	else if(setting.type == KEY_SETTING_HAT)
+	{
+		return GetHatConfigString(setting.hat);
+	}
+	else if(setting.type == KEY_SETTING_STICK)
+	{
+		return GetStickConfigString(setting.stick);
+	}
 
-	config->SetAttribute("up", mm->GetKeyConfigString(mappings[player].up).data());
-	config->SetAttribute("down", mm->GetKeyConfigString(mappings[player].down).data());
-	config->SetAttribute("left", mm->GetKeyConfigString(mappings[player].left).data());
-	config->SetAttribute("right", mm->GetKeyConfigString(mappings[player].right).data());
-	config->SetAttribute("light", mm->GetKeyConfigString(mappings[player].light).data());
-	config->SetAttribute("heavy", mm->GetKeyConfigString(mappings[player].heavy).data());
-	config->SetAttribute("jump", mm->GetKeyConfigString(mappings[player].jump).data());
-	config->SetAttribute("block", mm->GetKeyConfigString(mappings[player].block).data());
-	config->SetAttribute("menuConfirm", mm->GetKeyConfigString(mappings[player].menuConfirm).data());
-	config->SetAttribute("menuBack", mm->GetKeyConfigString(mappings[player].menuBack).data());
-	config->SetAttribute("pause", mm->GetKeyConfigString(mappings[player].start).data());
+	return "";
+}
+
+string Main::GetKeyConfigString(SDL_Keycode key)
+{
+	switch(key)
+	{
+	case SDLK_BACKSPACE: return "backspace"; break;
+	case SDLK_TAB: return "tab"; break;
+	case SDLK_CLEAR: return "clear"; break;
+	//case SDLK_RETURN: return "return"; break;
+	case SDLK_PAUSE: return "pause"; break;
+	//case SDLK_ESCAPE: return "escape"; break;
+	case SDLK_SPACE: return "space"; break;
+	case SDLK_EXCLAIM: return "exclaim"; break;
+	case SDLK_QUOTEDBL: return "quotedbl"; break;
+	case SDLK_HASH: return "hash"; break;
+	case SDLK_DOLLAR: return "dollar"; break;
+	case SDLK_AMPERSAND: return "ampersand"; break;
+	case SDLK_QUOTE: return "quote"; break;
+	case SDLK_LEFTPAREN: return "leftparen"; break;
+	case SDLK_RIGHTPAREN: return "rightparen"; break;
+	case SDLK_ASTERISK: return "asterisk"; break;
+	case SDLK_PLUS: return "plus"; break;
+	case SDLK_COMMA: return "comma"; break;
+	case SDLK_MINUS: return "minus"; break;
+	case SDLK_PERIOD: return "period"; break;
+	case SDLK_SLASH: return "slash"; break;
+	case SDLK_0: return "0"; break;
+	case SDLK_1: return "1"; break;
+	case SDLK_2: return "2"; break;
+	case SDLK_3: return "3"; break;
+	case SDLK_4: return "4"; break;
+	case SDLK_5: return "5"; break;
+	case SDLK_6: return "6"; break;
+	case SDLK_7: return "7"; break;
+	case SDLK_8: return "8"; break;
+	case SDLK_9: return "9"; break;
+	case SDLK_COLON: return "colon"; break;
+	case SDLK_SEMICOLON: return "semicolon"; break;
+	case SDLK_LESS: return "less"; break;
+	case SDLK_EQUALS: return "equals"; break;
+	case SDLK_GREATER: return "greater"; break;
+	case SDLK_QUESTION: return "question"; break;
+	case SDLK_AT: return "at"; break;
+	case SDLK_LEFTBRACKET: return "leftbracket"; break;
+	case SDLK_BACKSLASH: return "backslash"; break;
+	case SDLK_RIGHTBRACKET: return "rightbracket"; break;
+	case SDLK_CARET: return "caret"; break;
+	case SDLK_UNDERSCORE: return "underscore"; break;
+	case SDLK_BACKQUOTE: return "backquote"; break;
+	case SDLK_a: return "a"; break;
+	case SDLK_b: return "b"; break;
+	case SDLK_c: return "c"; break;
+	case SDLK_d: return "d"; break;
+	case SDLK_e: return "e"; break;
+	case SDLK_f: return "f"; break;
+	case SDLK_g: return "g"; break;
+	case SDLK_h: return "h"; break;
+	case SDLK_i: return "i"; break;
+	case SDLK_j: return "j"; break;
+	case SDLK_k: return "k"; break;
+	case SDLK_l: return "l"; break;
+	case SDLK_m: return "m"; break;
+	case SDLK_n: return "n"; break;
+	case SDLK_o: return "o"; break;
+	case SDLK_p: return "p"; break;
+	case SDLK_q: return "q"; break;
+	case SDLK_r: return "r"; break;
+	case SDLK_s: return "s"; break;
+	case SDLK_t: return "t"; break;
+	case SDLK_u: return "u"; break;
+	case SDLK_v: return "v"; break;
+	case SDLK_w: return "w"; break;
+	case SDLK_x: return "x"; break;
+	case SDLK_y: return "y"; break;
+	case SDLK_z: return "z"; break;
+	case SDLK_DELETE: return "delete"; break;
+	case SDLK_KP_0: return "numpad_0"; break;
+	case SDLK_KP_1: return "numpad_1"; break;
+	case SDLK_KP_2: return "numpad_2"; break;
+	case SDLK_KP_3: return "numpad_3"; break;
+	case SDLK_KP_4: return "numpad_4"; break;
+	case SDLK_KP_5: return "numpad_5"; break;
+	case SDLK_KP_6: return "numpad_6"; break;
+	case SDLK_KP_7: return "numpad_7"; break;
+	case SDLK_KP_8: return "numpad_8"; break;
+	case SDLK_KP_9: return "numpad_9"; break;
+	case SDLK_KP_PERIOD: return "numpad_period"; break;
+	case SDLK_KP_DIVIDE: return "numpad_divide"; break;
+	case SDLK_KP_MULTIPLY: return "numpad_multiply"; break;
+	case SDLK_KP_MINUS: return "numpad_minus"; break;
+	case SDLK_KP_PLUS: return "numpad_plus"; break;
+	//case SDLK_KP_ENTER: return "numpad_enter"; break;
+	case SDLK_KP_EQUALS: return "numpad_equals"; break;
+	case SDLK_UP: return "up"; break;
+	case SDLK_DOWN: return "down"; break;
+	case SDLK_LEFT: return "left"; break;
+	case SDLK_RIGHT: return "right"; break;
+	case SDLK_INSERT: return "insert"; break;
+	case SDLK_HOME: return "home"; break;
+	case SDLK_END: return "end"; break;
+	case SDLK_PAGEUP: return "pageup"; break;
+	case SDLK_PAGEDOWN: return "pagedown"; break;
+	case SDLK_RSHIFT: return "rshift"; break;
+	case SDLK_LSHIFT: return "lshift"; break;
+	case SDLK_RCTRL: return "rctrl"; break;
+	case SDLK_LCTRL: return "lctrl"; break;
+	case SDLK_RALT: return "ralt"; break;
+	case SDLK_LALT: return "lalt"; break;
+	}
+
+	return "";
+}
+
+string Main::GetJoyButtonConfigString(JoystickMapping joyButton)
+{
+	switch(joyButton.joystick)
+	{
+	case 0:
+		switch(joyButton.button)
+		{
+		case 0: return "joy0_0"; break;
+		case 1: return "joy0_1"; break;
+		case 2: return "joy0_2"; break;
+		case 3: return "joy0_3"; break;
+		case 4: return "joy0_4"; break;
+		case 5: return "joy0_5"; break;
+		case 6: return "joy0_6"; break;
+		case 7: return "joy0_7"; break;
+		case 8: return "joy0_8"; break;
+		case 9: return "joy0_9"; break;
+		case 10: return "joy0_10"; break;
+		case 11: return "joy0_11"; break;
+		case 12: return "joy0_12"; break;
+		case 13: return "joy0_13"; break;
+		case 14: return "joy0_14"; break;
+		case 15: return "joy0_15"; break;
+		case 16: return "joy0_16"; break;
+		case 17: return "joy0_17"; break;
+		case 18: return "joy0_18"; break;
+		case 19: return "joy0_19"; break;
+		}
+		break;
+	case 1:
+		switch(joyButton.button)
+		{
+		case 0: return "joy1_0"; break;
+		case 1: return "joy1_1"; break;
+		case 2: return "joy1_2"; break;
+		case 3: return "joy1_3"; break;
+		case 4: return "joy1_4"; break;
+		case 5: return "joy1_5"; break;
+		case 6: return "joy1_6"; break;
+		case 7: return "joy1_7"; break;
+		case 8: return "joy1_8"; break;
+		case 9: return "joy1_9"; break;
+		case 10: return "joy1_10"; break;
+		case 11: return "joy1_11"; break;
+		case 12: return "joy1_12"; break;
+		case 13: return "joy1_13"; break;
+		case 14: return "joy1_14"; break;
+		case 15: return "joy1_15"; break;
+		case 16: return "joy1_16"; break;
+		case 17: return "joy1_17"; break;
+		case 18: return "joy1_18"; break;
+		case 19: return "joy1_19"; break;
+		}
+		break;
+	case 2:
+		switch(joyButton.button)
+		{
+		case 0: return "joy2_0"; break;
+		case 1: return "joy2_1"; break;
+		case 2: return "joy2_2"; break;
+		case 3: return "joy2_3"; break;
+		case 4: return "joy2_4"; break;
+		case 5: return "joy2_5"; break;
+		case 6: return "joy2_6"; break;
+		case 7: return "joy2_7"; break;
+		case 8: return "joy2_8"; break;
+		case 9: return "joy2_9"; break;
+		case 10: return "joy2_10"; break;
+		case 11: return "joy2_11"; break;
+		case 12: return "joy2_12"; break;
+		case 13: return "joy2_13"; break;
+		case 14: return "joy2_14"; break;
+		case 15: return "joy2_15"; break;
+		case 16: return "joy2_16"; break;
+		case 17: return "joy2_17"; break;
+		case 18: return "joy2_18"; break;
+		case 19: return "joy2_19"; break;
+		}
+		break;
+	case 3:
+		switch(joyButton.button)
+		{
+		case 0: return "joy3_0"; break;
+		case 1: return "joy3_1"; break;
+		case 2: return "joy3_2"; break;
+		case 3: return "joy3_3"; break;
+		case 4: return "joy3_4"; break;
+		case 5: return "joy3_5"; break;
+		case 6: return "joy3_6"; break;
+		case 7: return "joy3_7"; break;
+		case 8: return "joy3_8"; break;
+		case 9: return "joy3_9"; break;
+		case 10: return "joy3_10"; break;
+		case 11: return "joy3_11"; break;
+		case 12: return "joy3_12"; break;
+		case 13: return "joy3_13"; break;
+		case 14: return "joy3_14"; break;
+		case 15: return "joy3_15"; break;
+		case 16: return "joy3_16"; break;
+		case 17: return "joy3_17"; break;
+		case 18: return "joy3_18"; break;
+		case 19: return "joy3_19"; break;
+		}
+		break;
+	}
+
+	return "";
+}
+
+string Main::GetHatConfigString(Uint8 hat)
+{
+	switch(hat)
+	{
+	case 0: return "joy0_hat"; break;
+	case 1: return "joy1_hat"; break;
+	case 2: return "joy2_hat"; break;
+	case 3: return "joy3_hat"; break;
+	}
+
+	return "";
+}
+
+string Main::GetStickConfigString(Uint8 stick)
+{
+	switch(stick)
+	{
+	case 0: return "joy0_stick"; break;
+	case 1: return "joy1_stick"; break;
+	case 2: return "joy2_stick"; break;
+	case 3: return "joy3_stick"; break;
+	}
+
+	return "";
 }
 
 //animation and holds

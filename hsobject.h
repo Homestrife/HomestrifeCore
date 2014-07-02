@@ -12,6 +12,11 @@
 #include "tinyxml2.h"
 using namespace tinyxml2;
 
+struct HSOrderable
+{
+	unsigned int orderID;
+};
+
 struct TextureInstance
 {
 	HSTexture * hsTex;
@@ -21,10 +26,9 @@ struct TextureInstance
 	float vScale; //vertical scaling
 };
 
-struct PaletteInstance
+struct PaletteInstance : public HSOrderable
 {
 	HSPalette * hsPal;
-	unsigned int orderID; //how the palettes should be ordered in the menu
 	string name; //name to display in the menu
 };
 

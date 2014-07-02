@@ -66,20 +66,14 @@ ObjectManager::ObjectManager()
 	obtainedAudioSpec = NULL;
 	currentAudio.clear();
 	menuManager = NULL;
+	characterSelectManager = NULL;
 
 	for(int i = 0; i < MAX_PLAYERS; i++)
 	{
 		playerHUDs[i] = NULL;
 		players[i] = NULL;
 		focusObject[i] = NULL;
-		characterList[i].clear();
-		selectedCharacters[i].defFilePath = "";
-		selectedCharacters[i].demoObject = NULL;
-		selectedPalettes[i] = 0;
 	}
-	stageList.clear();
-	selectedStage.defFilePath = "";
-	selectedStage.demoObject = NULL;
 
 	loading = NULL;
 	menuManager = NULL;
@@ -88,84 +82,23 @@ ObjectManager::ObjectManager()
 	playerThree = NULL;
 	playerFour = NULL;
 	wins = NULL;
-	pressDesiredButton = NULL;
-	readyOne = NULL;
-	readyTwo = NULL;
-	readyThree = NULL;
-	readyFour = NULL;
-	selectCharacterOne = NULL;
-	selectCharacterTwo = NULL;
-	selectCharacterThree = NULL;
-	selectCharacterFour = NULL;
-	selectPaletteOne = NULL;
-	selectPaletteTwo = NULL;
-	selectPaletteThree = NULL;
-	selectPaletteFour = NULL;
-	selectPaletteLeftOne = NULL;
-	selectPaletteLeftTwo = NULL;
-	selectPaletteLeftThree = NULL;
-	selectPaletteLeftFour = NULL;
-	selectPaletteRightOne = NULL;
-	selectPaletteRightTwo = NULL;
-	selectPaletteRightThree = NULL;
-	selectPaletteRightFour = NULL;
-	fullscreenYes = NULL;
-	fullscreenNo = NULL;
-	stretchYes = NULL;
-	stretchNo = NULL;
-	fullscreen640x360 = NULL;
-	fullscreen800x450 = NULL;
-	fullscreen1024x576 = NULL;
-	fullscreen1152x648 = NULL;
-	fullscreen1280x720 = NULL;
-	fullscreen1360x765 = NULL;
-	fullscreen1366x768 = NULL;
-	fullscreen1400x787 = NULL;
-	fullscreen1440x810 = NULL;
-	fullscreen1600x900 = NULL;
-	fullscreen1680x945 = NULL;
-	fullscreen1920x1080 = NULL;
-	windowed640x360 = NULL;
-	windowed800x450 = NULL;
-	windowed1024x576 = NULL;
-	windowed1152x648 = NULL;
-	windowed1280x720 = NULL;
-	windowed1360x765 = NULL;
-	windowed1366x768 = NULL;
-	windowed1400x787 = NULL;
-	windowed1440x810 = NULL;
-	windowed1600x900 = NULL;
-	windowed1680x945 = NULL;
-	windowed1920x1080 = NULL;
 }
 
-bool ObjectSort(HSObject * first, HSObject * second)
+bool HSObjectDepthSort(HSObject * first, HSObject * second)
 {
 	if(first->depth > second->depth) { return true; }
 	return false;
 }
 
-bool PaletteSort(PaletteInstance first, PaletteInstance second)
+bool HSOrderableSort(HSOrderable first, HSOrderable second)
 {
 	if(first.orderID < second.orderID) { return true; }
 	return false;
 }
 
-bool HSMenuItemSort(HSMenuItem * first, HSMenuItem * second)
+bool HSOrderablePointerSort(HSOrderable * first, HSOrderable * second)
 {
-	if(first->order < second->order) { return true; }
-	return false;
-}
-
-bool MenuChooserItemSort(MenuChooserItem * first, MenuChooserItem * second)
-{
-	if(first->order < second->order) { return true; }
-	return false;
-}
-
-bool MenuKeySettingItemSort(MenuKeySettingItem * first, MenuKeySettingItem * second)
-{
-	if(first->order < second->order) { return true; }
+	if(first->orderID < second->orderID) { return true; }
 	return false;
 }
 
@@ -173,8 +106,14 @@ void ObjectManager::SortAllObjects()
 {
 	if(stageObjectsNeedSort)
 	{
-		stageObjects.sort(ObjectSort);
+		stageObjects.sort(HSObjectDepthSort);
 		stageObjectsNeedSort = false;
+	}
+
+	if(HUDObjectsNeedSort)
+	{
+		HUDObjects.sort(HSObjectDepthSort);
+		HUDObjectsNeedSort = false;
 	}
 }
 
@@ -418,7 +357,7 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 				newObject->palettes.push_back(newPalInst);
 			}
 
-			newObject->palettes.sort(PaletteSort);
+			newObject->palettes.sort(HSOrderableSort);
 		}
 
 		newObject->SetPalette(0);
@@ -1388,6 +1327,10 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 			{
 				stageObjectsNeedSort = true;
 			}
+			else if(objects == &HUDObjects)
+			{
+				HUDObjectsNeedSort = true;
+			}
 		}
 
 		if(newObject->IsHUD())
@@ -1613,7 +1556,7 @@ int ObjectManager::LoadHSMenu(string defFilePath, HSVect2D menuPos, HSMenu ** re
 			
 			if(i->Attribute("itemText") != NULL) { newItem->itemText = i->Attribute("itemText"); }
 
-			i->QueryIntAttribute("order", &newItem->order);
+			i->QueryUnsignedAttribute("order", &newItem->orderID);
 
 			newItem->child = NULL;
 			string childMenuDefFilePath = "";
@@ -1698,7 +1641,7 @@ int ObjectManager::LoadHSMenu(string defFilePath, HSVect2D menuPos, HSMenu ** re
 		}
 	}
 
-	newMenu->items.sort(HSMenuItemSort);
+	newMenu->items.sort(HSOrderablePointerSort);
 
 	delete file;
 	
@@ -1769,7 +1712,7 @@ int ObjectManager::LoadMenuChooser(string defFilePath, HSFont * font, MenuChoose
 		MenuChooserItem * newItem = new MenuChooserItem();
 		newItem->parentChooser = newChooser;
 		
-		i->QueryIntAttribute("order", &newItem->order);
+		i->QueryUnsignedAttribute("order", &newItem->orderID);
 		string function = "";
 		if(i->Attribute("function") != NULL) { function = i->Attribute("function"); }
 		
@@ -1794,7 +1737,7 @@ int ObjectManager::LoadMenuChooser(string defFilePath, HSFont * font, MenuChoose
 
 	delete file;
 
-	newChooser->items.sort(MenuChooserItemSort);
+	newChooser->items.sort(HSOrderablePointerSort);
 
 	if(returnValue != NULL)
 	{
@@ -2641,7 +2584,7 @@ int ObjectManager::CreateMenuKeySetting(HSFont * font, MenuKeySetting ** returnV
 	keySettingItem->itemText = "NO SETTING"; keySettingItem->parentKeySetting = newKeySetting;
 	newKeySetting->items.push_back(keySettingItem);
 
-	newKeySetting->items.sort(MenuKeySettingItemSort);
+	newKeySetting->items.sort(HSOrderablePointerSort);
 
 	if(returnValue != NULL)
 	{
@@ -2687,10 +2630,17 @@ int ObjectManager::LoadHSFont(string defFilePath, HSFont ** returnValue)
 
 	HSFont * newFont = new HSFont();
 	newFont->fontFilePath = defFilePath;
+	float spaceWidth;
 
 	root->QueryFloatAttribute("charHeight", &newFont->charHeight);
 	root->QueryFloatAttribute("charSeparation", &newFont->charSeparation);
-	root->QueryFloatAttribute("spaceWidth", &newFont->spaceWidth);
+	root->QueryFloatAttribute("spaceWidth", &spaceWidth);
+
+	HSCharacter space;
+	space.character = NULL;
+	space.charWidth = spaceWidth;
+
+	newFont->characters.space = space;
 
 	//loop through all the sections of the font definition
 	for(XMLElement * i = root->FirstChildElement(); i != NULL; i = i->NextSiblingElement())
@@ -2820,36 +2770,374 @@ int ObjectManager::LoadHSCharacter(XMLElement * xml, HSCharacter * hsChar)
 	return 0;
 }
 
-int ObjectManager::LoadPlayableCharacters(bool loadPlayer[MAX_PLAYERS])
+int ObjectManager::LoadCharacterSelect(string defFilePath, string pcFilePath, string psFilePath, string pmFilePath)
 {
+	if(characterSelectManager == NULL) { return -1; }
+
+	//load character select
+	//get the XML structure from the file
+	XMLDocument * file = new XMLDocument();
+	if(int error = file->LoadFile(defFilePath.data()) != 0)
+	{
+		stringstream sstm;
+		sstm << "Error loading definition file. Code: " << error << " File: " << defFilePath;
+		UpdateLog(sstm.str(), true);
+		return error; //couldn't load the file
+	}
+
+	if(strcmp(file->RootElement()->Value(), "HSCharacterSelect") != 0)
+	{
+		UpdateLog("XML file is not Homestrife character select definition file: " + defFilePath, true);
+		return -1;
+	}
+
+	XMLElement * root = file->RootElement();
+
+	//loop through all the sections of the character select
+	for(XMLElement * i = root->FirstChildElement(); i != NULL; i = i->NextSiblingElement())
+	{
+		if(strcmp(i->Value(), "CharacterSelect") == 0)
+		{
+			CharacterSelect * cs = new CharacterSelect();
+			characterSelectManager->characterSelect = cs;
+
+			HSFont * titleFont = NULL;
+			TextJustification titleJustification = JUSTIFICATION_LEFT;
+			float titlePosX = 0;
+			float titlePosY = 0;
+			float backgroundPosX = 0;
+			float backgroundPosY = 0;
+			float gridPosX = 0;
+			float gridPosY = 0;
+			int gridRows = 1;
+			int gridColumns = 1;
+			float panelWidth = 0;
+			float panelHeight = 0;
+			float panelBorderOffsetX = 0;
+			float panelBorderOffsetY = 0;
+			float panelImageOffsetX = 0;
+			float panelImageOffsetY = 0;
+			float portraitBorderOffsetX = 0;
+			float portraitBorderOffsetY = 0;
+	
+			string backgroundFilePath = i->Attribute("backgroundFilePath");
+			i->QueryFloatAttribute("backgroundPosX", &backgroundPosX);
+			i->QueryFloatAttribute("backgroundPosY", &backgroundPosY);
+			string characterSelectTitle = i->Attribute("titleText");
+			string titleFontFilePath = i->Attribute("titleFontFilePath");
+			i->QueryFloatAttribute("titlePosX", &titlePosX);
+			i->QueryFloatAttribute("titlePosY", &titlePosY);
+			i->QueryFloatAttribute("gridPosX", &gridPosX);
+			i->QueryFloatAttribute("gridPosY", &gridPosY);
+			i->QueryIntAttribute("gridRows", &gridRows);
+			i->QueryIntAttribute("gridColumns", &gridColumns);
+			i->QueryFloatAttribute("panelWidth", &panelWidth);
+			i->QueryFloatAttribute("panelHeight", &panelHeight);
+			i->QueryFloatAttribute("panelBorderOffsetX", &panelBorderOffsetX);
+			i->QueryFloatAttribute("panelBorderOffsetY", &panelBorderOffsetY);
+			i->QueryFloatAttribute("panelImageOffsetX", &panelImageOffsetX);
+			i->QueryFloatAttribute("panelImageOffsetY", &panelImageOffsetY);
+			string panelBorderFilePath = i->Attribute("panelBorderFilePath");
+			i->QueryFloatAttribute("portraitBorderOffsetX", &portraitBorderOffsetX);
+			i->QueryFloatAttribute("portraitBorderOffsetY", &portraitBorderOffsetY);
+			string characterNameFontFilePath = i->Attribute("characterNameFontFilePath");
+			string instructionsFontFilePath = i->Attribute("instructionsFontFilePath");
+
+			string titleJustificationString = "";
+			if(i->Attribute("titleJustification") != NULL) { titleJustificationString = i->Attribute("titleJustification"); }
+			if(titleJustificationString.compare("RIGHT") == 0) { titleJustification = JUSTIFICATION_RIGHT; }
+			else if(titleJustificationString.compare("CENTER") == 0) { titleJustification = JUSTIFICATION_CENTER; }
+	
+			HSObject * newObject;
+			if(int error = LoadDefinition(backgroundFilePath, &HUDObjects, &newObject) != 0) { return error; }
+			newObject->pos.x = backgroundPosX;
+			newObject->pos.y = backgroundPosY;
+			newObject->depth = CHARACTER_SELECT_BACKGROUND_DEPTH;
+
+			if(int error = LoadHSFont(titleFontFilePath, &titleFont) != 0) { return error; }
+
+			cs->title = new HSText(titleFont);
+			cs->title->justification = titleJustification;
+			cs->title->pos.x = titlePosX;
+			cs->title->pos.y = titlePosY;
+			cs->title->depth = CHARACTER_SELECT_TITLE_DEPTH;
+			cs->characterSelectBackground = newObject;
+			cs->characterSelectTitle = characterSelectTitle;
+			cs->gridPos.x = gridPosX;
+			cs->gridPos.y = gridPosY;
+			cs->rows = gridRows;
+			cs->columns = gridColumns;
+			cs->panelWidth = panelWidth;
+			cs->panelHeight = panelHeight;
+			cs->panelBorderOffset.x = panelBorderOffsetX;
+			cs->panelBorderOffset.y = panelBorderOffsetY;
+			cs->panelImageOffset.x = panelImageOffsetX;
+			cs->panelImageOffset.y = panelImageOffsetY;
+			cs->panelBorderDepth = CHARACTER_SELECT_PANEL_BORDER_DEPTH;
+			cs->panelImageDepth = CHARACTER_SELECT_PANEL_DEPTH;
+			cs->portraitDepth = CHARACTER_SELECT_PORTRAIT_DEPTH;
+
+			//look for the character portraits element
+			for(XMLElement * j = i->FirstChildElement(); j != NULL; j = j->NextSiblingElement())
+			{
+				if(strcmp(j->Value(), "CharacterSelectPlayers") != 0)
+				{
+					continue;
+				}
+
+				//loop through the character portraits
+				for(XMLElement * k = j->FirstChildElement(); k != NULL; k = k->NextSiblingElement())
+				{
+					if(strcmp(k->Value(), "CharacterSelectPlayer") != 0)
+					{
+						continue;
+					}
+
+					int playerNum;
+					float portraitPosX;
+					float portraitPosY;
+					float characterNamePosX;
+					float characterNamePosY;
+					float instructionsPosX;
+					float instructionsPosY;
+					HSFont * characterNameFont;
+					TextJustification characterNameJustification = JUSTIFICATION_LEFT;
+					HSFont * instructionsFont;
+					TextJustification instructionJustification = JUSTIFICATION_LEFT;
+
+					k->QueryIntAttribute("player", &playerNum);
+					k->QueryFloatAttribute("portraitPosX", &portraitPosX);
+					k->QueryFloatAttribute("portraitPosY", &portraitPosY);
+					k->QueryFloatAttribute("characterNamePosX", &characterNamePosX);
+					k->QueryFloatAttribute("characterNamePosY", &characterNamePosY);
+					k->QueryFloatAttribute("instructionsPosX", &instructionsPosX);
+					k->QueryFloatAttribute("instructionsPosY", &instructionsPosY);
+					string cursorFilePath = k->Attribute("cursorFilePath");
+					string portraitBorderFilePath = k->Attribute("portraitBorderFilePath");
+
+					string characterNameJustificationString = "";
+					if(k->Attribute("characterNameJustification") != NULL) { characterNameJustificationString = k->Attribute("characterNameJustification"); }
+					if(characterNameJustificationString.compare("RIGHT") == 0) { characterNameJustification = JUSTIFICATION_RIGHT; }
+					else if(characterNameJustificationString.compare("CENTER") == 0) { characterNameJustification = JUSTIFICATION_CENTER; }
+
+					string instructionJustificationString = "";
+					if(k->Attribute("instructionsJustification") != NULL) { instructionJustificationString = k->Attribute("instructionsJustification"); }
+					if(instructionJustificationString.compare("RIGHT") == 0) { instructionJustification = JUSTIFICATION_RIGHT; }
+					else if(instructionJustificationString.compare("CENTER") == 0) { instructionJustification = JUSTIFICATION_CENTER; }
+
+					if(playerNum < 0 || playerNum >= MAX_PLAYERS) { continue; }
+
+					if(int error = LoadHSFont(characterNameFontFilePath, &characterNameFont) != 0) { return error; }
+					if(int error = LoadHSFont(instructionsFontFilePath, &instructionsFont) != 0) { return error; }
+
+					CharacterSelectCursor * newCursor = new CharacterSelectCursor();
+					if(int error = LoadDefinition(cursorFilePath, &HUDObjects, &newObject) != 0) { return error; }
+					newCursor->cursorImage = newObject;
+					newCursor->currentPanel = 0;
+					newCursor->cursorImage->depth = CHARACTER_SELECT_CURSOR_DEPTH;
+				
+					if(int error = LoadDefinition(portraitBorderFilePath, &HUDObjects, &newObject) != 0) { return error; }
+					newObject->pos.x = portraitPosX + portraitBorderOffsetX;
+					newObject->pos.y = portraitPosY + portraitBorderOffsetY;
+					newObject->depth = CHARACTER_SELECT_PORTRAIT_BORDER_DEPTH;
+				
+					cs->portraitPos[playerNum].x = portraitPosX;
+					cs->portraitPos[playerNum].y = portraitPosY;
+					cs->cursors[playerNum] = newCursor;
+					cs->portraitBorders[playerNum] = newObject;
+					cs->characterName[playerNum] = new HSText(characterNameFont);
+					cs->characterName[playerNum]->justification = characterNameJustification;
+					cs->characterName[playerNum]->pos.x = characterNamePosX;
+					cs->characterName[playerNum]->pos.y = characterNamePosY;
+					cs->characterName[playerNum]->depth = CHARACTER_SELECT_NAME_DEPTH;
+					cs->portraitInstructions[playerNum] = new HSText(instructionsFont);
+					cs->portraitInstructions[playerNum]->justification = instructionJustification;
+					cs->portraitInstructions[playerNum]->pos.x = instructionsPosX;
+					cs->portraitInstructions[playerNum]->pos.y = instructionsPosY;
+					cs->portraitInstructions[playerNum]->depth = CHARACTER_SELECT_INSTRUCTIONS_DEPTH;
+				}
+			}
+			
+			if(int error = LoadPlayableCharacters(pcFilePath, panelBorderFilePath) != 0) { return error; }
+		}
+		else if(strcmp(i->Value(), "StageSelect") == 0)
+		{
+			StageChooser * sc = new StageChooser();
+			characterSelectManager->stageChooser = sc;
+
+			string titleText = "";
+			float titlePosX = 0;
+			float titlePosY = 0;
+			float backgroundPosX = 0;
+			float backgroundPosY = 0;
+			string titleFontFilePath = "";
+			HSFont * titleFont = NULL;
+			TextJustification titleJustification = JUSTIFICATION_LEFT;
+			string backgroundFilePath = "";
+			HSObject * background = NULL;
+			float previewPosX = 0;
+			float previewPosY = 0;
+			float previewBorderOffsetX = 0;
+			float previewBorderOffsetY = 0;
+			float stageNamePosX = 0;
+			float stageNamePosY = 0;
+			string stageNameFontFilePath = "";
+			HSFont * stageNameFont = NULL;
+			TextJustification stageNameJustification = JUSTIFICATION_LEFT;
+			string previewBorderFilePath = "";
+			HSObject * previewBorder = NULL;
+
+			titleText = i->Attribute("titleText");
+			i->QueryFloatAttribute("titlePosX", &titlePosX);
+			i->QueryFloatAttribute("titlePosY", &titlePosY);
+			i->QueryFloatAttribute("backgroundPosX", &backgroundPosX);
+			i->QueryFloatAttribute("backgroundPosY", &backgroundPosY);
+			titleFontFilePath = i->Attribute("titleFontFilePath");
+			backgroundFilePath = i->Attribute("backgroundFilePath");
+			i->QueryFloatAttribute("previewPosX", &previewPosX);
+			i->QueryFloatAttribute("previewPosY", &previewPosY);
+			i->QueryFloatAttribute("previewBorderOffsetX", &previewBorderOffsetX);
+			i->QueryFloatAttribute("previewBorderOffsetY", &previewBorderOffsetY);
+			i->QueryFloatAttribute("stageNamePosX", &stageNamePosX);
+			i->QueryFloatAttribute("stageNamePosY", &stageNamePosY);
+			stageNameFontFilePath = i->Attribute("stageNameFontFilePath");
+			previewBorderFilePath = i->Attribute("previewBorderFilePath");
+
+			string titleJustificationString = "";
+			if(i->Attribute("titleJustification") != NULL) { titleJustificationString = i->Attribute("titleJustification"); }
+			if(titleJustificationString.compare("RIGHT") == 0) { titleJustification = JUSTIFICATION_RIGHT; }
+			else if(titleJustificationString.compare("CENTER") == 0) { titleJustification = JUSTIFICATION_CENTER; }
+
+			string stageNameJustificationString = "";
+			if(i->Attribute("stageNameJustification") != NULL) { stageNameJustificationString = i->Attribute("stageNameJustification"); }
+			if(stageNameJustificationString.compare("RIGHT") == 0) { stageNameJustification = JUSTIFICATION_RIGHT; }
+			else if(stageNameJustificationString.compare("CENTER") == 0) { stageNameJustification = JUSTIFICATION_CENTER; }
+
+			if(int error = LoadHSFont(titleFontFilePath, &titleFont) != 0) { return error; }
+			if(int error = LoadHSFont(stageNameFontFilePath, &stageNameFont) != 0) { return error; }
+			if(int error = LoadDefinition(previewBorderFilePath, &HUDObjects, &previewBorder) != 0) { return error; }
+			previewBorder->pos.x = previewPosX + previewBorderOffsetX;
+			previewBorder->pos.y = previewPosY + previewBorderOffsetY;
+			previewBorder->depth = STAGE_SELECT_PREVIEW_BORDER_DEPTH;
+			if(int error = LoadDefinition(backgroundFilePath, &HUDObjects, &background) != 0) { return error; }
+			background->pos.x = backgroundPosX;
+			background->pos.y = backgroundPosY;
+			background->depth = STAGE_SELECT_BACKGROUND_DEPTH;
+			
+			sc->imagePos.x = previewPosX;
+			sc->imagePos.y = previewPosY;
+			sc->imageDepth = STAGE_SELECT_PREVIEW_DEPTH;
+			sc->stageSelectTitle = titleText;
+			sc->title = new HSText(titleFont);
+			sc->title->justification = titleJustification;
+			sc->title->pos.x = titlePosX;
+			sc->title->pos.y = titlePosY;
+			sc->title->depth = STAGE_SELECT_TITLE_DEPTH;
+			sc->background = background;
+			sc->stageName = new HSText(stageNameFont);
+			sc->stageName->justification = stageNameJustification;
+			sc->stageName->pos.x = stageNamePosX;
+			sc->stageName->pos.y = stageNamePosY;
+			sc->stageName->depth = STAGE_SELECT_NAME_DEPTH;
+			sc->previewBorder = previewBorder;
+
+			if(int error = LoadPlayableStages(psFilePath) != 0) { return error; }
+		}
+		else if(strcmp(i->Value(), "MusicSelect") == 0)
+		{
+			string titleText = "";
+			float titlePosX = 0;
+			float titlePosY = 0;
+			float backgroundPosX = 0;
+			float backgroundPosY = 0;
+			string titleFontFilePath = "";
+			HSFont * titleFont = NULL;
+			TextJustification titleJustification = JUSTIFICATION_LEFT;
+			string backgroundFilePath = "";
+			HSObject * background = NULL;
+			float musicNamePosX = 0;
+			float musicNamePosY = 0;
+			string musicNameFontFilePath = "";
+			HSFont * musicNameFont = NULL;
+			TextJustification musicNameJustification = JUSTIFICATION_LEFT;
+
+			titleText = i->Attribute("titleText");
+			i->QueryFloatAttribute("titlePosX", &titlePosX);
+			i->QueryFloatAttribute("titlePosY", &titlePosY);
+			i->QueryFloatAttribute("backgroundPosX", &backgroundPosX);
+			i->QueryFloatAttribute("backgroundPosY", &backgroundPosY);
+			titleFontFilePath = i->Attribute("titleFontFilePath");
+			backgroundFilePath = i->Attribute("backgroundFilePath");
+			i->QueryFloatAttribute("musicNamePosX", &musicNamePosX);
+			i->QueryFloatAttribute("musicNamePosY", &musicNamePosY);
+			musicNameFontFilePath = i->Attribute("musicNameFontFilePath");
+
+			string titleJustificationString = "";
+			if(i->Attribute("titleJustification") != NULL) { titleJustificationString = i->Attribute("titleJustification"); }
+			if(titleJustificationString.compare("RIGHT") == 0) { titleJustification = JUSTIFICATION_RIGHT; }
+			else if(titleJustificationString.compare("CENTER") == 0) { titleJustification = JUSTIFICATION_CENTER; }
+
+			string musicNameJustificationString = "";
+			if(i->Attribute("titleJustification") != NULL) { musicNameJustificationString = i->Attribute("titleJustification"); }
+			if(musicNameJustificationString.compare("RIGHT") == 0) { musicNameJustification = JUSTIFICATION_RIGHT; }
+			else if(musicNameJustificationString.compare("CENTER") == 0) { musicNameJustification = JUSTIFICATION_CENTER; }
+
+			if(int error = LoadHSFont(titleFontFilePath, &titleFont) != 0) { return error; }
+			if(int error = LoadHSFont(musicNameFontFilePath, &musicNameFont) != 0) { return error; }
+			if(int error = LoadDefinition(backgroundFilePath, &HUDObjects, &background) != 0) { return error; }
+			background->pos.x = backgroundPosX;
+			background->pos.y = backgroundPosY;
+			background->depth = MUSIC_SELECT_BACKGROUND_DEPTH;
+
+			MusicChooser * mc = new MusicChooser(musicNameFont);
+			mc->justification = musicNameJustification;
+			characterSelectManager->musicChooser = mc;
+
+			mc->pos.x = musicNamePosX;
+			mc->pos.y = musicNamePosY;
+			mc->depth = MUSIC_SELECT_NAME_DEPTH;
+			mc->musicSelectTitle = titleText;
+			mc->title = new HSText(titleFont);
+			mc->title->justification = titleJustification;
+			mc->title->pos.x = titlePosX;
+			mc->title->pos.y = titlePosY;
+			mc->title->depth = MUSIC_SELECT_TITLE_DEPTH;
+			mc->background = background;
+
+			if(int error = LoadPlayableMusic(pmFilePath) != 0) { return error; }
+		}
+	}
+
+	return 0;
+}
+
+int ObjectManager::LoadPlayableCharacters(string pcFilePath, string panelBorderFilePath)
+{
+	if(characterSelectManager == NULL || characterSelectManager->characterSelect == NULL) { return -1; }
+
 	//load selectable characters
 	//get the XML structure from the file
 	XMLDocument * file = new XMLDocument();
-	if(int error = file->LoadFile("data/characters/playableCharacters.xml") != 0)
+	if(int error = file->LoadFile(pcFilePath.data()) != 0)
 	{
 		stringstream sstm;
-		sstm << "Error loading definition file. Code: " << error << " File: data/characters/playableCharacters.xml";
+		sstm << "Error loading definition file. Code: " << error << " File: " << pcFilePath;
 		UpdateLog(sstm.str(), true);
 		return error; //couldn't load the file
 	}
 
 	if(strcmp(file->RootElement()->Value(), "PlayableCharacters") != 0)
 	{
-		UpdateLog("XML file is not Homestrife character list definition file: data/characters/playableCharacters.xml", true);
+		UpdateLog("XML file is not Homestrife character list definition file: " + pcFilePath, true);
 		return -1;
 	}
 
 	XMLElement * root = file->RootElement();
-
-	for(int j = 0; j < MAX_PLAYERS; j++)
-	{
-		selectedCharacters[j].defFilePath = "";
-		selectedCharacters[j].demoObject = NULL;
-		selectedPalettes[j] = 0;
-	}
-
-	//loop through all the sections of the playable characters
 	HSObject * newObject;
+
+	CharacterSelect * cs = characterSelectManager->characterSelect;
+	
+	//loop through all the sections of the playable characters
 	for(XMLElement * i = root->FirstChildElement(); i != NULL; i = i->NextSiblingElement())
 	{
 		if(strcmp(i->Value(), "Character") != 0)
@@ -2857,133 +3145,99 @@ int ObjectManager::LoadPlayableCharacters(bool loadPlayer[MAX_PLAYERS])
 			continue;
 		}
 
-		const char * defFilePath = i->Attribute("defFilePath");
-		const char * demoFilePath = i->Attribute("demoFilePath");
+		int order = 0;
+
+		i->QueryIntAttribute("order", &order);
+		string characterName = i->Attribute("characterName");
+		string defFilePath = i->Attribute("defFilePath");
+		string panelFilePath = i->Attribute("panelFilePath");
+		string portraitFilePath = i->Attribute("portraitFilePath");
+
+		CharacterSelectPanel * newPanel = new CharacterSelectPanel();
+		newPanel->orderID = order;
+
+		if(int error = LoadDefinition(panelFilePath, &HUDObjects, &newObject) != 0) { return error; }
+		newObject->depth = cs->panelImageDepth;
+		newPanel->panelCharacterImage = newObject;
+
+		if(int error = LoadDefinition(panelBorderFilePath, &HUDObjects, &newObject) != 0) { return error; }
+		newObject->depth = cs->panelBorderDepth;
+		newPanel->panelBorderImage = newObject;
+
+		cs->panels.push_back(newPanel);
 
 		for(int j = 0; j < MAX_PLAYERS; j++)
 		{
-			if(!loadPlayer[j]) { continue; }
+			if(int error = LoadDefinition(portraitFilePath, &HUDObjects, &newObject) != 0) { return error; }
+			newObject->pos.x = cs->portraitPos[j].x;
+			newObject->pos.y = cs->portraitPos[j].y;
+			newObject->depth = cs->portraitDepth;
+			
+			CharacterSelectPortrait * newPortrait = new CharacterSelectPortrait();
+			newPortrait->portraitImage = newObject;
+			newPortrait->characterName = characterName;
+			newPortrait->characterDefFilePath = defFilePath;
 
-			if(int error = LoadDefinition(demoFilePath, &fighterObjects, &newObject) != 0) { return error; }
-			PlayableCharacter character;
-			character.defFilePath = defFilePath;
-			character.demoObject = newObject;
-			characterList[j].push_back(character);
-			newObject->visible = false;
-			if(selectedCharacters[j].demoObject == NULL)
-			{
-				focusObject[j] = newObject;
-				newObject->visible = true;
-				selectedCharacters[j] = character;
-			}
+			cs->portraits[j].push_back(newPortrait);
+
+			newPanel->portraitReference[j] = newPortrait;
+		}
+	}
+
+	//order the grid panels
+	cs->panels.sort(HSOrderablePointerSort);
+
+	//position the grid panels based on the order
+	HSVect2D panelPos;
+	int row = 0;
+	int column = 0;
+
+	list<CharacterSelectPanel*>::iterator panItr;
+	for(panItr = cs->panels.begin(); panItr != cs->panels.end(); panItr++)
+	{
+		(*panItr)->panelCharacterImage->pos.x = cs->gridPos.x + column * cs->panelWidth + cs->panelImageOffset.x;
+		(*panItr)->panelCharacterImage->pos.y = cs->gridPos.y + row * cs->panelHeight + cs->panelImageOffset.y;
+		(*panItr)->panelBorderImage->pos.x = (*panItr)->panelCharacterImage->pos.x + cs->panelBorderOffset.x;
+		(*panItr)->panelBorderImage->pos.y = (*panItr)->panelCharacterImage->pos.y + cs->panelBorderOffset.y;
+
+		column++;
+		if(column >= cs->columns)
+		{
+			column = 0;
+			row++;
 		}
 	}
 
 	return 0;
 }
 
-void ObjectManager::PreviousCharacter(int player)
+int ObjectManager::LoadPlayableStages(string psFilePath)
 {
-	if(characterList[player].empty()) { return; }
+	if(characterSelectManager == NULL || characterSelectManager->stageChooser == NULL) { return -1; }
 
-	if(selectedCharacters[player].demoObject == NULL) { selectedCharacters[player] = characterList[player].front(); return; }
-
-	PlayableCharacter curPC;
-	curPC.defFilePath = "";
-	curPC.demoObject = NULL;
-	list<PlayableCharacter>::iterator pcIt;
-	for ( pcIt=characterList[player].begin(); pcIt != characterList[player].end(); pcIt++)
-	{
-		if(selectedCharacters[player].demoObject == pcIt->demoObject)
-		{
-			if(curPC.demoObject == NULL)
-			{
-				//the current character is at the start of the list. go to the last one
-				selectedPalettes[player] = 0;
-				selectedCharacters[player].demoObject->visible = false;
-				selectedCharacters[player] = characterList[player].back();
-				focusObject[player] = selectedCharacters[player].demoObject;
-				selectedCharacters[player].demoObject->visible = true;
-				return;
-			}
-			
-			selectedPalettes[player] = 0;
-			selectedCharacters[player].demoObject->visible = false;
-			selectedCharacters[player] = curPC;
-			focusObject[player] = selectedCharacters[player].demoObject;
-			selectedCharacters[player].demoObject->visible = true;
-			return;
-		}
-
-		curPC = *pcIt;
-	}
-}
-
-void ObjectManager::NextCharacter(int player)
-{
-	if(characterList[player].empty()) { return; }
-
-	if(selectedCharacters[player].demoObject == NULL) { selectedCharacters[player] = characterList[player].front(); return; }
-
-	//switch to the palette following the current one
-	bool curCharFound = false;
-	bool nextCharSet = false;
-	list<PlayableCharacter>::iterator pcIt;
-	for ( pcIt=characterList[player].begin(); pcIt != characterList[player].end(); pcIt++)
-	{
-		if(!curCharFound && selectedCharacters[player].demoObject == pcIt->demoObject)
-		{
-			curCharFound = true;
-		}
-		else if(curCharFound)
-		{
-			selectedCharacters[player].demoObject->visible = false;
-			selectedPalettes[player] = 0;
-			selectedCharacters[player] = *pcIt;
-			focusObject[player] = selectedCharacters[player].demoObject;
-			selectedCharacters[player].demoObject->visible = true;
-			nextCharSet = true;
-			break;
-		}
-	}
-
-	if(!nextCharSet)
-	{
-		//the current character must have been at the end of the list. go to the first one
-		selectedCharacters[player].demoObject->visible = false;
-		selectedPalettes[player] = 0;
-		selectedCharacters[player] = characterList[player].front();
-		focusObject[player] = selectedCharacters[player].demoObject;
-		selectedCharacters[player].demoObject->visible = true;
-	}
-}
-
-int ObjectManager::LoadPlayableStages()
-{
-	//load selectable stages
+	//load selectable characters
 	//get the XML structure from the file
 	XMLDocument * file = new XMLDocument();
-	if(int error = file->LoadFile("data/stages/playableStages.xml") != 0)
+	if(int error = file->LoadFile(psFilePath.data()) != 0)
 	{
 		stringstream sstm;
-		sstm << "Error loading definition file. Code: " << error << " File: data/stages/playableStages.xml";
+		sstm << "Error loading definition file. Code: " << error << " File: " << psFilePath;
 		UpdateLog(sstm.str(), true);
 		return error; //couldn't load the file
 	}
 
 	if(strcmp(file->RootElement()->Value(), "PlayableStages") != 0)
 	{
-		UpdateLog("XML file is not Homestrife stage list definition file: data/stages/playableStages.xml", true);
+		UpdateLog("XML file is not Homestrife stage list definition file: " + psFilePath, true);
 		return -1;
 	}
 
-	selectedStage.defFilePath = "";
-	selectedStage.demoObject = NULL;
-
 	XMLElement * root = file->RootElement();
-
-	//loop through all the sections of the playable characters
 	HSObject * newObject;
+
+	StageChooser * sc = characterSelectManager->stageChooser;
+	
+	//loop through all the sections of the playable characters
 	for(XMLElement * i = root->FirstChildElement(); i != NULL; i = i->NextSiblingElement())
 	{
 		if(strcmp(i->Value(), "Stage") != 0)
@@ -2991,90 +3245,91 @@ int ObjectManager::LoadPlayableStages()
 			continue;
 		}
 
-		const char * defFilePath = i->Attribute("defFilePath");
-		const char * demoFilePath = i->Attribute("demoFilePath");
+		int order = 0;
+		string stageName = "";
+		string defFilePath = "";
+		string previewFilePath = "";
+		HSObject * preview = NULL;
 
-		if(int error = LoadDefinition(demoFilePath, &HUDObjects, &newObject) != 0) { return error; }
-		PlayableStage stage;
-		stage.defFilePath = defFilePath;
-		stage.demoObject = newObject;
-		stageList.push_back(stage);
-		newObject->visible = false;
-		if(selectedStage.demoObject == NULL)
-		{
-			selectedStage = stage;
-		}
+		i->QueryIntAttribute("order", &order);
+		stageName = i->Attribute("name");
+		defFilePath = i->Attribute("defFilePath");
+		previewFilePath = i->Attribute("previewFilePath");
+
+		if(int error = LoadDefinition(previewFilePath, &HUDObjects, &preview) != 0) { return error; }
+		preview->pos.x = sc->imagePos.x;
+		preview->pos.y = sc->imagePos.y;
+		preview->depth = sc->imageDepth;
+
+		StageChooserItem * newItem = new StageChooserItem();
+
+		newItem->orderID = order;
+		newItem->stageName = stageName;
+		newItem->stageDefFilePath = defFilePath;
+		newItem->itemImage = preview;
+
+		sc->items.push_back(newItem);
 	}
+	
+	sc->items.sort(HSOrderablePointerSort);
 
 	return 0;
 }
 
-void ObjectManager::PreviousStage()
+int ObjectManager::LoadPlayableMusic(string pmFilePath)
 {
-	if(stageList.empty()) { return; }
+	if(characterSelectManager == NULL || characterSelectManager->musicChooser == NULL) { return -1; }
 
-	if(selectedStage.demoObject == NULL) { selectedStage = stageList.front(); return; }
-
-	PlayableStage curPS;
-	curPS.defFilePath = "";
-	curPS.demoObject = NULL;
-	list<PlayableStage>::iterator psIt;
-	for ( psIt=stageList.begin(); psIt != stageList.end(); psIt++)
+	//load selectable characters
+	//get the XML structure from the file
+	XMLDocument * file = new XMLDocument();
+	if(int error = file->LoadFile(pmFilePath.data()) != 0)
 	{
-		if(selectedStage.demoObject == psIt->demoObject)
-		{
-			if(curPS.demoObject == NULL)
-			{
-				//the current character is at the start of the list. go to the last one
-				selectedStage.demoObject->visible = false;
-				selectedStage = stageList.back();
-				selectedStage.demoObject->visible = true;
-				return;
-			}
-			
-			selectedStage.demoObject->visible = false;
-			selectedStage = curPS;
-			selectedStage.demoObject->visible = true;
-			return;
-		}
-
-		curPS = *psIt;
-	}
-}
-
-void ObjectManager::NextStage()
-{
-	if(stageList.empty()) { return; }
-
-	if(selectedStage.demoObject == NULL) { selectedStage = stageList.front(); return; }
-
-	//switch to the palette following the current one
-	bool curStageFound = false;
-	bool nextStageSet = false;
-	list<PlayableStage>::iterator psIt;
-	for ( psIt=stageList.begin(); psIt != stageList.end(); psIt++)
-	{
-		if(!curStageFound && selectedStage.demoObject == psIt->demoObject)
-		{
-			curStageFound = true;
-		}
-		else if(curStageFound)
-		{
-			selectedStage.demoObject->visible = false;
-			selectedStage = *psIt;
-			selectedStage.demoObject->visible = true;
-			nextStageSet = true;
-			break;
-		}
+		stringstream sstm;
+		sstm << "Error loading definition file. Code: " << error << " File: " << pmFilePath;
+		UpdateLog(sstm.str(), true);
+		return error; //couldn't load the file
 	}
 
-	if(!nextStageSet)
+	if(strcmp(file->RootElement()->Value(), "PlayableMusic") != 0)
 	{
-		//the current character must have been at the end of the list. go to the first one
-		selectedStage.demoObject->visible = false;
-		selectedStage = stageList.front();
-		selectedStage.demoObject->visible = true;
+		UpdateLog("XML file is not Homestrife music list definition file: " + pmFilePath, true);
+		return -1;
 	}
+
+	XMLElement * root = file->RootElement();
+	HSObject * newObject;
+
+	MusicChooser * mc = characterSelectManager->musicChooser;
+	
+	//loop through all the sections of the playable characters
+	for(XMLElement * i = root->FirstChildElement(); i != NULL; i = i->NextSiblingElement())
+	{
+		if(strcmp(i->Value(), "Music") != 0)
+		{
+			continue;
+		}
+
+		int order = 0;
+		string musicName = "";
+		string musicFilePath = "";
+
+		i->QueryIntAttribute("order", &order);
+		musicName = i->Attribute("name");
+		musicFilePath = i->Attribute("musicFilePath");
+
+		MusicChooserItem * newItem = new MusicChooserItem();
+
+		newItem->orderID = order;
+		newItem->itemText = musicName;
+		newItem->musicFilePath = musicFilePath;
+		
+		mc->items.push_back(newItem);
+	}
+
+	mc->items.sort(HSOrderablePointerSort);
+
+	return 0;
 }
 
 void ObjectManager::UpdateMenu()
@@ -3721,6 +3976,10 @@ int ObjectManager::CloneObject(HSObject * objectToClone, list<HSObject*> * objec
 		{
 			stageObjectsNeedSort = true;
 		}
+		else if(objects == &HUDObjects)
+		{
+			HUDObjectsNeedSort = true;
+		}
 	}
 
 	if(returnValue != NULL)
@@ -3845,67 +4104,19 @@ int ObjectManager::ClearAllObjects()
 		players[i] = NULL;
 		playerHUDs[i] = NULL;
 		focusObject[i] = NULL;
-		characterList[i].clear();
 	}
 
 	delete menuManager;
+	delete characterSelectManager;
 
 	loading = NULL;
 	menuManager = NULL;
+	characterSelectManager = NULL;
 	playerOne = NULL;
 	playerTwo = NULL;
 	playerThree = NULL;
 	playerFour = NULL;
 	wins = NULL;
-	pressDesiredButton = NULL;
-	readyOne = NULL;
-	readyTwo = NULL;
-	readyThree = NULL;
-	readyFour = NULL;
-	selectCharacterOne = NULL;
-	selectCharacterTwo = NULL;
-	selectCharacterThree = NULL;
-	selectCharacterFour = NULL;
-	selectPaletteOne = NULL;
-	selectPaletteTwo = NULL;
-	selectPaletteThree = NULL;
-	selectPaletteFour = NULL;
-	selectPaletteLeftOne = NULL;
-	selectPaletteLeftTwo = NULL;
-	selectPaletteLeftThree = NULL;
-	selectPaletteLeftFour = NULL;
-	selectPaletteRightOne = NULL;
-	selectPaletteRightTwo = NULL;
-	selectPaletteRightThree = NULL;
-	selectPaletteRightFour = NULL;
-	fullscreenYes = NULL;
-	fullscreenNo = NULL;
-	stretchYes = NULL;
-	stretchNo = NULL;
-	fullscreen640x360 = NULL;
-	fullscreen800x450 = NULL;
-	fullscreen1024x576 = NULL;
-	fullscreen1152x648 = NULL;
-	fullscreen1280x720 = NULL;
-	fullscreen1360x765 = NULL;
-	fullscreen1366x768 = NULL;
-	fullscreen1400x787 = NULL;
-	fullscreen1440x810 = NULL;
-	fullscreen1600x900 = NULL;
-	fullscreen1680x945 = NULL;
-	fullscreen1920x1080 = NULL;
-	windowed640x360 = NULL;
-	windowed800x450 = NULL;
-	windowed1024x576 = NULL;
-	windowed1152x648 = NULL;
-	windowed1280x720 = NULL;
-	windowed1360x765 = NULL;
-	windowed1366x768 = NULL;
-	windowed1400x787 = NULL;
-	windowed1440x810 = NULL;
-	windowed1600x900 = NULL;
-	windowed1680x945 = NULL;
-	windowed1920x1080 = NULL;
 
 	return 0;
 }

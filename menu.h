@@ -84,40 +84,34 @@ struct KeySetting
 	Uint8 stick;
 };
 
-class MenuChooser;
+class TextChooser;
 
-class MenuChooserItem
+class TextChooserItem : public HSOrderable
 {
 public:
 	string itemText;
-	MenuChooser * parentChooser;
-	MenuChooserFunction function;
-	int order;
+	TextChooser * parentChooser;
 
-	MenuChooserItem();
+	TextChooserItem();
+
+	virtual bool IsMenuChooserItem();
+	virtual bool IsMusicChooserItem();
 
 protected:
 };
 
-class HSMenuItem;
-
-class MenuChooser : public HSText
+class TextChooser : public HSText
 {
 public:
-	HSMenuItem * parentMenuItem;
-	list<MenuChooserItem*> items;
+	list<TextChooserItem*> items;
 
-	MenuChooser(HSFont * font);
-	~MenuChooser();
+	TextChooser(HSFont * font);
+	~TextChooser();
 
 	void ChoiceNext();
 	void ChoicePrev();
 
-	MenuChooserFunction GetCurrentChooserFunction();
-
-	void SetByChoiceFunction(MenuChooserFunction function);
-
-	void RefreshChooser();
+	virtual void RefreshChooser();
 	void SetVisible(bool visible);
 
 protected:
@@ -125,15 +119,82 @@ protected:
 	int _choice;
 };
 
+class ImageChooser;
+
+class ImageChooserItem : public HSOrderable
+{
+public:
+	HSObject * itemImage;
+
+	ImageChooserItem();
+
+	virtual bool IsStageChooserItem();
+
+protected:
+
+};
+
+class ImageChooser
+{
+public:
+	list<ImageChooserItem*> items;
+
+	HSVect2D imagePos;
+	float imageDepth;
+
+	ImageChooser();
+	~ImageChooser();
+
+	void ChoiceNext();
+	void ChoicePrev();
+
+	virtual void RefreshChooser();
+	void SetVisible(bool visible);
+
+	string GetCurrentDefFilePath();
+
+protected:
+	bool _visible;
+	int _choice;
+};
+
+class MenuChooser;
+
+class MenuChooserItem : public TextChooserItem
+{
+public:
+	MenuChooserFunction function;
+
+	MenuChooserItem();
+
+	virtual bool IsMenuChooserItem();
+
+protected:
+};
+
+class HSMenuItem;
+
+class MenuChooser : public TextChooser
+{
+public:
+	HSMenuItem * parentMenuItem;
+
+	MenuChooser(HSFont * font);
+
+	MenuChooserFunction GetCurrentChooserFunction();
+	void SetByChoiceFunction(MenuChooserFunction function);
+
+protected:
+};
+
 class MenuKeySetting;
 
-class MenuKeySettingItem
+class MenuKeySettingItem : public HSOrderable
 {
 public:
 	string itemText;
 	MenuKeySetting * parentKeySetting;
 	KeySetting keySetting;
-	int order;
 
 	MenuKeySettingItem();
 
@@ -179,7 +240,6 @@ public:
 	HSMenu * child;
 	HSMenuFunction function;
 	MenuChooser * chooser;
-	int order;
 	MenuKeySetting * currentKeySetting;
 
 	float itemHeight;

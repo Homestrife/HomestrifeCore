@@ -55,23 +55,7 @@ enum GameState
 
 enum GameType
 {
-	FREE_FOR_ALL_2,
-	FREE_FOR_ALL_3,
-	FREE_FOR_ALL_4
-};
-
-enum CharacterSelectState
-{
-	PLAYERS_SELECTING,
-	STAGE_SELECT,
-	MUSIC_SELECT
-};
-
-enum CharacterSelectPlayerState
-{
-	SELECTING_CHARACTER,
-	SELECTING_PALETTE,
-	READY
+	GAME_TYPE_FREE_FOR_ALL
 };
 
 enum MatchState
@@ -176,8 +160,6 @@ protected:
 	
 	GameState gameState;
 	GameType gameType;
-	CharacterSelectState characterSelectState;
-	CharacterSelectPlayerState characterSelectPlayerState[MAX_PLAYERS];
 	MatchState matchState;
 	MatchPlayerState matchPlayerState[MAX_PLAYERS];
 	BindingKey bindingKey;
@@ -195,6 +177,7 @@ protected:
 	int Collide();
 	int SpawnObjects();
 	int SpawnMenus(HSMenu * menu);
+	int SpawnCharacterSelect(CharacterSelectManager * manager);
 	int SpawnText(HSText * text);
 	int PlayAudio();
 	int PlayAudio(list<HSObject*> * objects);
@@ -215,8 +198,6 @@ protected:
 	int UpdateMainMenu();
 
 	int InitializeCharacterSelect();
-	int ChangeCharacterSelectState(CharacterSelectState newState);
-	int ChangeCharacterSelectPlayerState(CharacterSelectPlayerState newState, int player);
 	int EventCharacterSelect(InputStates * inputHistory, int frame, int player);
 	int UpdateCharacterSelect();
 
@@ -254,6 +235,11 @@ protected:
 	void ApplyAndSaveVideoSettings();
 	int SaveKeyConfig();
 	void SavePlayerKeyConfig(XMLElement * config, int player);
+	string GetKeyConfigString(KeySetting setting);
+	string GetKeyConfigString(SDL_Keycode key);
+	string GetJoyButtonConfigString(JoystickMapping joyButton);
+	string GetHatConfigString(Uint8 hat);
+	string GetStickConfigString(Uint8 stick);
 
 	void ClearStickForAllPlayers(Uint8 which);
 	void ClearHatForAllPlayers(Uint8 which);
