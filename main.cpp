@@ -1017,7 +1017,7 @@ int Main::InitializeCharacterSelect()
 {
 	objectManager->characterSelectManager = new CharacterSelectManager();
 	
-	if(int error = objectManager->LoadCharacterSelect("data\\hud\\Menus\\Character Select\\CharacterSelect.xml", "data\\characters\\playableCharacters.xml", "data\\stages\\playableStages.xml", "data\\music\\playableMusic.xml") != 0) { return error; }
+	if(int error = objectManager->LoadCharacterSelect("data/hud/Menus/Character Select/CharacterSelect.xml", "data/characters/playableCharacters.xml", "data/stages/playableStages.xml", "data/music/playableMusic.xml") != 0) { return error; }
 
 	objectManager->characterSelectManager->ChangeCharacterSelectState(CHARACTERS_SELECT);
 
@@ -1101,7 +1101,7 @@ int Main::InitializeMatch()
 	HSObject * newHUD;
 	if(objectManager->characterSelectChoices.participating[0])
 	{
-		if(int error = objectManager->LoadDefinition("data\\hud\\TestHUD\\john Hud.xml", &objectManager->HUDObjects, &newHUD) != 0) { return error; }
+		if(int error = objectManager->LoadDefinition("data/hud/TestHUD/john Hud.xml", &objectManager->HUDObjects, &newHUD) != 0) { return error; }
 		objectManager->playerHUDs[0] = (HUD*)newHUD;
 		((HUD*)newHUD)->pos.x = (MAX_GAME_RESOLUTION_X / -2) + 20;
 		((HUD*)newHUD)->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + 20;
@@ -1109,7 +1109,7 @@ int Main::InitializeMatch()
 	
 	if(objectManager->characterSelectChoices.participating[1])
 	{
-		if(int error = objectManager->LoadDefinition("data\\hud\\TestHUD\\john Hud.xml", &objectManager->HUDObjects, &newHUD) != 0) { return error; }
+		if(int error = objectManager->LoadDefinition("data/hud/TestHUD/john Hud.xml", &objectManager->HUDObjects, &newHUD) != 0) { return error; }
 		objectManager->playerHUDs[1] = (HUD*)newHUD;
 		((HUD*)newHUD)->pos.x = (MAX_GAME_RESOLUTION_X / 2) - 560;
 		((HUD*)newHUD)->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + 20;
