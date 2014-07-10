@@ -445,12 +445,14 @@ CharacterSelectChoices CharacterSelect::GetChoices()
 		{
 			choices.participating[i] = false;
 			choices.characterDefFilePaths[i] = "";
+			choices.characterIconDefFilePaths[i] = "";
 			choices.characterPalettes[i] = 0;
 		}
 		else
 		{
 			choices.participating[i] = true;
 			choices.characterDefFilePaths[i] = cursors[i]->currentPanel->portraitReference[i]->characterDefFilePath;
+			choices.characterIconDefFilePaths[i] = cursors[i]->currentPanel->portraitReference[i]->characterIconDefFilePath;
 			choices.characterPalettes[i] = cursors[i]->currentPanel->portraitReference[i]->portraitImage->GetPalette();
 		}
 	}

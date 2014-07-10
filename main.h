@@ -14,35 +14,17 @@
 
 #define MAIN_MENU_POS_X -940
 #define MAIN_MENU_POS_Y -520
-#define PAUSE_MENU_POS_X -200
-#define PAUSE_MENU_POS_Y -200
-#define PRESS_DESIRED_BUTTON_OFFSET_X 400
-#define VIDEO_SETTING_OFFSET_X 600
-
-#define CHAR_SELECT_PLAYER_LEFT_POS_X -400
-#define CHAR_SELECT_PLAYER_RIGHT_POS_X CHAR_SELECT_PLAYER_LEFT_POS_X*-1
-#define CHAR_SELECT_PLAYER_TOP_POS_Y -200
-#define CHAR_SELECT_PLAYER_BOTTOM_POS_Y CHAR_SELECT_PLAYER_TOP_POS_Y*-1
-#define CHARACTER_SELECT_POS_X (-174)
-#define CHARACTER_SELECT_POS_Y ((MAX_GAME_RESOLUTION_Y / -2) + 20)
-#define PLAYER_LEFT_POS_X -750
-#define PLAYER_RIGHT_POS_X ((PLAYER_LEFT_POS_X * -1) - 159)
-#define PLAYER_TOP_POS_Y -400
-#define PLAYER_BOTTOM_POS_Y 50
-#define READY_LEFT_POS_X (PLAYER_LEFT_POS_X + 19)
-#define READY_RIGHT_POS_X (PLAYER_RIGHT_POS_X + 19)
-#define SELECT_PALETTE_LEFT_POS_X (READY_LEFT_POS_X - 80)
-#define SELECT_PALETTE_RIGHT_POS_X (READY_RIGHT_POS_X - 80)
-#define SELECT_PALETTE_TOP_POS_Y PLAYER_TOP_POS_Y + 55
-#define SELECT_PALETTE_BOTTOM_POS_Y PLAYER_BOTTOM_POS_Y + 55
-#define SELECT_CHARACTER_LEFT_POS_X (READY_LEFT_POS_X - 109)
-#define SELECT_CHARACTER_RIGHT_POS_X (READY_RIGHT_POS_X - 109)
-#define STAGE_SELECT_POS_X (-132)
-#define SELECT_STAGE_POS_X (-130)
-#define SELECT_STAGE_POS_Y 300
+#define PAUSE_MENU_POS_X -940
+#define PAUSE_MENU_POS_Y -353
 
 #define JOYSTICK_UNKNOWN 1000
 #define JOYBUTTON_UNKNOWN 1000
+
+#define PROMPT_READY_DURATION 120
+#define PROMPT_FIGHT_DURATION 120
+#define PROMPT_WIN_DURATION 240
+
+#define STARTING_LIVES 2
 
 int RenderThreadControl(void *data);
 
@@ -60,6 +42,7 @@ enum GameType
 
 enum MatchState
 {
+	INTRO,
 	IN_PROGRESS,
 	PAUSED,
 	RESULTS
@@ -169,6 +152,9 @@ protected:
 	unsigned int lastFrameTicks;
 	unsigned int frame;
 
+	bool needToPause;
+	int matchPromptTimer;
+
 	int Initialize();
 	void DebugOutput();
 	int AdvanceHolds();
@@ -178,6 +164,7 @@ protected:
 	int SpawnObjects();
 	int SpawnMenus(HSMenu * menu);
 	int SpawnCharacterSelect(CharacterSelectManager * manager);
+	int SpawnHUD(HUDManager * manager);
 	int SpawnText(HSText * text);
 	int PlayAudio();
 	int PlayAudio(list<HSObject*> * objects);
@@ -207,8 +194,6 @@ protected:
 	int EventMatch(InputStates * inputHistory, int frame, int player);
 	int UpdateMatch();
 	int CollideMatch();
-
-	int playerLives[MAX_PLAYERS];
 
 	//event/input crap
 	InputMappings mappings[MAX_PLAYERS];

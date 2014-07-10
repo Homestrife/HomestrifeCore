@@ -3,8 +3,6 @@
 
 #include "menu.h"
 
-#define MAX_PLAYERS 4
-
 enum CharacterSelectState
 {
 	CHARACTERS_SELECT,
@@ -25,6 +23,7 @@ struct CharacterSelectChoices
 	bool participating[4];
 	string characterDefFilePaths[4];
 	int characterPalettes[4];
+	string characterIconDefFilePaths[4];
 	string stageDefFilePath;
 	string musicFilePath;
 };
@@ -109,6 +108,7 @@ public:
 
 	string characterName;
 	string characterDefFilePath;
+	string characterIconDefFilePath;
 
 	CharacterSelectPortrait();
 

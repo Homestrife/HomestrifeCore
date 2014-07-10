@@ -107,6 +107,9 @@ public:
 	int health;
 	int curHealth;
 
+	//how many times this object can die
+	int lives;
+
 	//a percentage (0.0 to 1.0) of how much velocity is retained in impacts
 	float bounce;
 

@@ -69,6 +69,7 @@ TerrainObject::TerrainObject() : HSObject()
 	canBeJumpedThrough = false;
 	health = 0;
 	curHealth = health;
+	lives = 0;
 	bounce = 0;
 	friction = 1;
 	takesTerrainDamage = false;

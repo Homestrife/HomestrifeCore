@@ -18,6 +18,9 @@ Main::Main()
 	lastFrameTicks = 0;
 	frame = 0;
 
+	needToPause = false;
+	matchPromptTimer = 0;
+
 	playerToSetUp = -1;
 
 	//set up the default input states
@@ -63,7 +66,6 @@ Main::Main()
 	sticks.clear();
 	for(int i = 0; i < MAX_PLAYERS; i++)
 	{
-		playerLives[i] = 0;
 		ClearControls(i);
 		InputStates * newHistory = new InputStates();
 		*newHistory = defaultInputs;
@@ -323,6 +325,10 @@ int Main::Update()
 	{
 		if(int i = UpdateCharacterSelect() != 0) { return i; }
 	}
+	else if(gameState == MATCH)
+	{
+		if(int i = UpdateMatch() != 0) { return i; }
+	}
 
 	list<HSObject*>::iterator objIt;
 	for ( objIt=objectManager->HUDObjects.begin(); objIt != objectManager->HUDObjects.end(); objIt++)
@@ -333,7 +339,7 @@ int Main::Update()
 		}
 	}
 
-	if(gameState == MATCH && matchState != IN_PROGRESS) { return 0; }
+	if(gameState == MATCH && matchState == PAUSED) { return 0; }
 
 	for ( objIt=objectManager->stageObjects.begin(); objIt != objectManager->stageObjects.end(); objIt++)
 	{
@@ -372,7 +378,7 @@ int Main::Update()
 
 int Main::Collide()
 {
-	if(gameState == MATCH && matchState != IN_PROGRESS) { return 0; }
+	if(gameState != MATCH || matchState == PAUSED) { return 0; }
 
 	//first handle terrain collisions
 	list<HSObject*>::iterator objIt = objectManager->BGSpawnedObjects.begin();
@@ -451,16 +457,32 @@ int Main::Collide()
 	}
 	for ( objIt=objectManager->FGSpawnedObjects.begin(); objIt != objectManager->FGSpawnedObjects.end(); objIt++) { (*objIt)->ApplyAttackResults(); }
 
-	if(gameState == MATCH)
-	{
-		if(int error = CollideMatch()!= 0) { return error; }
-	}
+	if(int error = CollideMatch()!= 0) { return error; }
 
 	return 0;
 }
 
 int Main::SpawnObjects()
 {
+	if(objectManager->menuManager != NULL)
+	{
+		if(int error = SpawnMenus(objectManager->menuManager->GetRoot()) != 0) { return error; }
+	}
+
+	if(objectManager->characterSelectManager != NULL)
+	{
+		if(int error = SpawnCharacterSelect(objectManager->characterSelectManager) != 0) { return error; }
+	}
+
+	if(objectManager->hudManager != NULL)
+	{
+		if(int error = SpawnHUD(objectManager->hudManager) != 0) { return error; }
+	}
+
+	objectManager->SortAllObjects();
+
+	if(gameState == MATCH && matchState == PAUSED) { return 0; }
+
 	list<HSObject*>::iterator objIt;
 	for ( objIt=objectManager->stageObjects.begin(); objIt != objectManager->stageObjects.end(); objIt++)
 	{
@@ -501,18 +523,6 @@ int Main::SpawnObjects()
 		{
 			if(int error = objectManager->CloneObject((*spawnIt), &objectManager->FGSpawnedObjects) != 0) { return error; }
 		}
-	}
-
-	objectManager->SortAllObjects();
-
-	if(objectManager->menuManager != NULL)
-	{
-		if(int error = SpawnMenus(objectManager->menuManager->GetRoot()) != 0) { return error; }
-	}
-
-	if(objectManager->characterSelectManager != NULL)
-	{
-		if(int error = SpawnCharacterSelect(objectManager->characterSelectManager) != 0) { return error; }
 	}
 
 	return 0;
@@ -579,6 +589,22 @@ int Main::SpawnCharacterSelect(CharacterSelectManager * manager)
 	return 0;
 }
 
+int Main::SpawnHUD(HUDManager * manager)
+{
+	if(manager == NULL) { return 0; }
+
+	if(int error = SpawnText(manager->prompt) != 0) { return error; }
+
+	for(int i = 0; i < MAX_PLAYERS; i++)
+	{
+		if(manager->HUDs[i] == NULL) { continue; }
+		if(int error = SpawnText(manager->HUDs[i]->livesCounter) != 0) { return error; }
+		if(int error = SpawnText(manager->HUDs[i]->comboCounter) != 0) { return error; }
+	}
+
+	return 0;
+}
+
 int Main::SpawnText(HSText * text)
 {
 	if(text == NULL || text->charListToClone.empty()) { return 0; }
@@ -604,7 +630,7 @@ int Main::SpawnText(HSText * text)
 
 int Main::PlayAudio()
 {
-	if(gameState == MATCH && matchState != IN_PROGRESS) { return 0; }
+	if(gameState == MATCH && matchState == PAUSED) { return 0; }
 
 	PlayAudio(&objectManager->stageObjects);
 	PlayAudio(&objectManager->BGSpawnedObjects);
@@ -663,11 +689,14 @@ int Main::PlayAudio(list<HSObject*> * objects)
 
 int Main::DeleteObjects()
 {
+	DeleteObjects(&objectManager->HUDObjects);
+
+	if(gameState == MATCH && matchState == PAUSED) { return 0; }
+
 	DeleteObjects(&objectManager->stageObjects);
 	DeleteObjects(&objectManager->BGSpawnedObjects);
 	DeleteObjects(&objectManager->fighterObjects);
 	DeleteObjects(&objectManager->FGSpawnedObjects);
-	DeleteObjects(&objectManager->HUDObjects);
 
 	return 0;
 }
@@ -769,9 +798,9 @@ int Main::ChangeGameState(GameState newState)
 
 int Main::StartLoading()
 {
-	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/loading/loading.xml", &objectManager->HUDObjects, &objectManager->loading) != 0) { return error; }
-	objectManager->loading->pos.x = -90;
-	objectManager->loading->pos.y = -18;
+	if(int error = objectManager->LoadLoadingScreen("data/hud/Loading/loadingScreen.xml") != 0) { return error; }
+	objectManager->loadingText->SetText("Loading");
+	SpawnText(objectManager->loadingText);
 
 	objectManager->loadTexturesAndPalettes = true;
 	objectManager->doRender = true;
@@ -782,7 +811,18 @@ int Main::StartLoading()
 
 int Main::EndLoading()
 {
-	objectManager->loading->visible = false;
+	if(objectManager->loadingText != NULL)
+	{
+		objectManager->loadingText->DeleteText();
+		delete objectManager->loadingText;
+		objectManager->loadingText = NULL;
+	}
+
+	if(objectManager->loadingBackground != NULL)
+	{
+		objectManager->loadingBackground->toDelete = true;
+		objectManager->loadingBackground = NULL;
+	}
 
 	return 0;
 }
@@ -927,7 +967,7 @@ int Main::EventMenu(InputStates * inputHistory, int frame)
 			objectManager->menuManager->ToParent();
 			break;
 		case RESUME_MATCH:
-			ChangeMatchState(IN_PROGRESS);
+			needToPause = true;
 			break;
 		case QUIT_MATCH:
 			if(int error = ChangeGameState(CHARACTER_SELECT) != 0) { return error; }
@@ -1049,7 +1089,7 @@ int Main::EventCharacterSelect(InputStates * inputHistory, int frame, int player
 		if(objectManager->characterSelectManager->PlayerConfirm(player))
 		{
 			objectManager->characterSelectChoices = objectManager->characterSelectManager->GetChoices();
-			ChangeGameState(MATCH);
+			if(int error = ChangeGameState(MATCH) != 0) { return error; }
 		}
 	}
 	else if(inputHistory->frame == frame && (inputHistory->buttonMenuBack.pressed || inputHistory->keyMenuBack.pressed))
@@ -1072,7 +1112,11 @@ int Main::UpdateCharacterSelect()
 int Main::InitializeMatch()
 {
 	//load stage/background
-	objectManager->LoadStage(objectManager->characterSelectChoices.stageDefFilePath);
+	if(int error = objectManager->LoadStage(objectManager->characterSelectChoices.stageDefFilePath) != 0) { return error; }
+
+	//load HUD
+	objectManager->hudManager = new HUDManager();
+	if(int error = objectManager->LoadHUD("data\\hud\\TestHUD\\TestHUD.xml", objectManager->characterSelectChoices.participating) != 0) { return error; }
 
 	for(int i = 0; i < MAX_PLAYERS; i++)
 	{
@@ -1087,6 +1131,7 @@ int Main::InitializeMatch()
 			fighter->SetPalette(objectManager->characterSelectChoices.characterPalettes[i]);
 			((Fighter*)fighter)->state = STANDING;
 			((Fighter*)fighter)->curHealth = ((Fighter*)fighter)->health;
+			((Fighter*)fighter)->lives = STARTING_LIVES;
 			fighter->ChangeHold(((Fighter*)fighter)->fighterEventHolds.standing);
 			objectManager->focusObject[i] = fighter;
 
@@ -1094,9 +1139,8 @@ int Main::InitializeMatch()
 			{
 				((Fighter*)fighter)->facing = LEFT;
 			}
-		}
-	}
 
+<<<<<<< HEAD
 	//load HUD
 	HSObject * newHUD;
 	if(objectManager->characterSelectChoices.participating[0])
@@ -1133,6 +1177,18 @@ int Main::InitializeMatch()
 		((HUD*)newHUD)->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + 900;
 		((HUD*)newHUD)->comboCounterXPosition = COUNTER_RIGHT;
 		((HUD*)newHUD)->comboCounterYPosition = COUNTER_ABOVE;
+=======
+			objectManager->hudManager->HUDs[i]->objectToTrack = (Fighter*)fighter;
+
+			HSObject * hudIcon;
+			if(int error = objectManager->LoadDefinition(objectManager->characterSelectChoices.characterIconDefFilePaths[i], &objectManager->HUDObjects, &hudIcon) != 0) { return error; }
+			hudIcon->pos.x = objectManager->hudManager->HUDs[i]->characterIconPos.x;
+			hudIcon->pos.y = objectManager->hudManager->HUDs[i]->characterIconPos.y;
+			hudIcon->depth = MATCH_HUD_ICON_DEPTH;
+
+			objectManager->hudManager->HUDs[i]->characterIcon = hudIcon;
+		}
+>>>>>>> master
 	}
 
 	HSMenu * pauseMenu;
@@ -1145,6 +1201,7 @@ int Main::InitializeMatch()
 	objectManager->menuManager = new MenuManager(pauseMenu);
 	objectManager->menuManager->SetHidden(true);
 
+<<<<<<< HEAD
 	//load win text
 	HSObject * newObject;
 	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/player/player1.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
@@ -1178,10 +1235,15 @@ int Main::InitializeMatch()
 	objectManager->wins = newObject;
 
 	ChangeMatchState(IN_PROGRESS);
+=======
+	ChangeMatchState(INTRO);
+	objectManager->hudManager->ChangePromptState(PROMPT_READY);
+	objectManager->hudManager->SetVisible(true);
+	matchPromptTimer = 0;
+>>>>>>> master
 
 	for(int i = 0; i < MAX_PLAYERS; i++)
 	{
-		playerLives[i] = 3;
 		ChangeMatchPlayerState(ACTIVE, i);
 	}
 
@@ -1204,15 +1266,8 @@ int Main::ChangeMatchState(MatchState newState)
 			objectManager->menuManager->SetHidden(false);
 			break;
 		case RESULTS:
-			if(matchPlayerState[0] == ACTIVE)
-			{
-				objectManager->playerOne->visible = true;
-			}
-			else if(matchPlayerState[1] == ACTIVE)
-			{
-				objectManager->playerTwo->visible = true;
-			}
-			objectManager->wins->visible = true;
+			objectManager->menuManager->SetHidden(true);
+			objectManager->hudManager->ChangePromptState(PROMPT_WIN);
 			break;
 	}
 
@@ -1228,19 +1283,6 @@ int Main::ChangeMatchPlayerState(MatchPlayerState newState, int player)
 		case ACTIVE:
 			break;
 		case LOST:
-			playerLives[player] = 0;
-			if(objectManager->playerHUDs[player] != NULL)
-			{
-				objectManager->playerHUDs[player]->SetHealthMeterValue(0);
-				objectManager->playerHUDs[player]->SetLivesCounterValue(0);
-				objectManager->playerHUDs[player]->SetHitsCounterValue(0);
-			}
-			if(objectManager->players[player] == NULL) { break; }
-			objectManager->players[player]->visible = false;
-			if(objectManager->players[player]->IsTerrainObject())
-			{
-				((TerrainObject*)objectManager->players[player])->curHealth = 0;
-			}
 			break;
 	}
 
@@ -1251,10 +1293,12 @@ int Main::EventMatch(InputStates * inputHistory, int frame, int player)
 {
 	switch(matchState)
 	{
+	case INTRO:
+		break;
 	case IN_PROGRESS:
 		if(inputHistory->frame == frame && (inputHistory->bButtonStart.pressed || inputHistory->bKeyStart.pressed))
 		{
-			ChangeMatchState(PAUSED);
+			needToPause = true;
 		}
 		else if(objectManager->players[player] != 0)
 		{
@@ -1278,7 +1322,42 @@ int Main::EventMatch(InputStates * inputHistory, int frame, int player)
 
 int Main::UpdateMatch()
 {
-	UpdateMenu();
+	switch (matchState)
+	{
+	case INTRO:
+		matchPromptTimer++;
+		if(matchPromptTimer >= PROMPT_READY_DURATION) {
+			ChangeMatchState(IN_PROGRESS);
+			matchPromptTimer = 0;
+			objectManager->hudManager->ChangePromptState(PROMPT_FIGHT);
+		}
+		break;
+	case IN_PROGRESS:
+		if(matchPromptTimer < PROMPT_FIGHT_DURATION)
+		{
+			matchPromptTimer++;
+			if(matchPromptTimer >= PROMPT_READY_DURATION) {
+				matchPromptTimer = 0;
+				objectManager->hudManager->ChangePromptState(PROMPT_CLEAR);
+			}
+		}
+		break;
+	case PAUSED:
+		break;
+	case RESULTS:
+		matchPromptTimer++;
+		if(matchPromptTimer >= PROMPT_WIN_DURATION) {
+			ChangeGameState(CHARACTER_SELECT);
+			matchPromptTimer = 0;
+		}
+		break;
+	}
+
+	if(gameState == MATCH)
+	{
+		objectManager->hudManager->Refresh();
+		UpdateMenu();
+	}
 
 	return 0;
 }
@@ -1289,70 +1368,55 @@ int Main::CollideMatch()
 
 	for(int i = 0; i < MAX_PLAYERS; i++)
 	{
-		if(objectManager->players[i] == NULL) { ChangeMatchPlayerState(LOST, i); continue; }
+		HSObject * player = objectManager->players[i];
 
-		if(matchPlayerState[i] == LOST) { continue; }
+		if(player == NULL) { ChangeMatchPlayerState(LOST, i); continue; }
 
 		if((!objectManager->players[i]->IsTerrain() && objectManager->players[i]->pos.y > (objectManager->stageSize.y / 2) + RINGOUT_BUFFER) || (objectManager->players[i]->IsTerrainObject() && ((TerrainObject*)objectManager->players[i])->curHealth <= 0 &&
 			(!objectManager->players[i]->IsFighter() || ((Fighter*)objectManager->players[i])->state != KNOCKOUT && ((Fighter*)objectManager->players[i])->state != KNOCKOUT_AIR)))
 		{
-			playerLives[i]--;
 
-			if(playerLives[i] <= 0)
-			{
-				if(int error = ChangeMatchPlayerState(LOST, i) != 0) { return error; }
-				objectManager->players[i]->toDelete = true;
-				objectManager->players[i] = NULL;
-				continue;
-			}
-
-			objectManager->players[i]->pos.x = objectManager->spawnPoints[i].x;
-			objectManager->players[i]->pos.y = objectManager->spawnPoints[i].y;
-			objectManager->players[i]->vel.x = 0;
-			objectManager->players[i]->vel.y = 0;
+			player->pos.x = objectManager->spawnPoints[i].x;
+			player->pos.y = objectManager->spawnPoints[i].y;
+			player->vel.x = 0;
+			player->vel.y = 0;
 
 			if(objectManager->players[i]->IsTerrainObject())
 			{
-				((TerrainObject*)objectManager->players[i])->curHealth = ((TerrainObject*)objectManager->players[i])->health;
-			}
+				((TerrainObject*)player)->curHealth = ((TerrainObject*)objectManager->players[i])->health;
+				((TerrainObject*)player)->lives--;
 
-			if(objectManager->players[i]->IsFighter())
-			{
-				((Fighter*)objectManager->players[i])->ChangeHold(((Fighter*)objectManager->players[i])->fighterEventHolds.jumpNeutralFall);
-				((Fighter*)objectManager->players[i])->state = JUMPING;
-				((Fighter*)objectManager->players[i])->falls = true;
-			}
-		}
-
-		if(objectManager->playerHUDs[i] != NULL)
-		{
-			float curHealth = ((TerrainObject*)objectManager->players[i])->curHealth;
-			float health = ((TerrainObject*)objectManager->players[i])->health;
-			objectManager->playerHUDs[i]->SetHealthMeterValue(curHealth / health);
-			objectManager->playerHUDs[i]->SetLivesCounterValue(playerLives[i]);
-
-			if(objectManager->players[i]->IsFighter())
-			{
-				Fighter * fighter = (Fighter*) objectManager->players[i];
-
-				int hits = 0;
-				list<ComboTrack>::iterator comboItr;
-				for(comboItr = fighter->comboTrack.begin(); comboItr != fighter->comboTrack.end(); comboItr++)
+				if(((TerrainObject*)player)->lives <= 0)
 				{
-					hits += comboItr->hits;
+					if(int error = ChangeMatchPlayerState(LOST, i) != 0) { return error; }
+					player->toDelete = true;
+					player = NULL;
+					objectManager->hudManager->HUDs[i]->objectToTrack = NULL;
+					continue;
 				}
+			}
 
-				objectManager->playerHUDs[i]->SetHitsCounterValue(hits);
+			if(objectManager->players[i]->IsFighter())
+			{
+				((Fighter*)player)->ChangeHold(((Fighter*)objectManager->players[i])->fighterEventHolds.jumpNeutralFall);
+				((Fighter*)player)->state = JUMPING;
+				((Fighter*)player)->falls = true;
 			}
 		}
+
+		if(matchPlayerState[i] == LOST) { continue; }
 		
 		survivingPlayers++;
 	}
 
-	if(survivingPlayers <= 1)
+	if(survivingPlayers <= 1 && matchState != RESULTS)
 	{
 		if(int i = ChangeMatchState(RESULTS) != 0) { return i; }
+		objectManager->hudManager->ChangePromptState(PROMPT_WIN);
+		matchPromptTimer = 0;
 	}
+
+	objectManager->hudManager->Refresh();
 
 	return 0;
 }
@@ -2248,6 +2312,20 @@ string Main::GetStickConfigString(Uint8 stick)
 //animation and holds
 int Main::AdvanceHolds()
 {
+	if(gameState == MATCH && needToPause)
+	{
+		if(matchState == IN_PROGRESS)
+		{
+			ChangeMatchState(PAUSED);
+		}
+		else if(matchState == PAUSED)
+		{
+			ChangeMatchState(IN_PROGRESS);
+		}
+
+		needToPause = false;
+	}
+
 	list<HSObject*>::iterator objIt;
 	for ( objIt=objectManager->HUDObjects.begin(); objIt != objectManager->HUDObjects.end(); objIt++)
 	{
@@ -2257,7 +2335,7 @@ int Main::AdvanceHolds()
 		}
 	}
 
-	if(gameState == MATCH && matchState != IN_PROGRESS) { return 0; }
+	if(gameState == MATCH && matchState == PAUSED) { return 0; }
 
 	for ( objIt=objectManager->stageObjects.begin(); objIt != objectManager->stageObjects.end(); objIt++)
 	{
@@ -2975,6 +3053,36 @@ void Main::KeyUp(SDL_Keycode sym)
 
 	for(int i = 0; i < MAX_PLAYERS; i++)
 	{
+		if(i == 0 && (SDLK_RETURN == sym || SDLK_KP_ENTER == sym))
+		{
+			curInputs[i]->keyMenuConfirm.released = true;
+			inputStateChange[i] = true;
+		}
+		if(i == 0 && SDLK_ESCAPE == sym)
+		{
+			curInputs[i]->keyMenuBack.released = true;
+			inputStateChange[i] = true;
+		}
+		if(i == 0 && SDLK_UP == sym)
+		{
+			curInputs[i]->bKeyUp.released = true;
+			inputStateChange[i] = true;
+		}
+		if(i == 0 && SDLK_DOWN == sym)
+		{
+			curInputs[i]->bKeyDown.released = true;
+			inputStateChange[i] = true;
+		}
+		if(i == 0 && SDLK_LEFT == sym)
+		{
+			curInputs[i]->bKeyLeft.released = true;
+			inputStateChange[i] = true;
+		}
+		if(i == 0 && SDLK_RIGHT == sym)
+		{
+			curInputs[i]->bKeyRight.released = true;
+			inputStateChange[i] = true;
+		}
 		if(mappings[i].up.type == KEY_SETTING_KEY && mappings[i].up.keycode == sym)
 		{
 			curInputs[i]->bKeyUp.released = true;

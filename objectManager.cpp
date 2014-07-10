@@ -65,23 +65,19 @@ ObjectManager::ObjectManager()
 	openGL3 = false;
 	obtainedAudioSpec = NULL;
 	currentAudio.clear();
+	loadingBackground = NULL;
+	loadingText = NULL;
 	menuManager = NULL;
 	characterSelectManager = NULL;
+	hudManager = NULL;
 
 	for(int i = 0; i < MAX_PLAYERS; i++)
 	{
-		playerHUDs[i] = NULL;
+		spawnPoints[i].x = 0;
+		spawnPoints[i].y = 0;
 		players[i] = NULL;
 		focusObject[i] = NULL;
 	}
-
-	loading = NULL;
-	menuManager = NULL;
-	playerOne = NULL;
-	playerTwo = NULL;
-	playerThree = NULL;
-	playerFour = NULL;
-	wins = NULL;
 }
 
 bool HSObjectDepthSort(HSObject * first, HSObject * second)
@@ -161,10 +157,6 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 		{
 			newObject = new Fighter();
 		}
-		else if(strcmp(objectType, "HUD") == 0)
-		{
-			newObject = new HUD();
-		}
 		else
 		{
 			continue; //invalid object type
@@ -195,29 +187,6 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 
 		//get object attributes
 		objDef->QueryUnsignedAttribute("lifetime", &newObject->lifetime);
-
-		if(newObject->IsHUD())
-		{
-			HUD * newHUD = (HUD*)newObject;
-			
-			objDef->QueryFloatAttribute("hudWidth", &newHUD->hudWidth);
-			objDef->QueryFloatAttribute("hudHeight", &newHUD->hudHeight);
-			objDef->QueryFloatAttribute("healthMeterOffsetX", &newHUD->healthMeterOffset.x);
-			objDef->QueryFloatAttribute("healthMeterOffsetY", &newHUD->healthMeterOffset.y);
-			objDef->QueryFloatAttribute("livesCounterOffsetX", &newHUD->livesCounterOffset.x);
-			objDef->QueryFloatAttribute("livesCounterOffsetY", &newHUD->livesCounterOffset.y);
-			objDef->QueryFloatAttribute("livesCounterDigitWidth", &newHUD->livesCounterDigitWidth);
-			objDef->QueryFloatAttribute("livesCounterDigitSeparation", &newHUD->livesCounterDigitSeparation);
-			objDef->QueryFloatAttribute("hitsCounterXDistanceFromSide", &newHUD->hitsCounterXDistanceFromSide);
-			objDef->QueryFloatAttribute("hitsCounterYDistanceFromHUD", &newHUD->hitsCounterYDistanceFromHUD);
-			objDef->QueryFloatAttribute("hitsCounterDigitWidth", &newHUD->hitsCounterDigitWidth);
-			objDef->QueryFloatAttribute("hitsCounterDigitHeight", &newHUD->hitsCounterDigitHeight);
-			objDef->QueryFloatAttribute("hitsCounterDigitSeparation", &newHUD->hitsCounterDigitSeparation);
-			if(objDef->Attribute("healthMeterFilePath") != NULL) { newHUD->healthMeterFilePath = objDef->Attribute("healthMeterFilePath"); }
-			if(objDef->Attribute("healthUnderMeterFilePath") != NULL) { newHUD->healthUnderMeterFilePath = objDef->Attribute("healthUnderMeterFilePath"); }
-			if(objDef->Attribute("livesCounterFilePath") != NULL) { newHUD->livesCounterFilePath = objDef->Attribute("livesCounterFilePath"); }
-			if(objDef->Attribute("hitsCounterFilePath") != NULL) { newHUD->hitsCounterFilePath = objDef->Attribute("hitsCounterFilePath"); }
-		}
 
 		if(newObject->IsTerrainObject())
 		{
@@ -387,10 +356,6 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 			else if(strcmp(objectType, "Fighter") == 0)
 			{
 				newHold = new FighterHold();
-			}
-			else if(strcmp(objectType, "HUD") == 0)
-			{
-				newHold = new HUDHold();
 			}
 
 			//get the hold's attributes
@@ -1333,25 +1298,6 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 			}
 		}
 
-		if(newObject->IsHUD())
-		{
-			HUD * hud = (HUD*)newObject;
-			//load the meters and counters
-			if(int error = LoadDefinition(hud->healthUnderMeterFilePath, objects, &(hud->healthUnderMeter)) != 0) { return error; }
-
-			if(int error = LoadDefinition(hud->healthMeterFilePath, objects, &(hud->healthMeter)) != 0) { return error; }
-
-			if(int error = LoadDefinition(hud->livesCounterFilePath, objects, &(hud->livesOnesCounter)) != 0) { return error; }
-
-			if(int error = LoadDefinition(hud->livesCounterFilePath, objects, &(hud->livesTensCounter)) != 0) { return error; }
-
-			if(int error = LoadDefinition(hud->hitsCounterFilePath, objects, &(hud->hitsOnesCounter)) != 0) { return error; }
-
-			if(int error = LoadDefinition(hud->hitsCounterFilePath, objects, &(hud->hitsTensCounter)) != 0) { return error; }
-
-			if(int error = LoadDefinition(hud->hitsCounterFilePath, objects, &(hud->hitsHundredsCounter)) != 0) { return error; }
-		}
-
 		if(returnValue != NULL)
 		{
 			*returnValue = newObject;
@@ -1476,23 +1422,45 @@ int ObjectManager::LoadHSMenu(string defFilePath, HSVect2D menuPos, HSMenu ** re
 	if(root->Attribute("cursorDefFilePath") != NULL) { cursorDefFilePath = root->Attribute("cursorDefFilePath"); }
 	if(cursorDefFilePath.empty())
 	{
-		UpdateLog("Menu has no cursor definition file path: + defFilePath", true);
+		UpdateLog("Menu has no cursor definition file path: " + cursorDefFilePath, true);
 		return -1;
 	}
 		
 	if(int error = LoadDefinition(cursorDefFilePath, NULL, &cursorToClone) != 0) { return error; }
+	
+	HSObject * background = NULL;
+	string backgroundDefFilePath = "";
+	if(root->Attribute("backgroundDefFilePath") != NULL) { backgroundDefFilePath = root->Attribute("backgroundDefFilePath"); }
+	if(backgroundDefFilePath.empty())
+	{
+		UpdateLog("Menu has no background definition file path: " + backgroundDefFilePath, true);
+		return -1;
+	}
+		
+	if(int error = LoadDefinition(backgroundDefFilePath, &HUDObjects, &background) != 0) { return error; }
 
 	HSMenu * newMenu = new HSMenu(titleFont);
+	newMenu->background = background;
+	newMenu->background->depth = MENU_BACKGROUND_DEPTH;
 	newMenu->cursorToClone = cursorToClone;
+	newMenu->cursorToClone->depth = MENU_CURSOR_DEPTH;
 	newMenu->pos.x = menuPos.x;
 	newMenu->pos.y = menuPos.y + titleFont->charHeight;
 	titleFont->usingCount++;
 	newMenu->itemHeight = itemFont->charHeight;
+	newMenu->depth = MENU_TITLE_DEPTH;
 
+	float backgroundOffsetX = 0;
+	float backgroundOffsetY = 0;
 	root->QueryFloatAttribute("titleSeparation", &newMenu->titleSeparation);
 	root->QueryFloatAttribute("cursorWidth", &newMenu->cursorWidth);
 	root->QueryFloatAttribute("cursorSeparation", &newMenu->cursorSeparation);
 	root->QueryFloatAttribute("itemSeparation", &newMenu->itemSeparation);
+	root->QueryFloatAttribute("backgroundOffsetX", &backgroundOffsetX);
+	root->QueryFloatAttribute("backgroundOffsetY", &backgroundOffsetY);
+
+	newMenu->background->pos.x = menuPos.x + backgroundOffsetX;
+	newMenu->background->pos.y = menuPos.y + backgroundOffsetY;
 
 	newMenu->titleHeight = titleFont->charHeight;
 
@@ -1557,6 +1525,8 @@ int ObjectManager::LoadHSMenu(string defFilePath, HSVect2D menuPos, HSMenu ** re
 			if(i->Attribute("itemText") != NULL) { newItem->itemText = i->Attribute("itemText"); }
 
 			i->QueryUnsignedAttribute("order", &newItem->orderID);
+			
+			newItem->depth = MENU_ITEM_DEPTH;
 
 			newItem->child = NULL;
 			string childMenuDefFilePath = "";
@@ -2585,6 +2555,7 @@ int ObjectManager::CreateMenuKeySetting(HSFont * font, MenuKeySetting ** returnV
 	newKeySetting->items.push_back(keySettingItem);
 
 	newKeySetting->items.sort(HSOrderablePointerSort);
+	newKeySetting->depth = MENU_CHOOSER_DEPTH;
 
 	if(returnValue != NULL)
 	{
@@ -2766,6 +2737,63 @@ int ObjectManager::LoadHSCharacter(XMLElement * xml, HSCharacter * hsChar)
 	if(int error = LoadDefinition(defFilePath, NULL, &newObject) != 0) { return error; }
 
 	hsChar->character = newObject;
+
+	return 0;
+}
+
+int ObjectManager::LoadLoadingScreen(string defFilePath)
+{
+	//load loading screen
+	//get the XML structure from the file
+	XMLDocument * file = new XMLDocument();
+	if(int error = file->LoadFile(defFilePath.data()) != 0)
+	{
+		stringstream sstm;
+		sstm << "Error loading definition file. Code: " << error << " File: " << defFilePath;
+		UpdateLog(sstm.str(), true);
+		return error; //couldn't load the file
+	}
+
+	if(strcmp(file->RootElement()->Value(), "HSLoadingScreen") != 0)
+	{
+		UpdateLog("XML file is not Homestrife loading screen definition file: " + defFilePath, true);
+		return -1;
+	}
+
+	XMLElement * root = file->RootElement();
+	
+	TextJustification loadingTextJustification = JUSTIFICATION_LEFT;
+	string backgroundDefFilePath = "";
+	float backgroundPosX = 0;
+	float backgroundPosY = 0;
+	string loadingTextFontFilePath = "";
+	HSFont * loadingTextFont = NULL;
+	float loadingTextPosX = 0;
+	float loadingTextPosY = 0;
+
+	backgroundDefFilePath = root->Attribute("backgroundDefFilePath");
+	root->QueryFloatAttribute("backgroundPosX", &backgroundPosX);
+	root->QueryFloatAttribute("backgroundPosY", &backgroundPosY);
+	loadingTextFontFilePath = root->Attribute("loadingTextFontFilePath");
+	root->QueryFloatAttribute("loadingTextPosX", &loadingTextPosX);
+	root->QueryFloatAttribute("loadingTextPosY", &loadingTextPosY);
+
+	string loadingTextJustificationString = "";
+	if(root->Attribute("loadingTextJustification") != NULL) { loadingTextJustificationString = root->Attribute("loadingTextJustification"); }
+	if(loadingTextJustificationString.compare("RIGHT") == 0) { loadingTextJustification = JUSTIFICATION_RIGHT; }
+	else if(loadingTextJustificationString.compare("CENTER") == 0) { loadingTextJustification = JUSTIFICATION_CENTER; }
+
+	if(int error = LoadHSFont(loadingTextFontFilePath, &loadingTextFont) != 0) { return error; }
+	if(int error = LoadDefinition(backgroundDefFilePath, &HUDObjects, &loadingBackground) != 0) { return error; }
+	loadingBackground->pos.x = backgroundPosX;
+	loadingBackground->pos.y = backgroundPosY;
+	loadingBackground->depth = LOADING_BACKGROUND_DEPTH;
+
+	loadingText = new HSText(loadingTextFont);
+	loadingText->pos.x = loadingTextPosX;
+	loadingText->pos.y = loadingTextPosY;
+	loadingText->depth = LOADING_TEXT_DEPTH;
+	loadingText->justification = loadingTextJustification;
 
 	return 0;
 }
@@ -3150,6 +3178,7 @@ int ObjectManager::LoadPlayableCharacters(string pcFilePath, string panelBorderF
 		i->QueryIntAttribute("order", &order);
 		string characterName = i->Attribute("characterName");
 		string defFilePath = i->Attribute("defFilePath");
+		string hudIconDefFilePath = i->Attribute("hudIconDefFilePath");
 		string panelFilePath = i->Attribute("panelFilePath");
 		string portraitFilePath = i->Attribute("portraitFilePath");
 
@@ -3177,6 +3206,7 @@ int ObjectManager::LoadPlayableCharacters(string pcFilePath, string panelBorderF
 			newPortrait->portraitImage = newObject;
 			newPortrait->characterName = characterName;
 			newPortrait->characterDefFilePath = defFilePath;
+			newPortrait->characterIconDefFilePath = hudIconDefFilePath;
 
 			cs->portraits[j].push_back(newPortrait);
 
@@ -3188,7 +3218,6 @@ int ObjectManager::LoadPlayableCharacters(string pcFilePath, string panelBorderF
 	cs->panels.sort(HSOrderablePointerSort);
 
 	//position the grid panels based on the order
-	HSVect2D panelPos;
 	int row = 0;
 	int column = 0;
 
@@ -3233,7 +3262,6 @@ int ObjectManager::LoadPlayableStages(string psFilePath)
 	}
 
 	XMLElement * root = file->RootElement();
-	HSObject * newObject;
 
 	StageChooser * sc = characterSelectManager->stageChooser;
 	
@@ -3298,7 +3326,6 @@ int ObjectManager::LoadPlayableMusic(string pmFilePath)
 	}
 
 	XMLElement * root = file->RootElement();
-	HSObject * newObject;
 
 	MusicChooser * mc = characterSelectManager->musicChooser;
 	
@@ -3328,6 +3355,224 @@ int ObjectManager::LoadPlayableMusic(string pmFilePath)
 	}
 
 	mc->items.sort(HSOrderablePointerSort);
+
+	return 0;
+}
+
+int ObjectManager::LoadHUD(string defFilePath, bool shouldLoadForPlayer[MAX_PLAYERS])
+{
+	if(hudManager == NULL) { return -1; }
+
+	//load match HUD
+	//get the XML structure from the file
+	XMLDocument * file = new XMLDocument();
+	if(int error = file->LoadFile(defFilePath.data()) != 0)
+	{
+		stringstream sstm;
+		sstm << "Error loading definition file. Code: " << error << " File: " << defFilePath;
+		UpdateLog(sstm.str(), true);
+		return error; //couldn't load the file
+	}
+
+	if(strcmp(file->RootElement()->Value(), "HSMatchHUD") != 0)
+	{
+		UpdateLog("XML file is not Homestrife match HUD definition file: " + defFilePath, true);
+		return -1;
+	}
+
+	XMLElement * root = file->RootElement();
+
+	string promptJustificationString = "";
+	TextJustification promptJustification = JUSTIFICATION_LEFT;
+	float promptPosX = 0;
+	float promptPosY = 0;
+	float promptBGPosX = 0;
+	float promptBGPosY = 0;
+	string promptFontFilePath = "";
+	HSFont * promptFont = NULL;
+	HSText * prompt = NULL;
+	string readyText = "";
+	string fightText = "";
+	string winText = "";
+	string promptBGDefFilePath = "";
+	HSObject * promptBackground = NULL;
+	float underMeterAdjustRate = 0;
+	float healthMeterWidth = 0;
+		
+	if(root->Attribute("promptJustification") != NULL) { promptJustificationString = root->Attribute("promptJustification"); }
+	if(promptJustificationString.compare("RIGHT") == 0) { promptJustification = JUSTIFICATION_RIGHT; }
+	else if(promptJustificationString.compare("CENTER") == 0) { promptJustification = JUSTIFICATION_CENTER; }
+
+	root->QueryFloatAttribute("promptPosX", &promptPosX);
+	root->QueryFloatAttribute("promptPosY", &promptPosY);
+	root->QueryFloatAttribute("promptBGPosX", &promptBGPosX);
+	root->QueryFloatAttribute("promptBGPosY", &promptBGPosY);
+	if(root->Attribute("promptFontFilePath") != NULL) { promptFontFilePath = root->Attribute("promptFontFilePath"); }
+	if(root->Attribute("readyText") != NULL) { readyText = root->Attribute("readyText"); }
+	if(root->Attribute("fightText") != NULL) { fightText = root->Attribute("fightText"); }
+	if(root->Attribute("winText") != NULL) { winText = root->Attribute("winText"); }
+	if(root->Attribute("promptBGDefFilePath") != NULL) { promptBGDefFilePath = root->Attribute("promptBGDefFilePath"); }
+	root->QueryFloatAttribute("underMeterAdjustRate", &underMeterAdjustRate);
+	root->QueryFloatAttribute("healthMeterWidth", &healthMeterWidth);
+
+	if(int error = LoadHSFont(promptFontFilePath, &promptFont) != 0) { return error; }
+	prompt = new HSText(promptFont);
+	prompt->pos.x = promptPosX;
+	prompt->pos.y = promptPosY;
+	prompt->depth = MATCH_HUD_PROMPT_DEPTH;
+	prompt->justification = promptJustification;
+
+	if(int error = LoadDefinition(promptBGDefFilePath, &HUDObjects, &promptBackground) != 0) { return error; }
+	promptBackground->pos.x = promptBGPosX;
+	promptBackground->pos.y = promptBGPosY;
+	promptBackground->depth = MATCH_HUD_PROMPT_BACKGROUND_DEPTH;
+
+	hudManager->prompt = prompt;
+	hudManager->promptBackground = promptBackground;
+	hudManager->readyText = readyText;
+	hudManager->fightText = fightText;
+	hudManager->winText = winText;
+	
+	for(XMLElement * i = root->FirstChildElement(); i != NULL; i = i->NextSiblingElement())
+	{
+		if(strcmp(i->Value(), "PlayerHUDs") != 0)
+		{
+			continue;
+		}
+
+		for(XMLElement * k = i->FirstChildElement(); k != NULL; k = k->NextSiblingElement())
+		{
+			if(strcmp(k->Value(), "PlayerHUD") != 0)
+			{
+				continue;
+			}
+		
+			int player = 0;
+			string livesJustificationString = "";
+			TextJustification livesJustification = JUSTIFICATION_LEFT;
+			string comboJustificationString = "";
+			TextJustification comboJustification = JUSTIFICATION_LEFT;
+			float HUDPositionX = 0;
+			float HUDPositionY = 0;
+			float characterIconOffsetX = 0;
+			float characterIconOffsetY = 0;
+			float healthMeterOffsetX = 0;
+			float healthMeterOffsetY = 0;
+			bool flipMeterHorizontally = false;
+			float livesCounterOffsetX = 0;
+			float livesCounterOffsetY = 0;
+			float comboCounterOffsetX = 0;
+			float comboCounterOffsetY = 0;
+			float comboCounterBGOffsetX = 0;
+			float comboCounterBGOffsetY = 0;
+			string backgroundDefFilePath = "";
+			HSObject * background = NULL;
+			string healthMeterDefFilePath = "";
+			HSObject * healthMeter = NULL;
+			string healthUnderMeterDefFilePath = "";
+			HSObject * healthUnderMeter = NULL;
+			string healthMeterCoverDefFilePath = "";
+			HSObject * healthMeterCover = NULL;
+			string livesCounterFontFilePath = "";
+			HSFont * livesCounterFont = NULL;
+			HSText * livesCounter = NULL;
+			string comboCounterFontFilePath = "";
+			HSFont * comboCounterFont = NULL;
+			HSText * comboCounter = NULL;
+			string comboCounterBackgroundDefFilePath = "";
+			HSObject * comboCounterBackground = NULL;
+		
+			k->QueryIntAttribute("player", &player);
+
+			if(player < 0) { player = 0; }
+			else if(player >= MAX_PLAYERS) { player = MAX_PLAYERS - 1; }
+
+			//just leave the HUD null if the player isn't participating
+			if(!shouldLoadForPlayer[player]) { continue; }
+		
+			if(k->Attribute("livesJustification") != NULL) { livesJustificationString = k->Attribute("livesJustification"); }
+			if(livesJustificationString.compare("RIGHT") == 0) { livesJustification = JUSTIFICATION_RIGHT; }
+			else if(livesJustificationString.compare("CENTER") == 0) { livesJustification = JUSTIFICATION_CENTER; }
+		
+			if(k->Attribute("comboJustification") != NULL) { comboJustificationString = k->Attribute("comboJustification"); }
+			if(comboJustificationString.compare("RIGHT") == 0) { comboJustification = JUSTIFICATION_RIGHT; }
+			else if(comboJustificationString.compare("CENTER") == 0) { comboJustification = JUSTIFICATION_CENTER; }
+		
+			k->QueryFloatAttribute("HUDPositionX", &HUDPositionX);
+			k->QueryFloatAttribute("HUDPositionY", &HUDPositionY);
+			k->QueryFloatAttribute("characterIconOffsetX", &characterIconOffsetX);
+			k->QueryFloatAttribute("characterIconOffsetY", &characterIconOffsetY);
+			k->QueryFloatAttribute("healthMeterOffsetX", &healthMeterOffsetX);
+			k->QueryFloatAttribute("healthMeterOffsetY", &healthMeterOffsetY);
+			k->QueryBoolAttribute("flipMeterHorizontally", &flipMeterHorizontally);
+			k->QueryFloatAttribute("livesCounterOffsetX", &livesCounterOffsetX);
+			k->QueryFloatAttribute("livesCounterOffsetY", &livesCounterOffsetY);
+			k->QueryFloatAttribute("comboCounterOffsetX", &comboCounterOffsetX);
+			k->QueryFloatAttribute("comboCounterOffsetY", &comboCounterOffsetY);
+			k->QueryFloatAttribute("comboCounterBGOffsetX", &comboCounterBGOffsetX);
+			k->QueryFloatAttribute("comboCounterBGOffsetY", &comboCounterBGOffsetY);
+			if(k->Attribute("backgroundDefFilePath") != NULL) { backgroundDefFilePath = k->Attribute("backgroundDefFilePath"); }
+			if(k->Attribute("healthMeterDefFilePath") != NULL) { healthMeterDefFilePath = k->Attribute("healthMeterDefFilePath"); }
+			if(k->Attribute("healthUnderMeterDefFilePath") != NULL) { healthUnderMeterDefFilePath = k->Attribute("healthUnderMeterDefFilePath"); }
+			if(k->Attribute("healthMeterCoverDefFilePath") != NULL) { healthMeterCoverDefFilePath = k->Attribute("healthMeterCoverDefFilePath"); }
+			if(k->Attribute("livesCounterFontFilePath") != NULL) { livesCounterFontFilePath = k->Attribute("livesCounterFontFilePath"); }
+			if(k->Attribute("hitsCounterFontFilePath") != NULL) { comboCounterFontFilePath = k->Attribute("hitsCounterFontFilePath"); }
+			if(k->Attribute("comboCounterBackgroundDefFilePath") != NULL) { comboCounterBackgroundDefFilePath = k->Attribute("comboCounterBackgroundDefFilePath"); }
+
+			if(int error = LoadDefinition(backgroundDefFilePath, &HUDObjects, &background) != 0) { return error; }
+			background->pos.x = HUDPositionX;
+			background->pos.y = HUDPositionY;
+			background->depth = MATCH_HUD_DEPTH;
+
+			if(int error = LoadDefinition(healthMeterDefFilePath, &HUDObjects, &healthMeter) != 0) { return error; }
+			healthMeter->depth = MATCH_HUD_METER_DEPTH;
+
+			if(int error = LoadDefinition(healthUnderMeterDefFilePath, &HUDObjects, &healthUnderMeter) != 0) { return error; }
+			healthUnderMeter->depth = MATCH_HUD_UNDER_METER_DEPTH;
+
+			if(int error = LoadDefinition(healthMeterCoverDefFilePath, &HUDObjects, &healthMeterCover) != 0) { return error; }
+			healthMeterCover->depth = MATCH_HUD_METER_COVER_DEPTH;
+		
+			healthMeter->pos.x = healthUnderMeter->pos.x = healthMeterCover->pos.x = HUDPositionX + healthMeterOffsetX;
+			healthMeter->pos.y = healthUnderMeter->pos.y = healthMeterCover->pos.y = HUDPositionY + healthMeterOffsetY;
+
+			if(int error = LoadHSFont(livesCounterFontFilePath, &livesCounterFont) != 0) { return error; }
+			livesCounter = new HSText(livesCounterFont);
+			livesCounter->pos.x = HUDPositionX + livesCounterOffsetX;
+			livesCounter->pos.y = HUDPositionY + livesCounterOffsetY;
+			livesCounter->depth = MATCH_HUD_LIVES_DEPTH;
+			livesCounter->justification = livesJustification;
+
+			if(int error = LoadHSFont(comboCounterFontFilePath, &comboCounterFont) != 0) { return error; }
+			comboCounter = new HSText(comboCounterFont);
+			comboCounter->pos.x = HUDPositionX + comboCounterOffsetX;
+			comboCounter->pos.y = HUDPositionY + comboCounterOffsetY;
+			comboCounter->depth = MATCH_HUD_COMBO_COUNTER_DEPTH;
+			comboCounter->justification = comboJustification;
+
+			if(int error = LoadDefinition(comboCounterBackgroundDefFilePath, &HUDObjects, &comboCounterBackground) != 0) { return error; }
+			comboCounterBackground->pos.x = HUDPositionX + comboCounterBGOffsetX;
+			comboCounterBackground->pos.y = HUDPositionY + comboCounterBGOffsetY;
+			comboCounterBackground->depth = MATCH_HUD_COMBO_COUNTER_BACKGROUND_DEPTH;
+
+			HUD * newHUD = new HUD();
+			newHUD->characterIconPos.x = HUDPositionX + characterIconOffsetX;
+			newHUD->characterIconPos.y = HUDPositionY + characterIconOffsetY;
+			newHUD->background = background;
+			newHUD->healthMeter = healthMeter;
+			newHUD->healthUnderMeter = healthUnderMeter;
+			newHUD->healthMeterCover = healthMeterCover;
+			newHUD->underMeterAdjustRate = underMeterAdjustRate;
+			newHUD->healthMeterWidth = healthMeterWidth;
+			newHUD->flipMeterHorizontally = flipMeterHorizontally;
+			newHUD->healthMeterPosX = healthMeter->pos.x;
+			newHUD->livesCounter = livesCounter;
+			newHUD->comboCounter = comboCounter;
+			newHUD->comboCounterBackground = comboCounterBackground;
+
+			hudManager->HUDs[player] = newHUD;
+		}
+	}
 
 	return 0;
 }
@@ -3450,10 +3695,6 @@ int ObjectManager::CloneObject(HSObject * objectToClone, list<HSObject*> * objec
 		newObject = new TerrainObject();
 		toToClone = (TerrainObject*)objectToClone;
 		newTO = (TerrainObject*)newObject;
-	}
-	else if(objectToClone->IsHUD())
-	{
-		newObject = new HUD();
 	}
 	else
 	{
@@ -3683,10 +3924,6 @@ int ObjectManager::CloneObject(HSObject * objectToClone, list<HSObject*> * objec
 		else if(objectToClone->IsTerrainObject())
 		{
 			newHold = new TerrainObjectHold();
-		}
-		else if(objectToClone->IsHUD())
-		{
-			newHold = new HUDHold();
 		}
 		else
 		{
@@ -3940,6 +4177,8 @@ int ObjectManager::CloneObject(HSObject * objectToClone, list<HSObject*> * objec
 			newObject->lastHold = newHold;
 		}
 
+		newObject->numHolds++;
+
 		holdToClone = holdToClone->nextListHold;
 	}
 
@@ -4102,21 +4341,16 @@ int ObjectManager::ClearAllObjects()
 	for(int i = 0; i < MAX_PLAYERS; i++)
 	{
 		players[i] = NULL;
-		playerHUDs[i] = NULL;
 		focusObject[i] = NULL;
 	}
 
 	delete menuManager;
 	delete characterSelectManager;
+	delete hudManager;
 
-	loading = NULL;
 	menuManager = NULL;
 	characterSelectManager = NULL;
-	playerOne = NULL;
-	playerTwo = NULL;
-	playerThree = NULL;
-	playerFour = NULL;
-	wins = NULL;
+	hudManager = NULL;
 
 	return 0;
 }
@@ -4126,7 +4360,6 @@ int ObjectManager::ClearSpecificObject(HSObject* object)
 	for(int i = 0; i < MAX_PLAYERS; i++)
 	{
 		if(players[i] == object) { players[i] = NULL; }
-		if(playerHUDs[i] == object) { playerHUDs[i] = NULL; }
 		if(focusObject[i] == object) { focusObject[i] = NULL; }
 	}
 

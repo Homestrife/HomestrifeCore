@@ -17,7 +17,6 @@ public:
 
 	void SetText(string text);
 	void DeleteText();
-	void SetVisible(bool visible);
 
 protected:
 	HSFont * _font;

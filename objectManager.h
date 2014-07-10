@@ -4,11 +4,20 @@
 #include <iostream>
 #include <fstream>
 #include "fighter.h"
-#include "HUD.h"
+#include "HUDManager.h"
 #include "menuManager.h"
 #include "characterSelect.h"
 
 #define RINGOUT_BUFFER 500 //how far below the bottom of the stage something must fall before its considered "ringed out"
+
+#define LOADING_TEXT_DEPTH 0
+#define LOADING_BACKGROUND_DEPTH 1
+
+#define MENU_CURSOR_DEPTH 0
+#define MENU_TITLE_DEPTH 1
+#define MENU_ITEM_DEPTH 2
+#define MENU_CHOOSER_DEPTH 3
+#define MENU_BACKGROUND_DEPTH 4
 
 #define CHARACTER_SELECT_CURSOR_DEPTH 0
 #define CHARACTER_SELECT_TITLE_DEPTH 1
@@ -29,6 +38,17 @@
 #define MUSIC_SELECT_TITLE_DEPTH 0
 #define MUSIC_SELECT_NAME_DEPTH 1
 #define MUSIC_SELECT_BACKGROUND_DEPTH 2
+
+#define MATCH_HUD_PROMPT_DEPTH 5
+#define MATCH_HUD_PROMPT_BACKGROUND_DEPTH 6
+#define MATCH_HUD_METER_COVER_DEPTH 7
+#define MATCH_HUD_METER_DEPTH 8
+#define MATCH_HUD_UNDER_METER_DEPTH 9
+#define MATCH_HUD_ICON_DEPTH 10
+#define MATCH_HUD_LIVES_DEPTH 11
+#define MATCH_HUD_COMBO_COUNTER_DEPTH 12
+#define MATCH_HUD_COMBO_COUNTER_BACKGROUND_DEPTH 13
+#define MATCH_HUD_DEPTH 14
 
 struct CurrentAudioEntry
 {
@@ -110,20 +130,15 @@ public:
 	HSVect2D stageSize;
 	
 	HSVect2D spawnPoints[MAX_PLAYERS];
-	HUD * playerHUDs[MAX_PLAYERS];
 	HSObject * players[MAX_PLAYERS];
 	HSObject * focusObject[MAX_PLAYERS];
 
+	HSObject * loadingBackground;
+	HSText * loadingText;
 	MenuManager * menuManager;
 	CharacterSelectManager * characterSelectManager;
+	HUDManager * hudManager;
 	CharacterSelectChoices characterSelectChoices;
-
-	HSObject * loading;
-	HSObject * playerOne;
-	HSObject * playerTwo;
-	HSObject * playerThree;
-	HSObject * playerFour;
-	HSObject * wins;
 
 	void SortAllObjects();
 
@@ -136,10 +151,14 @@ public:
 	int LoadHSFont(string defFilePath, HSFont ** returnValue = NULL);
 	int LoadHSCharacter(XMLElement * xml, HSCharacter * hsChar);
 
+	int LoadLoadingScreen(string defFilePath);
+
 	int LoadCharacterSelect(string defFilePath, string pcFilePath, string psFilePath, string pmFilePath);
 	int LoadPlayableCharacters(string pcFilePath, string panelBorderFilePath);
 	int LoadPlayableStages(string psFilePath);
 	int LoadPlayableMusic(string pmFilePath);
+
+	int LoadHUD(string defFilePath, bool shouldLoadForPlayer[MAX_PLAYERS]);
 
 	void UpdateMenu();
 	int ApplyVideoSettings();

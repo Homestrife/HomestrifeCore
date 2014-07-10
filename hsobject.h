@@ -12,6 +12,8 @@
 #include "tinyxml2.h"
 using namespace tinyxml2;
 
+#define MAX_PLAYERS 4
+
 struct HSOrderable
 {
 	unsigned int orderID;
@@ -221,7 +223,6 @@ public:
 	virtual list<SpawnObject*> GetSpawnObjects(); //get any objects this object currently wishes to spawn
 	virtual list<AudioInstance*> GetAudio(); //get any audio this object currently wishes to play
 	
-	virtual bool IsHUD();
 	virtual bool IsTerrain();
 	virtual bool IsTerrainObject();
 	virtual bool IsPhysicsObject();

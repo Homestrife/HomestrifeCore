@@ -184,6 +184,8 @@ public:
 	MenuChooserFunction GetCurrentChooserFunction();
 	void SetByChoiceFunction(MenuChooserFunction function);
 
+	virtual void RefreshChooser();
+
 protected:
 };
 
@@ -268,6 +270,7 @@ protected:
 class HSMenu : public HSText
 {
 public:
+	HSObject * background;
 	string titleText;
 	bool itemNeedToSpawnText;
 	HSMenuItem * parentMenuItem;
