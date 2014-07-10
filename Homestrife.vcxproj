@@ -94,6 +94,7 @@
     <ClCompile Include="hsobject.cpp" />
     <ClCompile Include="HSText.cpp" />
     <ClCompile Include="HUD.cpp" />
+    <ClCompile Include="HUDManager.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="menu.cpp" />
     <ClCompile Include="menuManager.cpp" />
@@ -115,6 +116,7 @@
     <ClInclude Include="hsobject.h" />
     <ClInclude Include="HSText.h" />
     <ClInclude Include="HUD.h" />
+    <ClInclude Include="HUDManager.h" />
     <ClInclude Include="main.h" />
     <ClInclude Include="menu.h" />
     <ClInclude Include="menuManager.h" />

@@ -246,6 +246,16 @@ void MenuChooser::SetByChoiceFunction(MenuChooserFunction function)
 	RefreshChooser();
 }
 
+void MenuChooser::RefreshChooser()
+{
+	TextChooser::RefreshChooser();
+
+	if(parentMenuItem != NULL)
+	{
+		parentMenuItem->ChooserOrKeySettingChanged();
+	}
+}
+
 ////////////////////
 //MenuKeySettingItem//
 ////////////////////
@@ -576,6 +586,7 @@ void HSMenuItem::ChooserOrKeySettingChanged()
 
 HSMenu::HSMenu(HSFont * font) : HSText(font)
 {
+	background = NULL;
 	titleText = "";
 	itemNeedToSpawnText = false;
 	parentMenuItem = NULL;
@@ -818,6 +829,8 @@ void HSMenu::CursorPrev()
 
 void HSMenu::RefreshMenu()
 {
+	background->visible = _visible;
+
 	if(_visible)
 	{
 		SetText(titleText);

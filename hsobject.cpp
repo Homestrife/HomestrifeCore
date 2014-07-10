@@ -448,11 +448,6 @@ list<AudioInstance*> HSObject::GetAudio()
 	return audio;
 }
 
-bool HSObject::IsHUD()
-{
-	return false;
-}
-
 bool HSObject::IsTerrain()
 {
 	return false;
