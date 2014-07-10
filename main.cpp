@@ -1140,44 +1140,6 @@ int Main::InitializeMatch()
 				((Fighter*)fighter)->facing = LEFT;
 			}
 
-<<<<<<< HEAD
-	//load HUD
-	HSObject * newHUD;
-	if(objectManager->characterSelectChoices.participating[0])
-	{
-		if(int error = objectManager->LoadDefinition("data/hud/TestHUD/john Hud.xml", &objectManager->HUDObjects, &newHUD) != 0) { return error; }
-		objectManager->playerHUDs[0] = (HUD*)newHUD;
-		((HUD*)newHUD)->pos.x = (MAX_GAME_RESOLUTION_X / -2) + 20;
-		((HUD*)newHUD)->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + 20;
-	}
-	
-	if(objectManager->characterSelectChoices.participating[1])
-	{
-		if(int error = objectManager->LoadDefinition("data/hud/TestHUD/john Hud.xml", &objectManager->HUDObjects, &newHUD) != 0) { return error; }
-		objectManager->playerHUDs[1] = (HUD*)newHUD;
-		((HUD*)newHUD)->pos.x = (MAX_GAME_RESOLUTION_X / 2) - 560;
-		((HUD*)newHUD)->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + 20;
-		((HUD*)newHUD)->comboCounterXPosition = COUNTER_RIGHT;
-	}
-
-	if(objectManager->characterSelectChoices.participating[2])
-	{
-		if(int error = objectManager->LoadDefinition("data/hud/TestHUD/john Hud.xml", &objectManager->HUDObjects, &newHUD) != 0) { return error; }
-		objectManager->playerHUDs[2] = (HUD*)newHUD;
-		((HUD*)newHUD)->pos.x = (MAX_GAME_RESOLUTION_X / -2) + 20;
-		((HUD*)newHUD)->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + 900;
-		((HUD*)newHUD)->comboCounterYPosition = COUNTER_ABOVE;
-	}
-
-	if(objectManager->characterSelectChoices.participating[3])
-	{
-		if(int error = objectManager->LoadDefinition("data/hud/TestHUD/john Hud.xml", &objectManager->HUDObjects, &newHUD) != 0) { return error; }
-		objectManager->playerHUDs[3] = (HUD*)newHUD;
-		((HUD*)newHUD)->pos.x = (MAX_GAME_RESOLUTION_X / 2) - 560;
-		((HUD*)newHUD)->pos.y = (MAX_GAME_RESOLUTION_Y / -2) + 900;
-		((HUD*)newHUD)->comboCounterXPosition = COUNTER_RIGHT;
-		((HUD*)newHUD)->comboCounterYPosition = COUNTER_ABOVE;
-=======
 			objectManager->hudManager->HUDs[i]->objectToTrack = (Fighter*)fighter;
 
 			HSObject * hudIcon;
@@ -1188,7 +1150,6 @@ int Main::InitializeMatch()
 
 			objectManager->hudManager->HUDs[i]->characterIcon = hudIcon;
 		}
->>>>>>> master
 	}
 
 	HSMenu * pauseMenu;
@@ -1201,46 +1162,10 @@ int Main::InitializeMatch()
 	objectManager->menuManager = new MenuManager(pauseMenu);
 	objectManager->menuManager->SetHidden(true);
 
-<<<<<<< HEAD
-	//load win text
-	HSObject * newObject;
-	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/player/player1.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->visible = false;
-	newObject->pos.x = -82;
-	newObject->pos.y = -45;
-	objectManager->playerOne = newObject;
-	
-	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/player/player2.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->visible = false;
-	newObject->pos.x = -82;
-	newObject->pos.y = -45;
-	objectManager->playerTwo = newObject;
-	
-	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/player/player3.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->visible = false;
-	newObject->pos.x = -82;
-	newObject->pos.y = -45;
-	objectManager->playerThree = newObject;
-	
-	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/player/player4.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->visible = false;
-	newObject->pos.x = -82;
-	newObject->pos.y = -45;
-	objectManager->playerFour = newObject;
-	
-	if(int error = objectManager->LoadDefinition("data/hud/MainMenuGUI/wins/wins.xml", &objectManager->HUDObjects, &newObject) != 0) { return error; }
-	newObject->visible = false;
-	newObject->pos.x = -53;
-	newObject->pos.y = 10;
-	objectManager->wins = newObject;
-
-	ChangeMatchState(IN_PROGRESS);
-=======
 	ChangeMatchState(INTRO);
 	objectManager->hudManager->ChangePromptState(PROMPT_READY);
 	objectManager->hudManager->SetVisible(true);
 	matchPromptTimer = 0;
->>>>>>> master
 
 	for(int i = 0; i < MAX_PLAYERS; i++)
 	{
