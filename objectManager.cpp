@@ -2793,6 +2793,7 @@ int ObjectManager::LoadLoadingScreen(string defFilePath)
 	loadingText->pos.x = loadingTextPosX;
 	loadingText->pos.y = loadingTextPosY;
 	loadingText->depth = LOADING_TEXT_DEPTH;
+	loadingText->justification = loadingTextJustification;
 
 	return 0;
 }
@@ -4175,6 +4176,8 @@ int ObjectManager::CloneObject(HSObject * objectToClone, list<HSObject*> * objec
 			newObject->lastHold->nextListHold = newHold;
 			newObject->lastHold = newHold;
 		}
+
+		newObject->numHolds++;
 
 		holdToClone = holdToClone->nextListHold;
 	}
