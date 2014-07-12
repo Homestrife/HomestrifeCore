@@ -1116,7 +1116,7 @@ int Main::InitializeMatch()
 
 	//load HUD
 	objectManager->hudManager = new HUDManager();
-	if(int error = objectManager->LoadHUD("data\\hud\\TestHUD\\TestHUD.xml", objectManager->characterSelectChoices.participating) != 0) { return error; }
+	if(int error = objectManager->LoadHUD("data/hud/TestHUD/TestHUD.xml", objectManager->characterSelectChoices.participating) != 0) { return error; }
 
 	for(int i = 0; i < MAX_PLAYERS; i++)
 	{

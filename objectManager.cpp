@@ -1433,7 +1433,7 @@ int ObjectManager::LoadHSMenu(string defFilePath, HSVect2D menuPos, HSMenu ** re
 	if(root->Attribute("backgroundDefFilePath") != NULL) { backgroundDefFilePath = root->Attribute("backgroundDefFilePath"); }
 	if(backgroundDefFilePath.empty())
 	{
-		UpdateLog("Menu has no background definition file path: " + backgroundDefFilePath, true);
+		UpdateLog("Menu has no background definition file path in: " + defFilePath, true);
 		return -1;
 	}
 		
