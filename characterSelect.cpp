@@ -467,6 +467,45 @@ void CharacterSelect::ChangeCharacterSelectPlayerState(CharacterSelectPlayerStat
 
 	characterSelectPlayerState[player] = state;
 
+	if(state == READY)
+	{
+		//make sure two of the same character don't have the same palette
+		string curDefFilePath = cursors[player]->currentPanel->portraitReference[player]->characterDefFilePath;
+		HSObject * curImage = cursors[player]->currentPanel->portraitReference[player]->portraitImage;
+		bool adjusting = true;
+		int startPalette = curImage->GetPalette();
+
+		while(adjusting)
+		{
+			adjusting = false;
+			for(int i = 0; i < MAX_PLAYERS; i++)
+			{
+				if(i != player
+					&& characterSelectPlayerState[i] == READY
+					&& cursors[i]->currentPanel->portraitReference[i]->characterDefFilePath.compare(curDefFilePath) == 0
+					&& cursors[i]->currentPanel->portraitReference[i]->portraitImage->GetPalette() == curImage->GetPalette())
+				{
+					curImage->NextPalette();
+					if(curImage->GetPalette() != startPalette)
+					{
+						//only keep going if we haven't looped back to the palette we started at
+						adjusting = true;
+					}
+					break;
+				}
+			}
+		}
+	}
+	else if(state == SELECTING_CHARACTER)
+	{
+		//return all player portraits back to the default palette
+		list<CharacterSelectPortrait*>::iterator pItr;
+		for(pItr = portraits[player].begin(); pItr != portraits[player].end(); pItr++)
+		{
+			(*pItr)->portraitImage->SetPalette(0);
+		}
+	}
+
 	Refresh();
 }
 

@@ -127,7 +127,6 @@ class HSFont
 {
 public:
 	string fontFilePath;
-	int usingCount;
 	Characters characters;
 	float charHeight;
 	float charSeparation;

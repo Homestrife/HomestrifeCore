@@ -20,6 +20,7 @@ public:
 
 protected:
 	HSFont * _font;
+	string _curText;
 };
 
 #endif

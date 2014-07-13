@@ -123,7 +123,7 @@ public:
 	list<HSTexture*> textureRegistry;
 	list<HSPalette*> paletteRegistry;
 	list<HSAudio*> audioRegistry;
-	list<HSFont*> fontRegistry;
+	list<HSFont*> fontRegistry; //make a registry of these because a font involves hella load times. don't wanna load a font more than once
 	bool openGL3;
 	SDL_AudioSpec * obtainedAudioSpec;
 	
@@ -134,6 +134,7 @@ public:
 	HSObject * focusObject[MAX_PLAYERS];
 
 	HSObject * loadingBackground;
+	HSFont * loadingFont;
 	HSText * loadingText;
 	MenuManager * menuManager;
 	CharacterSelectManager * characterSelectManager;
@@ -144,11 +145,12 @@ public:
 
 	int LoadDefinition(string defFilePath, list<HSObject*> * objects, HSObject ** returnValue = NULL);
 	int LoadStage(string defFilePath);
+	int LoadHSMenuCollection(string defFilePath, HSMenu ** returnValue = NULL);
 	int LoadHSMenu(string defFilePath, HSVect2D menuPos, HSMenu ** returnValue = NULL);
 	
 	int LoadMenuChooser(string defFilePath, HSFont * font, MenuChooser ** returnValue = NULL);
 	int CreateMenuKeySetting(HSFont * font, MenuKeySetting ** returnValue = NULL);
-	int LoadHSFont(string defFilePath, HSFont ** returnValue = NULL);
+	int LoadHSFont(string defFilePath, HSFont ** returnValue = NULL, bool useRegistry = true);
 	int LoadHSCharacter(XMLElement * xml, HSCharacter * hsChar);
 
 	int LoadLoadingScreen(string defFilePath);

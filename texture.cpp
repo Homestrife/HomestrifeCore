@@ -273,7 +273,7 @@ int LoadTGAToTexture(HSTexture * hsTex, bool openGL3, bool useTGAPalette)
 
 	fclose(file);
 
-	delete(color);
+	free (color);
 
 	//save whether or not this is indexed
 	if(imageType == 9) { hsTex->indexed = true; }
@@ -361,7 +361,7 @@ int LoadTGAToTexture(HSTexture * hsTex, bool openGL3, bool useTGAPalette)
 
 			if(imageWidth > maxTexDimension || imageHeight > maxTexDimension)
 			{
-				delete(sliceData);
+				free (sliceData);
 			}
 			glBindTexture(GL_TEXTURE_2D, 0);
 
@@ -437,7 +437,7 @@ int LoadTGAToTexture(HSTexture * hsTex, bool openGL3, bool useTGAPalette)
 		}
 	}
 
-	delete imageData;
+	free (imageData);
 	
 	GLenum glError = glGetError();
 	if(glError != GL_NO_ERROR)
@@ -498,7 +498,7 @@ int StorePaletteData(HSPalette * hsPal, GLubyte * paletteData)
 	
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 256, 1, 0, GL_BGRA, GL_UNSIGNED_BYTE, paletteData);
 
-	delete(paletteData);
+	free (paletteData);
 	glBindTexture(GL_TEXTURE_2D, 0);
 	
 	////allocate space

@@ -9,24 +9,22 @@ HSText::HSText(HSFont * font)
 	charListToClone.clear();
 	justification = JUSTIFICATION_LEFT;
 	depth = 0;
+	_curText = "";
 }
 
 HSText::~HSText()
 {
-	if(_font != NULL)
-	{
-		_font->usingCount--;
-		if(_font->usingCount < 0)
-		{
-			_font->usingCount = 0;
-		}
-	}
+
 }
 
 void HSText::SetText(string text)
 {
+	//don't bother deleting an recreating objects if the text isn't actually different
+	if(_curText.compare(text) == 0) { return; }
+
 	DeleteText();
 	charListToClone = _font->GenerateText(text, pos, depth, justification);
+	_curText = text;
 }
 
 void HSText::DeleteText()
@@ -42,4 +40,5 @@ void HSText::DeleteText()
 
 	characterList.clear();
 	charListToClone.clear();
+	_curText = "";
 }

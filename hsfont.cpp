@@ -3,7 +3,6 @@
 HSFont::HSFont()
 {
 	fontFilePath = "";
-	usingCount = 0;
 
 	characters.ampersand.charWidth = 0;
 	characters.ampersand.character = NULL;

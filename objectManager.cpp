@@ -66,6 +66,7 @@ ObjectManager::ObjectManager()
 	obtainedAudioSpec = NULL;
 	currentAudio.clear();
 	loadingBackground = NULL;
+	loadingFont = NULL;
 	loadingText = NULL;
 	menuManager = NULL;
 	characterSelectManager = NULL;
@@ -1387,6 +1388,53 @@ int ObjectManager::LoadStage(string defFilePath)
 	return 0;
 }
 
+int ObjectManager::LoadHSMenuCollection(string defFilePath, HSMenu ** returnValue)
+{
+	//get the XML structure from the file
+	XMLDocument * file = new XMLDocument();
+	if(int error = file->LoadFile(defFilePath.data()) != 0)
+	{
+		stringstream sstm;
+		sstm << "Error loading definition file. Code: " << error << " File: " << defFilePath;
+		UpdateLog(sstm.str(), true);
+		return error; //couldn't load the file
+	}
+
+	if(strcmp(file->RootElement()->Value(), "HSMenuCollection") != 0)
+	{
+		UpdateLog("XML file is not Homestrife menu collection definition file: " + defFilePath, true);
+		return -1; //this isn't an HSObjects definition file
+	}
+	
+	XMLElement * root = file->RootElement();
+
+	HSVect2D menuPos;
+	menuPos.x = 0;
+	menuPos.y = 0;
+	string topMenuDefFilePath = "";
+
+	if(root->Attribute("topMenuDefFilePath") != NULL) { topMenuDefFilePath = root->Attribute("topMenuDefFilePath"); }
+	if(topMenuDefFilePath.empty())
+	{
+		UpdateLog("Menu collectiion has no top menu definition file path: " + topMenuDefFilePath, true);
+		return -1;
+	}
+
+	root->QueryFloatAttribute("menuPosX", &menuPos.x);
+	root->QueryFloatAttribute("menuPosY", &menuPos.y);
+
+	HSMenu * topMenu = NULL;
+
+	if(int error = LoadHSMenu(topMenuDefFilePath, menuPos, &topMenu) != 0) { return error; }
+
+	if(returnValue != NULL)
+	{
+		*returnValue = topMenu;
+	}
+
+	return 0;
+}
+
 int ObjectManager::LoadHSMenu(string defFilePath, HSVect2D menuPos, HSMenu ** returnValue)
 {
 	//get the XML structure from the file
@@ -1412,7 +1460,7 @@ int ObjectManager::LoadHSMenu(string defFilePath, HSVect2D menuPos, HSMenu ** re
 	if(root->Attribute("titleFontDefFilePath") != NULL) { titleFontDefFilePath = root->Attribute("titleFontDefFilePath"); }
 	if(int error = LoadHSFont(titleFontDefFilePath, &titleFont) != 0) { return error; }
 
-	HSFont * itemFont;
+	HSFont * itemFont = NULL;
 	string itemFontDefFilePath = "";
 	if(root->Attribute("itemFontDefFilePath") != NULL) { itemFontDefFilePath = root->Attribute("itemFontDefFilePath"); }
 	if(int error = LoadHSFont(itemFontDefFilePath, &itemFont) != 0) { return error; }
@@ -1444,23 +1492,26 @@ int ObjectManager::LoadHSMenu(string defFilePath, HSVect2D menuPos, HSMenu ** re
 	newMenu->background->depth = MENU_BACKGROUND_DEPTH;
 	newMenu->cursorToClone = cursorToClone;
 	newMenu->cursorToClone->depth = MENU_CURSOR_DEPTH;
-	newMenu->pos.x = menuPos.x;
-	newMenu->pos.y = menuPos.y + titleFont->charHeight;
-	titleFont->usingCount++;
 	newMenu->itemHeight = itemFont->charHeight;
 	newMenu->depth = MENU_TITLE_DEPTH;
 
+	float menuOffsetX = 0;
+	float menuOffsetY = 0;
 	float backgroundOffsetX = 0;
 	float backgroundOffsetY = 0;
 	root->QueryFloatAttribute("titleSeparation", &newMenu->titleSeparation);
 	root->QueryFloatAttribute("cursorWidth", &newMenu->cursorWidth);
 	root->QueryFloatAttribute("cursorSeparation", &newMenu->cursorSeparation);
 	root->QueryFloatAttribute("itemSeparation", &newMenu->itemSeparation);
+	root->QueryFloatAttribute("menuOffsetX", &menuOffsetX);
+	root->QueryFloatAttribute("menuOffsetY", &menuOffsetY);
 	root->QueryFloatAttribute("backgroundOffsetX", &backgroundOffsetX);
 	root->QueryFloatAttribute("backgroundOffsetY", &backgroundOffsetY);
 
-	newMenu->background->pos.x = menuPos.x + backgroundOffsetX;
-	newMenu->background->pos.y = menuPos.y + backgroundOffsetY;
+	newMenu->pos.x = menuPos.x + menuOffsetX;
+	newMenu->pos.y = menuPos.y + menuOffsetY;
+	newMenu->background->pos.x = menuPos.x + menuOffsetX + backgroundOffsetX;
+	newMenu->background->pos.y = menuPos.y + menuOffsetY + backgroundOffsetY;
 
 	newMenu->titleHeight = titleFont->charHeight;
 
@@ -1479,8 +1530,9 @@ int ObjectManager::LoadHSMenu(string defFilePath, HSVect2D menuPos, HSMenu ** re
 
 		if(strcmp("MenuItem", section) == 0)
 		{
+			itemFont = NULL;
+			if(int error = LoadHSFont(itemFontDefFilePath, &itemFont) != 0) { return error; }
 			HSMenuItem * newItem = new HSMenuItem(itemFont);
-			itemFont->usingCount++;
 			newItem->parentMenu = newMenu;
 
 			string function = "";
@@ -1547,8 +1599,10 @@ int ObjectManager::LoadHSMenu(string defFilePath, HSVect2D menuPos, HSMenu ** re
 			if(!chooserDefFilePath.empty())
 			{
 				MenuChooser * chooser;
-
-				LoadMenuChooser(chooserDefFilePath, itemFont, &chooser);
+				
+				HSFont * chooserFont = NULL;
+				if(int error = LoadHSFont(itemFontDefFilePath, &chooserFont) != 0) { return error; }
+				LoadMenuChooser(chooserDefFilePath, chooserFont, &chooser);
 
 				chooser->parentMenuItem = newItem;
 
@@ -1599,8 +1653,10 @@ int ObjectManager::LoadHSMenu(string defFilePath, HSVect2D menuPos, HSMenu ** re
 			if(keyConfigItem)
 			{
 				MenuKeySetting * keysetting;
-
-				CreateMenuKeySetting(itemFont, &keysetting);
+				
+				HSFont * keySettingFont = NULL;
+				if(int error = LoadHSFont(itemFontDefFilePath, &keySettingFont) != 0) { return error; }
+				CreateMenuKeySetting(keySettingFont, &keysetting);
 
 				keysetting->parentMenuItem = newItem;
 
@@ -1669,7 +1725,6 @@ int ObjectManager::LoadMenuChooser(string defFilePath, HSFont * font, MenuChoose
 	XMLElement * root = file->RootElement();
 
 	MenuChooser * newChooser = new MenuChooser(font);
-	font->usingCount++;
 
 	//loop through all the sections of the font definition
 	for(XMLElement * i = root->FirstChildElement(); i != NULL; i = i->NextSiblingElement())
@@ -1720,7 +1775,6 @@ int ObjectManager::LoadMenuChooser(string defFilePath, HSFont * font, MenuChoose
 int ObjectManager::CreateMenuKeySetting(HSFont * font, MenuKeySetting ** returnValue)
 {
 	MenuKeySetting * newKeySetting = new MenuKeySetting(font);
-	font->usingCount++;
 
 	//keyboard
 	MenuKeySettingItem * keySettingItem = new MenuKeySettingItem(); keySettingItem->keySetting.type = KEY_SETTING_KEY;
@@ -2565,8 +2619,25 @@ int ObjectManager::CreateMenuKeySetting(HSFont * font, MenuKeySetting ** returnV
 	return 0;
 }
 
-int ObjectManager::LoadHSFont(string defFilePath, HSFont ** returnValue)
+int ObjectManager::LoadHSFont(string defFilePath, HSFont ** returnValue, bool useRegistry)
 {
+	if(useRegistry)
+	{
+		list<HSFont*>::iterator fontItr;
+		for(fontItr = fontRegistry.begin(); fontItr != fontRegistry.end(); fontItr++)
+		{
+			if((*fontItr)->fontFilePath.compare(defFilePath) == 0)
+			{
+				if(returnValue != NULL)
+				{
+					*returnValue = (*fontItr);
+				}
+
+				return 0;
+			}
+		}
+	}
+
 	//get the XML structure from the file
 	XMLDocument * file = new XMLDocument();
 	if(int error = file->LoadFile(defFilePath.data()) != 0)
@@ -2584,20 +2655,6 @@ int ObjectManager::LoadHSFont(string defFilePath, HSFont ** returnValue)
 	}
 
 	XMLElement * root = file->RootElement();
-
-	list<HSFont*>::iterator fIt;
-	for(fIt = fontRegistry.begin(); fIt != fontRegistry.end(); fIt++)
-	{
-		if((*fIt)->fontFilePath.compare(defFilePath) == 0)
-		{
-			if(returnValue != NULL)
-			{
-				*returnValue = *fIt;
-			}
-
-			return 0;
-		}
-	}
 
 	HSFont * newFont = new HSFont();
 	newFont->fontFilePath = defFilePath;
@@ -2686,7 +2743,6 @@ int ObjectManager::LoadHSFont(string defFilePath, HSFont ** returnValue)
 		else if(strcmp("parenLeft", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.parenLeft) != 0) { return error; } }
 		else if(strcmp("parenRight", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.parenRight) != 0) { return error; } }
 		else if(strcmp("backslash", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.backslash) != 0) { return error; } }
-		else if(strcmp("backslash", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.backslash) != 0) { return error; } }
 		else if(strcmp("forwardslash", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.forwardslash) != 0) { return error; } }
 		else if(strcmp("colon", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.colon) != 0) { return error; } }
 		else if(strcmp("quoteSingle", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.quoteSingle) != 0) { return error; } }
@@ -2717,6 +2773,11 @@ int ObjectManager::LoadHSFont(string defFilePath, HSFont ** returnValue)
 	if(returnValue != NULL)
 	{
 		*returnValue = newFont;
+	}
+	
+	if(useRegistry)
+	{
+		fontRegistry.push_back(newFont);
 	}
 
 	return 0;
@@ -2767,7 +2828,6 @@ int ObjectManager::LoadLoadingScreen(string defFilePath)
 	float backgroundPosX = 0;
 	float backgroundPosY = 0;
 	string loadingTextFontFilePath = "";
-	HSFont * loadingTextFont = NULL;
 	float loadingTextPosX = 0;
 	float loadingTextPosY = 0;
 
@@ -2783,13 +2843,13 @@ int ObjectManager::LoadLoadingScreen(string defFilePath)
 	if(loadingTextJustificationString.compare("RIGHT") == 0) { loadingTextJustification = JUSTIFICATION_RIGHT; }
 	else if(loadingTextJustificationString.compare("CENTER") == 0) { loadingTextJustification = JUSTIFICATION_CENTER; }
 
-	if(int error = LoadHSFont(loadingTextFontFilePath, &loadingTextFont) != 0) { return error; }
+	if(int error = LoadHSFont(loadingTextFontFilePath, &loadingFont, false) != 0) { return error; }
 	if(int error = LoadDefinition(backgroundDefFilePath, &HUDObjects, &loadingBackground) != 0) { return error; }
 	loadingBackground->pos.x = backgroundPosX;
 	loadingBackground->pos.y = backgroundPosY;
 	loadingBackground->depth = LOADING_BACKGROUND_DEPTH;
 
-	loadingText = new HSText(loadingTextFont);
+	loadingText = new HSText(loadingFont);
 	loadingText->pos.x = loadingTextPosX;
 	loadingText->pos.y = loadingTextPosY;
 	loadingText->depth = LOADING_TEXT_DEPTH;
@@ -4232,7 +4292,7 @@ int ObjectManager::CloneObject(HSObject * objectToClone, list<HSObject*> * objec
 int ObjectManager::ClearAllObjects()
 {
 	SDL_LockAudio();
-
+	
 	list<HSObject*>::iterator objIt;
 	for ( objIt=stageObjects.begin(); objIt != stageObjects.end(); objIt++)
 	{
@@ -4315,18 +4375,11 @@ int ObjectManager::ClearAllObjects()
 	list<HSAudio*>::iterator audIt;
 	for ( audIt=audioRegistry.begin(); audIt != audioRegistry.end(); audIt++)
 	{
+		free ((*audIt)->data);
 		delete (*audIt);
 	}
 
 	audioRegistry.clear();
-
-	list<HSFont*>::iterator fIt;
-	for ( fIt=fontRegistry.begin(); fIt != fontRegistry.end(); fIt++)
-	{
-		delete (*fIt);
-	}
-
-	fontRegistry.clear();
 
 	list<CurrentAudioEntry*>::iterator curAudIt;
 	for ( curAudIt=currentAudio.begin(); curAudIt != currentAudio.end(); curAudIt++)
@@ -4351,6 +4404,14 @@ int ObjectManager::ClearAllObjects()
 	menuManager = NULL;
 	characterSelectManager = NULL;
 	hudManager = NULL;
+
+	list<HSFont*>::iterator fontIt;
+	for (fontIt = fontRegistry.begin(); fontIt != fontRegistry.end(); fontIt++)
+	{
+		delete *fontIt;
+	}
+
+	fontRegistry.clear();
 
 	return 0;
 }
