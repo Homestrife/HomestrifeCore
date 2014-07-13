@@ -148,6 +148,9 @@ public:
 	HSObject * characterSelectBackground;
 	string characterSelectTitle;
 	HSText * title;
+	string selectCharacterText;
+	string selectPaletteText;
+	string readyText;
 	
 	HSVect2D gridPos;
 	int rows;

@@ -233,6 +233,9 @@ CharacterSelect::CharacterSelect()
 	characterSelectBackground = NULL;
 	characterSelectTitle = "";
 	title = NULL;
+	selectCharacterText = "";
+	selectPaletteText = "";
+	readyText = "";
 	gridPos.x = 0;
 	gridPos.y = 0;
 	rows = 0;
@@ -502,7 +505,10 @@ void CharacterSelect::ChangeCharacterSelectPlayerState(CharacterSelectPlayerStat
 		list<CharacterSelectPortrait*>::iterator pItr;
 		for(pItr = portraits[player].begin(); pItr != portraits[player].end(); pItr++)
 		{
-			(*pItr)->portraitImage->SetPalette(0);
+			if((*pItr)->portraitImage != NULL)
+			{
+				(*pItr)->portraitImage->SetPalette(0);
+			}
 		}
 	}
 
@@ -607,7 +613,10 @@ void CharacterSelect::Refresh()
 	for(panIt = panels.begin(); panIt != panels.end(); panIt++)
 	{
 		(*panIt)->panelBorderImage->visible = _visible;
-		(*panIt)->panelCharacterImage->visible = _visible;
+		if((*panIt)->panelCharacterImage != NULL)
+		{
+			(*panIt)->panelCharacterImage->visible = _visible;
+		}
 	}
 
 	for(int i = 0; i < MAX_PLAYERS; i++)
@@ -638,7 +647,10 @@ void CharacterSelect::Refresh()
 		list<CharacterSelectPortrait*>::iterator csIt;
 		for(csIt = portraits[i].begin(); csIt != portraits[i].end(); csIt++)
 		{
-			(*csIt)->portraitImage->visible = false;
+			if((*csIt)->portraitImage != NULL)
+			{
+				(*csIt)->portraitImage->visible = false;
+			}
 		}
 
 		characterName[i]->DeleteText();
@@ -650,14 +662,17 @@ void CharacterSelect::Refresh()
 			{
 				characterName[i]->SetText(cursors[i]->currentPanel->portraitReference[i]->characterName);
 
-				cursors[i]->currentPanel->portraitReference[i]->portraitImage->visible = true;
-				if(_prevPalette[i])
+				if(cursors[i]->currentPanel->portraitReference[i]->portraitImage != NULL)
 				{
-					cursors[i]->currentPanel->portraitReference[i]->portraitImage->PrevPalette();
-				}
-				else if(_nextPalette[i])
-				{
-					cursors[i]->currentPanel->portraitReference[i]->portraitImage->NextPalette();
+					cursors[i]->currentPanel->portraitReference[i]->portraitImage->visible = true;
+					if(_prevPalette[i])
+					{
+						cursors[i]->currentPanel->portraitReference[i]->portraitImage->PrevPalette();
+					}
+					else if(_nextPalette[i])
+					{
+						cursors[i]->currentPanel->portraitReference[i]->portraitImage->NextPalette();
+					}
 				}
 			}
 
@@ -666,15 +681,15 @@ void CharacterSelect::Refresh()
 
 			if(characterSelectPlayerState[i] == SELECTING_CHARACTER)
 			{
-				portraitInstructions[i]->SetText("Select Character");
+				portraitInstructions[i]->SetText(selectCharacterText);
 			}
 			else if(characterSelectPlayerState[i] == SELECTING_PALETTE)
 			{
-				portraitInstructions[i]->SetText("Select Color Palette");
+				portraitInstructions[i]->SetText(selectPaletteText);
 			}
 			else if(characterSelectPlayerState[i] == READY)
 			{
-				portraitInstructions[i]->SetText("Player Ready");
+				portraitInstructions[i]->SetText(readyText);
 			}
 		}
 	}

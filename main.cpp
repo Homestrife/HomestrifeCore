@@ -617,6 +617,7 @@ int Main::SpawnText(HSText * text)
 		newChar->pos.x = ctcIt->pos.x;
 		newChar->pos.y = ctcIt->pos.y;
 		newChar->depth = ctcIt->depth;
+		newChar->SetPalette(ctcIt->palette);
 
 		text->characterList.push_back(newChar);
 	}

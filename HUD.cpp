@@ -19,6 +19,7 @@ HUD::HUD()
 	livesCounter = NULL;
 	comboCounter = NULL;
 	comboCounterBackground = NULL;
+	hitsText = "";
 	objectToTrack = NULL;
 }
 
@@ -56,7 +57,10 @@ void HUD::Refresh()
 	background->visible = _visible;
 	healthMeter->visible = _visible;
 	healthUnderMeter->visible = _visible;
-	healthMeterCover->visible = _visible;
+	if(healthMeterCover != NULL)
+	{
+		healthMeterCover->visible = _visible;
+	}
 
 	float healthMeterScale = 0;
 	if(health != 0)
@@ -114,21 +118,30 @@ void HUD::Refresh()
 		if(hits > 1)
 		{
 			sstm.str("");
-			sstm << hits << " Hits";
+			sstm << hits << " " << hitsText;
 			comboCounter->SetText(sstm.str());
-			comboCounterBackground->visible = true;
+			if(comboCounterBackground != NULL)
+			{
+				comboCounterBackground->visible = true;
+			}
 		}
 		else
 		{
 			comboCounter->DeleteText();
-			comboCounterBackground->visible = false;
+			if(comboCounterBackground != NULL)
+			{
+				comboCounterBackground->visible = false;
+			}
 		}
 	}
 	else
 	{
 		livesCounter->DeleteText();
 		comboCounter->DeleteText();
-		comboCounterBackground->visible = false;
+		if(comboCounterBackground != NULL)
+		{
+			comboCounterBackground->visible = false;
+		}
 	}
 }
 

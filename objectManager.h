@@ -151,7 +151,7 @@ public:
 	int LoadMenuChooser(string defFilePath, HSFont * font, MenuChooser ** returnValue = NULL);
 	int CreateMenuKeySetting(HSFont * font, MenuKeySetting ** returnValue = NULL);
 	int LoadHSFont(string defFilePath, HSFont ** returnValue = NULL, bool useRegistry = true);
-	int LoadHSCharacter(XMLElement * xml, HSCharacter * hsChar);
+	int LoadHSCharacter(XMLElement * xml, HSCharacter * hsChar, list<PaletteInstance> paletteInstances);
 
 	int LoadLoadingScreen(string defFilePath);
 

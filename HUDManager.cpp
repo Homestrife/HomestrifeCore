@@ -53,11 +53,11 @@ void HUDManager::Refresh()
 		{
 		case PROMPT_READY:
 			prompt->SetText(readyText);
-			promptBackground->visible = true;
+			if(promptBackground != NULL) { promptBackground->visible = true; }
 			break;
 		case PROMPT_FIGHT:
 			prompt->SetText(fightText);
-			promptBackground->visible = true;
+			if(promptBackground != NULL) { promptBackground->visible = true; }
 			break;
 		case PROMPT_WIN:
 			for(int i = 0; i < MAX_PLAYERS; i++)
@@ -73,18 +73,18 @@ void HUDManager::Refresh()
 
 				break;
 			}
-			promptBackground->visible = true;
+			if(promptBackground != NULL) { promptBackground->visible = true; }
 			break;
 		case PROMPT_CLEAR:
 			prompt->DeleteText();
-			promptBackground->visible = false;
+			if(promptBackground != NULL) { promptBackground->visible = false; }
 			break;
 		}
 	}
 	else
 	{
 		prompt->DeleteText();
-		promptBackground->visible = false;
+		if(promptBackground != NULL) { promptBackground->visible = false; }
 	}
 }
 

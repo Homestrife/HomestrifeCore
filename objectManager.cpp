@@ -1455,10 +1455,26 @@ int ObjectManager::LoadHSMenu(string defFilePath, HSVect2D menuPos, HSMenu ** re
 	
 	XMLElement * root = file->RootElement();
 
-	HSFont * titleFont;
+	string titleJustificationString = "";
+	TextJustification titleJustification = JUSTIFICATION_LEFT;
+	string itemTextJustificationString = "";
+	TextJustification itemTextJustification = JUSTIFICATION_LEFT;
+
+	if(root->Attribute("titleJustification") != NULL) { titleJustificationString = root->Attribute("titleJustification"); }
+	if(titleJustificationString.compare("RIGHT") == 0) { titleJustification = JUSTIFICATION_RIGHT; }
+	else if(titleJustificationString.compare("CENTER") == 0) { titleJustification = JUSTIFICATION_CENTER; }
+
+	if(root->Attribute("itemTextJustification") != NULL) { itemTextJustificationString = root->Attribute("itemTextJustification"); }
+	if(itemTextJustificationString.compare("RIGHT") == 0) { itemTextJustification = JUSTIFICATION_RIGHT; }
+	else if(itemTextJustificationString.compare("CENTER") == 0) { itemTextJustification = JUSTIFICATION_CENTER; }
+
+	HSFont * titleFont = NULL;
 	string titleFontDefFilePath = "";
 	if(root->Attribute("titleFontDefFilePath") != NULL) { titleFontDefFilePath = root->Attribute("titleFontDefFilePath"); }
-	if(int error = LoadHSFont(titleFontDefFilePath, &titleFont) != 0) { return error; }
+	if(!titleFontDefFilePath.empty())
+	{
+		if(int error = LoadHSFont(titleFontDefFilePath, &titleFont) != 0) { return error; }
+	}
 
 	HSFont * itemFont = NULL;
 	string itemFontDefFilePath = "";
@@ -1488,6 +1504,7 @@ int ObjectManager::LoadHSMenu(string defFilePath, HSVect2D menuPos, HSMenu ** re
 	if(int error = LoadDefinition(backgroundDefFilePath, &HUDObjects, &background) != 0) { return error; }
 
 	HSMenu * newMenu = new HSMenu(titleFont);
+	newMenu->justification = titleJustification;
 	newMenu->background = background;
 	newMenu->background->depth = MENU_BACKGROUND_DEPTH;
 	newMenu->cursorToClone = cursorToClone;
@@ -1499,8 +1516,11 @@ int ObjectManager::LoadHSMenu(string defFilePath, HSVect2D menuPos, HSMenu ** re
 	float menuOffsetY = 0;
 	float backgroundOffsetX = 0;
 	float backgroundOffsetY = 0;
+	int itemPalette = 0;
 	root->QueryFloatAttribute("titleSeparation", &newMenu->titleSeparation);
 	root->QueryFloatAttribute("cursorWidth", &newMenu->cursorWidth);
+	root->QueryIntAttribute("titlePalette", &newMenu->palette);
+	root->QueryIntAttribute("itemPalette", &itemPalette);
 	root->QueryFloatAttribute("cursorSeparation", &newMenu->cursorSeparation);
 	root->QueryFloatAttribute("itemSeparation", &newMenu->itemSeparation);
 	root->QueryFloatAttribute("menuOffsetX", &menuOffsetX);
@@ -1512,8 +1532,6 @@ int ObjectManager::LoadHSMenu(string defFilePath, HSVect2D menuPos, HSMenu ** re
 	newMenu->pos.y = menuPos.y + menuOffsetY;
 	newMenu->background->pos.x = menuPos.x + menuOffsetX + backgroundOffsetX;
 	newMenu->background->pos.y = menuPos.y + menuOffsetY + backgroundOffsetY;
-
-	newMenu->titleHeight = titleFont->charHeight;
 
 	if(root->Attribute("titleText") != NULL) { newMenu->titleText = root->Attribute("titleText"); }
 
@@ -1533,7 +1551,9 @@ int ObjectManager::LoadHSMenu(string defFilePath, HSVect2D menuPos, HSMenu ** re
 			itemFont = NULL;
 			if(int error = LoadHSFont(itemFontDefFilePath, &itemFont) != 0) { return error; }
 			HSMenuItem * newItem = new HSMenuItem(itemFont);
+			newItem->justification = itemTextJustification;
 			newItem->parentMenu = newMenu;
+			newItem->palette = itemPalette;
 
 			string function = "";
 			if(i->Attribute("function") != NULL) { function = i->Attribute("function"); }
@@ -2670,102 +2690,161 @@ int ObjectManager::LoadHSFont(string defFilePath, HSFont ** returnValue, bool us
 
 	newFont->characters.space = space;
 
+	XMLElement * palettesDef = NULL;
+	for(XMLElement * partDef = root->FirstChildElement(); partDef != NULL; partDef = partDef->NextSiblingElement())
+	{
+		if(strcmp(partDef->Value(), "Palettes") == 0) { palettesDef = partDef; }
+	}
+
+	list<PaletteInstance> paletteInstances;
+	paletteInstances.clear();
+
+	if(palettesDef != NULL)
+	{
+		for(XMLElement * paletteDef = palettesDef->FirstChildElement(); paletteDef != NULL; paletteDef = paletteDef->NextSiblingElement())
+		{
+			if(strcmp(paletteDef->Value(), "Palette") != 0)
+			{
+				continue;
+			}
+
+			string palFilePath = "";
+			if(paletteDef->Attribute("path") != NULL) { palFilePath = paletteDef->Attribute("path"); }
+			PaletteInstance newPalInst;
+				
+			//see if the palette has already been loaded
+			bool alreadyLoaded = false;
+			list<HSPalette*>::iterator plIt;
+			for ( plIt=paletteRegistry.begin(); plIt != paletteRegistry.end(); plIt++)
+			{
+				if((*plIt)->paletteFilePath.compare(palFilePath) == 0)
+				{
+					newPalInst.hsPal = (*plIt);
+					(*plIt)->usingCount++;
+					alreadyLoaded = true;
+					break;
+				}
+			}
+
+			if(!alreadyLoaded)
+			{
+				//make a new palette
+				HSPalette * newPal = new HSPalette();
+				newPal->usingCount = 0;
+				newPal->paletteFilePath = palFilePath;
+				newPal->textureID = 0;
+
+				//if(int error = LoadHSPToPalette(newPal) != 0) //load the texture
+				//{
+				//	return error;
+				//}
+
+				paletteRegistry.push_back(newPal);
+				newPalInst.hsPal = newPal;
+			}
+
+			if(paletteDef->Attribute("name") != NULL) { newPalInst.name = paletteDef->Attribute("name"); }
+			paletteDef->QueryUnsignedAttribute("id", &newPalInst.orderID);
+			paletteInstances.push_back(newPalInst);
+		}
+	}
+
 	//loop through all the sections of the font definition
 	for(XMLElement * i = root->FirstChildElement(); i != NULL; i = i->NextSiblingElement())
 	{
 		//get the section
 		const char * section = i->Value();
 
-		if(strcmp("lcA", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcA) != 0) { return error; } }
-		else if(strcmp("lcB", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcB) != 0) { return error; } }
-		else if(strcmp("lcC", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcC) != 0) { return error; } }
-		else if(strcmp("lcD", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcD) != 0) { return error; } }
-		else if(strcmp("lcE", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcE) != 0) { return error; } }
-		else if(strcmp("lcF", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcF) != 0) { return error; } }
-		else if(strcmp("lcG", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcG) != 0) { return error; } }
-		else if(strcmp("lcH", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcH) != 0) { return error; } }
-		else if(strcmp("lcI", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcI) != 0) { return error; } }
-		else if(strcmp("lcJ", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcJ) != 0) { return error; } }
-		else if(strcmp("lcK", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcK) != 0) { return error; } }
-		else if(strcmp("lcL", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcL) != 0) { return error; } }
-		else if(strcmp("lcM", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcM) != 0) { return error; } }
-		else if(strcmp("lcN", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcN) != 0) { return error; } }
-		else if(strcmp("lcO", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcO) != 0) { return error; } }
-		else if(strcmp("lcP", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcP) != 0) { return error; } }
-		else if(strcmp("lcQ", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcQ) != 0) { return error; } }
-		else if(strcmp("lcR", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcR) != 0) { return error; } }
-		else if(strcmp("lcS", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcS) != 0) { return error; } }
-		else if(strcmp("lcT", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcT) != 0) { return error; } }
-		else if(strcmp("lcU", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcU) != 0) { return error; } }
-		else if(strcmp("lcV", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcV) != 0) { return error; } }
-		else if(strcmp("lcW", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcW) != 0) { return error; } }
-		else if(strcmp("lcX", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcX) != 0) { return error; } }
-		else if(strcmp("lcY", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcY) != 0) { return error; } }
-		else if(strcmp("lcZ", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcZ) != 0) { return error; } }
-		else if(strcmp("ucA", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucA) != 0) { return error; } }
-		else if(strcmp("ucB", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucB) != 0) { return error; } }
-		else if(strcmp("ucC", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucC) != 0) { return error; } }
-		else if(strcmp("ucD", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucD) != 0) { return error; } }
-		else if(strcmp("ucE", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucE) != 0) { return error; } }
-		else if(strcmp("ucF", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucF) != 0) { return error; } }
-		else if(strcmp("ucG", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucG) != 0) { return error; } }
-		else if(strcmp("ucH", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucH) != 0) { return error; } }
-		else if(strcmp("ucI", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucI) != 0) { return error; } }
-		else if(strcmp("ucJ", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucJ) != 0) { return error; } }
-		else if(strcmp("ucK", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucK) != 0) { return error; } }
-		else if(strcmp("ucL", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucL) != 0) { return error; } }
-		else if(strcmp("ucM", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucM) != 0) { return error; } }
-		else if(strcmp("ucN", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucN) != 0) { return error; } }
-		else if(strcmp("ucO", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucO) != 0) { return error; } }
-		else if(strcmp("ucP", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucP) != 0) { return error; } }
-		else if(strcmp("ucQ", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucQ) != 0) { return error; } }
-		else if(strcmp("ucR", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucR) != 0) { return error; } }
-		else if(strcmp("ucS", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucS) != 0) { return error; } }
-		else if(strcmp("ucT", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucT) != 0) { return error; } }
-		else if(strcmp("ucU", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucU) != 0) { return error; } }
-		else if(strcmp("ucV", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucV) != 0) { return error; } }
-		else if(strcmp("ucW", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucW) != 0) { return error; } }
-		else if(strcmp("ucX", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucX) != 0) { return error; } }
-		else if(strcmp("ucY", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucY) != 0) { return error; } }
-		else if(strcmp("ucZ", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucZ) != 0) { return error; } }
-		else if(strcmp("num0", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.num0) != 0) { return error; } }
-		else if(strcmp("num1", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.num1) != 0) { return error; } }
-		else if(strcmp("num2", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.num2) != 0) { return error; } }
-		else if(strcmp("num3", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.num3) != 0) { return error; } }
-		else if(strcmp("num4", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.num4) != 0) { return error; } }
-		else if(strcmp("num5", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.num5) != 0) { return error; } }
-		else if(strcmp("num6", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.num6) != 0) { return error; } }
-		else if(strcmp("num7", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.num7) != 0) { return error; } }
-		else if(strcmp("num8", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.num8) != 0) { return error; } }
-		else if(strcmp("num9", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.num9) != 0) { return error; } }
-		else if(strcmp("exclamation", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.exclamation) != 0) { return error; } }
-		else if(strcmp("ampersand", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ampersand) != 0) { return error; } }
-		else if(strcmp("parenLeft", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.parenLeft) != 0) { return error; } }
-		else if(strcmp("parenRight", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.parenRight) != 0) { return error; } }
-		else if(strcmp("backslash", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.backslash) != 0) { return error; } }
-		else if(strcmp("forwardslash", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.forwardslash) != 0) { return error; } }
-		else if(strcmp("colon", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.colon) != 0) { return error; } }
-		else if(strcmp("quoteSingle", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.quoteSingle) != 0) { return error; } }
-		else if(strcmp("quoteDouble", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.quoteDouble) != 0) { return error; } }
-		else if(strcmp("comma", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.comma) != 0) { return error; } }
-		else if(strcmp("period", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.period) != 0) { return error; } }
-		else if(strcmp("question", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.question) != 0) { return error; } }
-		else if(strcmp("lessThan", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lessThan) != 0) { return error; } }
-		else if(strcmp("greaterThan", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.greaterThan) != 0) { return error; } }
-		else if(strcmp("at", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.at) != 0) { return error; } }
-		else if(strcmp("hash", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.hash) != 0) { return error; } }
-		else if(strcmp("dollar", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.dollar) != 0) { return error; } }
-		else if(strcmp("percent", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.percent) != 0) { return error; } }
-		else if(strcmp("carat", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.carat) != 0) { return error; } }
-		else if(strcmp("asterisk", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.asterisk) != 0) { return error; } }
-		else if(strcmp("minus", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.minus) != 0) { return error; } }
-		else if(strcmp("underscore", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.underscore) != 0) { return error; } }
-		else if(strcmp("plus", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.plus) != 0) { return error; } }
-		else if(strcmp("equals", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.equals) != 0) { return error; } }
-		else if(strcmp("bracketLeft", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.bracketLeft) != 0) { return error; } }
-		else if(strcmp("bracketRight", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.bracketRight) != 0) { return error; } }
-		else if(strcmp("semicolon", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.semicolon) != 0) { return error; } }
-		else if(strcmp("quoteBack", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.quoteBack) != 0) { return error; } }
+		if(strcmp("lcA", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcA, paletteInstances) != 0) { return error; } }
+		else if(strcmp("lcB", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcB, paletteInstances) != 0) { return error; } }
+		else if(strcmp("lcC", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcC, paletteInstances) != 0) { return error; } }
+		else if(strcmp("lcD", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcD, paletteInstances) != 0) { return error; } }
+		else if(strcmp("lcE", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcE, paletteInstances) != 0) { return error; } }
+		else if(strcmp("lcF", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcF, paletteInstances) != 0) { return error; } }
+		else if(strcmp("lcG", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcG, paletteInstances) != 0) { return error; } }
+		else if(strcmp("lcH", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcH, paletteInstances) != 0) { return error; } }
+		else if(strcmp("lcI", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcI, paletteInstances) != 0) { return error; } }
+		else if(strcmp("lcJ", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcJ, paletteInstances) != 0) { return error; } }
+		else if(strcmp("lcK", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcK, paletteInstances) != 0) { return error; } }
+		else if(strcmp("lcL", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcL, paletteInstances) != 0) { return error; } }
+		else if(strcmp("lcM", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcM, paletteInstances) != 0) { return error; } }
+		else if(strcmp("lcN", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcN, paletteInstances) != 0) { return error; } }
+		else if(strcmp("lcO", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcO, paletteInstances) != 0) { return error; } }
+		else if(strcmp("lcP", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcP, paletteInstances) != 0) { return error; } }
+		else if(strcmp("lcQ", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcQ, paletteInstances) != 0) { return error; } }
+		else if(strcmp("lcR", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcR, paletteInstances) != 0) { return error; } }
+		else if(strcmp("lcS", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcS, paletteInstances) != 0) { return error; } }
+		else if(strcmp("lcT", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcT, paletteInstances) != 0) { return error; } }
+		else if(strcmp("lcU", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcU, paletteInstances) != 0) { return error; } }
+		else if(strcmp("lcV", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcV, paletteInstances) != 0) { return error; } }
+		else if(strcmp("lcW", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcW, paletteInstances) != 0) { return error; } }
+		else if(strcmp("lcX", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcX, paletteInstances) != 0) { return error; } }
+		else if(strcmp("lcY", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcY, paletteInstances) != 0) { return error; } }
+		else if(strcmp("lcZ", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lcZ, paletteInstances) != 0) { return error; } }
+		else if(strcmp("ucA", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucA, paletteInstances) != 0) { return error; } }
+		else if(strcmp("ucB", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucB, paletteInstances) != 0) { return error; } }
+		else if(strcmp("ucC", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucC, paletteInstances) != 0) { return error; } }
+		else if(strcmp("ucD", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucD, paletteInstances) != 0) { return error; } }
+		else if(strcmp("ucE", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucE, paletteInstances) != 0) { return error; } }
+		else if(strcmp("ucF", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucF, paletteInstances) != 0) { return error; } }
+		else if(strcmp("ucG", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucG, paletteInstances) != 0) { return error; } }
+		else if(strcmp("ucH", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucH, paletteInstances) != 0) { return error; } }
+		else if(strcmp("ucI", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucI, paletteInstances) != 0) { return error; } }
+		else if(strcmp("ucJ", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucJ, paletteInstances) != 0) { return error; } }
+		else if(strcmp("ucK", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucK, paletteInstances) != 0) { return error; } }
+		else if(strcmp("ucL", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucL, paletteInstances) != 0) { return error; } }
+		else if(strcmp("ucM", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucM, paletteInstances) != 0) { return error; } }
+		else if(strcmp("ucN", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucN, paletteInstances) != 0) { return error; } }
+		else if(strcmp("ucO", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucO, paletteInstances) != 0) { return error; } }
+		else if(strcmp("ucP", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucP, paletteInstances) != 0) { return error; } }
+		else if(strcmp("ucQ", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucQ, paletteInstances) != 0) { return error; } }
+		else if(strcmp("ucR", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucR, paletteInstances) != 0) { return error; } }
+		else if(strcmp("ucS", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucS, paletteInstances) != 0) { return error; } }
+		else if(strcmp("ucT", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucT, paletteInstances) != 0) { return error; } }
+		else if(strcmp("ucU", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucU, paletteInstances) != 0) { return error; } }
+		else if(strcmp("ucV", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucV, paletteInstances) != 0) { return error; } }
+		else if(strcmp("ucW", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucW, paletteInstances) != 0) { return error; } }
+		else if(strcmp("ucX", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucX, paletteInstances) != 0) { return error; } }
+		else if(strcmp("ucY", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucY, paletteInstances) != 0) { return error; } }
+		else if(strcmp("ucZ", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ucZ, paletteInstances) != 0) { return error; } }
+		else if(strcmp("num0", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.num0, paletteInstances) != 0) { return error; } }
+		else if(strcmp("num1", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.num1, paletteInstances) != 0) { return error; } }
+		else if(strcmp("num2", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.num2, paletteInstances) != 0) { return error; } }
+		else if(strcmp("num3", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.num3, paletteInstances) != 0) { return error; } }
+		else if(strcmp("num4", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.num4, paletteInstances) != 0) { return error; } }
+		else if(strcmp("num5", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.num5, paletteInstances) != 0) { return error; } }
+		else if(strcmp("num6", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.num6, paletteInstances) != 0) { return error; } }
+		else if(strcmp("num7", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.num7, paletteInstances) != 0) { return error; } }
+		else if(strcmp("num8", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.num8, paletteInstances) != 0) { return error; } }
+		else if(strcmp("num9", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.num9, paletteInstances) != 0) { return error; } }
+		else if(strcmp("exclamation", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.exclamation, paletteInstances) != 0) { return error; } }
+		else if(strcmp("ampersand", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.ampersand, paletteInstances) != 0) { return error; } }
+		else if(strcmp("parenLeft", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.parenLeft, paletteInstances) != 0) { return error; } }
+		else if(strcmp("parenRight", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.parenRight, paletteInstances) != 0) { return error; } }
+		else if(strcmp("backslash", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.backslash, paletteInstances) != 0) { return error; } }
+		else if(strcmp("forwardslash", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.forwardslash, paletteInstances) != 0) { return error; } }
+		else if(strcmp("colon", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.colon, paletteInstances) != 0) { return error; } }
+		else if(strcmp("quoteSingle", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.quoteSingle, paletteInstances) != 0) { return error; } }
+		else if(strcmp("quoteDouble", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.quoteDouble, paletteInstances) != 0) { return error; } }
+		else if(strcmp("comma", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.comma, paletteInstances) != 0) { return error; } }
+		else if(strcmp("period", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.period, paletteInstances) != 0) { return error; } }
+		else if(strcmp("question", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.question, paletteInstances) != 0) { return error; } }
+		else if(strcmp("lessThan", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.lessThan, paletteInstances) != 0) { return error; } }
+		else if(strcmp("greaterThan", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.greaterThan, paletteInstances) != 0) { return error; } }
+		else if(strcmp("at", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.at, paletteInstances) != 0) { return error; } }
+		else if(strcmp("hash", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.hash, paletteInstances) != 0) { return error; } }
+		else if(strcmp("dollar", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.dollar, paletteInstances) != 0) { return error; } }
+		else if(strcmp("percent", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.percent, paletteInstances) != 0) { return error; } }
+		else if(strcmp("carat", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.carat, paletteInstances) != 0) { return error; } }
+		else if(strcmp("asterisk", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.asterisk, paletteInstances) != 0) { return error; } }
+		else if(strcmp("minus", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.minus, paletteInstances) != 0) { return error; } }
+		else if(strcmp("underscore", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.underscore, paletteInstances) != 0) { return error; } }
+		else if(strcmp("plus", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.plus, paletteInstances) != 0) { return error; } }
+		else if(strcmp("equals", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.equals, paletteInstances) != 0) { return error; } }
+		else if(strcmp("bracketLeft", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.bracketLeft, paletteInstances) != 0) { return error; } }
+		else if(strcmp("bracketRight", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.bracketRight, paletteInstances) != 0) { return error; } }
+		else if(strcmp("semicolon", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.semicolon, paletteInstances) != 0) { return error; } }
+		else if(strcmp("quoteBack", section) == 0) { if(int error = LoadHSCharacter(i, &newFont->characters.quoteBack, paletteInstances) != 0) { return error; } }
 	}
 
 	delete file;
@@ -2783,7 +2862,7 @@ int ObjectManager::LoadHSFont(string defFilePath, HSFont ** returnValue, bool us
 	return 0;
 }
 
-int ObjectManager::LoadHSCharacter(XMLElement * xml, HSCharacter * hsChar)
+int ObjectManager::LoadHSCharacter(XMLElement * xml, HSCharacter * hsChar, list<PaletteInstance> paletteInstances)
 {
 	if(hsChar == NULL) { return 0; }
 
@@ -2796,6 +2875,15 @@ int ObjectManager::LoadHSCharacter(XMLElement * xml, HSCharacter * hsChar)
 	if(defFilePath.empty()) { return 0; }
 
 	if(int error = LoadDefinition(defFilePath, NULL, &newObject) != 0) { return error; }
+
+	//add the font palettes to the character object
+	list<PaletteInstance>::iterator piItr;
+	for(piItr = paletteInstances.begin(); piItr != paletteInstances.end(); piItr++)
+	{
+		newObject->palettes.push_back(*piItr);
+	}
+	newObject->palettes.sort(HSOrderableSort);
+	newObject->SetPalette(0);
 
 	hsChar->character = newObject;
 
@@ -2830,6 +2918,7 @@ int ObjectManager::LoadLoadingScreen(string defFilePath)
 	string loadingTextFontFilePath = "";
 	float loadingTextPosX = 0;
 	float loadingTextPosY = 0;
+	int loadingTextPalette = 0;
 
 	backgroundDefFilePath = root->Attribute("backgroundDefFilePath");
 	root->QueryFloatAttribute("backgroundPosX", &backgroundPosX);
@@ -2837,6 +2926,7 @@ int ObjectManager::LoadLoadingScreen(string defFilePath)
 	loadingTextFontFilePath = root->Attribute("loadingTextFontFilePath");
 	root->QueryFloatAttribute("loadingTextPosX", &loadingTextPosX);
 	root->QueryFloatAttribute("loadingTextPosY", &loadingTextPosY);
+	root->QueryIntAttribute("loadingTextPalette", &loadingTextPalette);
 
 	string loadingTextJustificationString = "";
 	if(root->Attribute("loadingTextJustification") != NULL) { loadingTextJustificationString = root->Attribute("loadingTextJustification"); }
@@ -2854,6 +2944,7 @@ int ObjectManager::LoadLoadingScreen(string defFilePath)
 	loadingText->pos.y = loadingTextPosY;
 	loadingText->depth = LOADING_TEXT_DEPTH;
 	loadingText->justification = loadingTextJustification;
+	loadingText->palette = loadingTextPalette;
 
 	return 0;
 }
@@ -2907,11 +2998,17 @@ int ObjectManager::LoadCharacterSelect(string defFilePath, string pcFilePath, st
 			float panelImageOffsetY = 0;
 			float portraitBorderOffsetX = 0;
 			float portraitBorderOffsetY = 0;
+			int titlePalette = 0;
+			int characterNamePalette = 0;
+			int instructionsPalette = 0;
 	
 			string backgroundFilePath = i->Attribute("backgroundFilePath");
 			i->QueryFloatAttribute("backgroundPosX", &backgroundPosX);
 			i->QueryFloatAttribute("backgroundPosY", &backgroundPosY);
 			string characterSelectTitle = i->Attribute("titleText");
+			string selectCharacterText = i->Attribute("selectCharacterText");
+			string selectPaletteText = i->Attribute("selectPaletteText");
+			string readyText = i->Attribute("readyText");
 			string titleFontFilePath = i->Attribute("titleFontFilePath");
 			i->QueryFloatAttribute("titlePosX", &titlePosX);
 			i->QueryFloatAttribute("titlePosY", &titlePosY);
@@ -2930,6 +3027,9 @@ int ObjectManager::LoadCharacterSelect(string defFilePath, string pcFilePath, st
 			i->QueryFloatAttribute("portraitBorderOffsetY", &portraitBorderOffsetY);
 			string characterNameFontFilePath = i->Attribute("characterNameFontFilePath");
 			string instructionsFontFilePath = i->Attribute("instructionsFontFilePath");
+			i->QueryIntAttribute("titlePalette", &titlePalette);
+			i->QueryIntAttribute("characterNamePalette", &characterNamePalette);
+			i->QueryIntAttribute("instructionsPalette", &instructionsPalette);
 
 			string titleJustificationString = "";
 			if(i->Attribute("titleJustification") != NULL) { titleJustificationString = i->Attribute("titleJustification"); }
@@ -2949,8 +3049,12 @@ int ObjectManager::LoadCharacterSelect(string defFilePath, string pcFilePath, st
 			cs->title->pos.x = titlePosX;
 			cs->title->pos.y = titlePosY;
 			cs->title->depth = CHARACTER_SELECT_TITLE_DEPTH;
+			cs->title->palette = titlePalette;
 			cs->characterSelectBackground = newObject;
 			cs->characterSelectTitle = characterSelectTitle;
+			cs->selectCharacterText = selectCharacterText;
+			cs->selectPaletteText = selectPaletteText;
+			cs->readyText = readyText;
 			cs->gridPos.x = gridPosX;
 			cs->gridPos.y = gridPosY;
 			cs->rows = gridRows;
@@ -3038,11 +3142,13 @@ int ObjectManager::LoadCharacterSelect(string defFilePath, string pcFilePath, st
 					cs->characterName[playerNum]->pos.x = characterNamePosX;
 					cs->characterName[playerNum]->pos.y = characterNamePosY;
 					cs->characterName[playerNum]->depth = CHARACTER_SELECT_NAME_DEPTH;
+					cs->characterName[playerNum]->palette = characterNamePalette;
 					cs->portraitInstructions[playerNum] = new HSText(instructionsFont);
 					cs->portraitInstructions[playerNum]->justification = instructionJustification;
 					cs->portraitInstructions[playerNum]->pos.x = instructionsPosX;
 					cs->portraitInstructions[playerNum]->pos.y = instructionsPosY;
 					cs->portraitInstructions[playerNum]->depth = CHARACTER_SELECT_INSTRUCTIONS_DEPTH;
+					cs->portraitInstructions[playerNum]->palette = instructionsPalette;
 				}
 			}
 			
@@ -3074,6 +3180,8 @@ int ObjectManager::LoadCharacterSelect(string defFilePath, string pcFilePath, st
 			TextJustification stageNameJustification = JUSTIFICATION_LEFT;
 			string previewBorderFilePath = "";
 			HSObject * previewBorder = NULL;
+			int titlePalette = 0;
+			int stageNamePalette = 0;
 
 			titleText = i->Attribute("titleText");
 			i->QueryFloatAttribute("titlePosX", &titlePosX);
@@ -3090,6 +3198,8 @@ int ObjectManager::LoadCharacterSelect(string defFilePath, string pcFilePath, st
 			i->QueryFloatAttribute("stageNamePosY", &stageNamePosY);
 			stageNameFontFilePath = i->Attribute("stageNameFontFilePath");
 			previewBorderFilePath = i->Attribute("previewBorderFilePath");
+			i->QueryIntAttribute("titlePalette", &titlePalette);
+			i->QueryIntAttribute("stageNamePalette", &stageNamePalette);
 
 			string titleJustificationString = "";
 			if(i->Attribute("titleJustification") != NULL) { titleJustificationString = i->Attribute("titleJustification"); }
@@ -3117,12 +3227,14 @@ int ObjectManager::LoadCharacterSelect(string defFilePath, string pcFilePath, st
 			sc->imageDepth = STAGE_SELECT_PREVIEW_DEPTH;
 			sc->stageSelectTitle = titleText;
 			sc->title = new HSText(titleFont);
+			sc->title->palette = titlePalette;
 			sc->title->justification = titleJustification;
 			sc->title->pos.x = titlePosX;
 			sc->title->pos.y = titlePosY;
 			sc->title->depth = STAGE_SELECT_TITLE_DEPTH;
 			sc->background = background;
 			sc->stageName = new HSText(stageNameFont);
+			sc->stageName->palette = stageNamePalette;
 			sc->stageName->justification = stageNameJustification;
 			sc->stageName->pos.x = stageNamePosX;
 			sc->stageName->pos.y = stageNamePosY;
@@ -3148,6 +3260,8 @@ int ObjectManager::LoadCharacterSelect(string defFilePath, string pcFilePath, st
 			string musicNameFontFilePath = "";
 			HSFont * musicNameFont = NULL;
 			TextJustification musicNameJustification = JUSTIFICATION_LEFT;
+			int titlePalette = 0;
+			int musicNamePalette = 0;
 
 			titleText = i->Attribute("titleText");
 			i->QueryFloatAttribute("titlePosX", &titlePosX);
@@ -3159,6 +3273,8 @@ int ObjectManager::LoadCharacterSelect(string defFilePath, string pcFilePath, st
 			i->QueryFloatAttribute("musicNamePosX", &musicNamePosX);
 			i->QueryFloatAttribute("musicNamePosY", &musicNamePosY);
 			musicNameFontFilePath = i->Attribute("musicNameFontFilePath");
+			i->QueryIntAttribute("titlePalette", &titlePalette);
+			i->QueryIntAttribute("musicNamePalette", &musicNamePalette);
 
 			string titleJustificationString = "";
 			if(i->Attribute("titleJustification") != NULL) { titleJustificationString = i->Attribute("titleJustification"); }
@@ -3178,6 +3294,7 @@ int ObjectManager::LoadCharacterSelect(string defFilePath, string pcFilePath, st
 			background->depth = MUSIC_SELECT_BACKGROUND_DEPTH;
 
 			MusicChooser * mc = new MusicChooser(musicNameFont);
+			mc->palette = musicNamePalette;
 			mc->justification = musicNameJustification;
 			characterSelectManager->musicChooser = mc;
 
@@ -3186,6 +3303,7 @@ int ObjectManager::LoadCharacterSelect(string defFilePath, string pcFilePath, st
 			mc->depth = MUSIC_SELECT_NAME_DEPTH;
 			mc->musicSelectTitle = titleText;
 			mc->title = new HSText(titleFont);
+			mc->title->palette = titlePalette;
 			mc->title->justification = titleJustification;
 			mc->title->pos.x = titlePosX;
 			mc->title->pos.y = titlePosY;
@@ -3221,9 +3339,18 @@ int ObjectManager::LoadPlayableCharacters(string pcFilePath, string panelBorderF
 	}
 
 	XMLElement * root = file->RootElement();
-	HSObject * newObject;
 
 	CharacterSelect * cs = characterSelectManager->characterSelect;
+
+	string emptyPanelFilePath = "";
+	string emptyPortraitFilePath = "";
+	string emptyCharacterName = "";
+
+	if(root->Attribute("emptyPanelFilePath") != NULL) { emptyPanelFilePath = root->Attribute("emptyPanelFilePath"); }
+	if(root->Attribute("emptyPortraitFilePath") != NULL) { emptyPortraitFilePath = root->Attribute("emptyPortraitFilePath"); }
+	if(root->Attribute("emptyCharacterName") != NULL) { emptyCharacterName = root->Attribute("emptyCharacterName"); }
+
+	int entriesLoaded = 0;
 	
 	//loop through all the sections of the playable characters
 	for(XMLElement * i = root->FirstChildElement(); i != NULL; i = i->NextSiblingElement())
@@ -3234,6 +3361,9 @@ int ObjectManager::LoadPlayableCharacters(string pcFilePath, string panelBorderF
 		}
 
 		int order = 0;
+		HSObject * panel = NULL;
+		HSObject * panelBorder = NULL;
+		HSObject * portrait = NULL;
 
 		i->QueryIntAttribute("order", &order);
 		string characterName = i->Attribute("characterName");
@@ -3245,25 +3375,25 @@ int ObjectManager::LoadPlayableCharacters(string pcFilePath, string panelBorderF
 		CharacterSelectPanel * newPanel = new CharacterSelectPanel();
 		newPanel->orderID = order;
 
-		if(int error = LoadDefinition(panelFilePath, &HUDObjects, &newObject) != 0) { return error; }
-		newObject->depth = cs->panelImageDepth;
-		newPanel->panelCharacterImage = newObject;
+		if(int error = LoadDefinition(panelFilePath, &HUDObjects, &panel) != 0) { return error; }
+		panel->depth = cs->panelImageDepth;
+		newPanel->panelCharacterImage = panel;
 
-		if(int error = LoadDefinition(panelBorderFilePath, &HUDObjects, &newObject) != 0) { return error; }
-		newObject->depth = cs->panelBorderDepth;
-		newPanel->panelBorderImage = newObject;
+		if(int error = LoadDefinition(panelBorderFilePath, &HUDObjects, &panelBorder) != 0) { return error; }
+		panelBorder->depth = cs->panelBorderDepth;
+		newPanel->panelBorderImage = panelBorder;
 
 		cs->panels.push_back(newPanel);
 
 		for(int j = 0; j < MAX_PLAYERS; j++)
 		{
-			if(int error = LoadDefinition(portraitFilePath, &HUDObjects, &newObject) != 0) { return error; }
-			newObject->pos.x = cs->portraitPos[j].x;
-			newObject->pos.y = cs->portraitPos[j].y;
-			newObject->depth = cs->portraitDepth;
+			if(int error = LoadDefinition(portraitFilePath, &HUDObjects, &portrait) != 0) { return error; }
+			portrait->pos.x = cs->portraitPos[j].x;
+			portrait->pos.y = cs->portraitPos[j].y;
+			portrait->depth = cs->portraitDepth;
 			
 			CharacterSelectPortrait * newPortrait = new CharacterSelectPortrait();
-			newPortrait->portraitImage = newObject;
+			newPortrait->portraitImage = portrait;
 			newPortrait->characterName = characterName;
 			newPortrait->characterDefFilePath = defFilePath;
 			newPortrait->characterIconDefFilePath = hudIconDefFilePath;
@@ -3272,6 +3402,75 @@ int ObjectManager::LoadPlayableCharacters(string pcFilePath, string panelBorderF
 
 			newPanel->portraitReference[j] = newPortrait;
 		}
+
+		entriesLoaded++;
+	}
+
+	//pad empty parts of the grid with dummy entries
+	int order = 0;
+	while(entriesLoaded < cs->columns * cs->rows)
+	{
+		//get the lowest available order number
+		bool searchingForOrderNum = true;
+		list<CharacterSelectPanel*>::iterator panItr;
+		while(searchingForOrderNum)
+		{
+			searchingForOrderNum = false;
+			for(panItr = cs->panels.begin(); panItr != cs->panels.end(); panItr++)
+			{
+				if(order == (*panItr)->orderID)
+				{
+					order++;
+					searchingForOrderNum = true;
+					break;
+				}
+			}
+		}
+
+		HSObject * panel = NULL;
+		HSObject * panelBorder = NULL;
+		HSObject * portrait = NULL;
+
+		CharacterSelectPanel * newPanel = new CharacterSelectPanel();
+		newPanel->orderID = order;
+
+		if(!emptyPanelFilePath.empty())
+		{
+			if(int error = LoadDefinition(emptyPanelFilePath, &HUDObjects, &panel) != 0) { return error; }
+			panel->depth = cs->panelImageDepth;
+		}
+		newPanel->panelCharacterImage = panel;
+
+		if(int error = LoadDefinition(panelBorderFilePath, &HUDObjects, &panelBorder) != 0) { return error; }
+		panelBorder->depth = cs->panelBorderDepth;
+		newPanel->panelBorderImage = panelBorder;
+
+		cs->panels.push_back(newPanel);
+
+		for(int j = 0; j < MAX_PLAYERS; j++)
+		{
+			portrait = NULL;
+			if(!emptyPortraitFilePath.empty())
+			{
+				if(int error = LoadDefinition(emptyPortraitFilePath, &HUDObjects, &portrait) != 0) { return error; }
+				portrait->pos.x = cs->portraitPos[j].x;
+				portrait->pos.y = cs->portraitPos[j].y;
+				portrait->depth = cs->portraitDepth;
+			}
+			
+			CharacterSelectPortrait * newPortrait = new CharacterSelectPortrait();
+			newPortrait->portraitImage = portrait;
+			newPortrait->characterName = emptyCharacterName;
+			newPortrait->characterDefFilePath = "";
+			newPortrait->characterIconDefFilePath = "";
+
+			cs->portraits[j].push_back(newPortrait);
+
+			newPanel->portraitReference[j] = newPortrait;
+		}
+
+		entriesLoaded++;
+		order++;
 	}
 
 	//order the grid panels
@@ -3284,10 +3483,13 @@ int ObjectManager::LoadPlayableCharacters(string pcFilePath, string panelBorderF
 	list<CharacterSelectPanel*>::iterator panItr;
 	for(panItr = cs->panels.begin(); panItr != cs->panels.end(); panItr++)
 	{
-		(*panItr)->panelCharacterImage->pos.x = cs->gridPos.x + column * cs->panelWidth + cs->panelImageOffset.x;
-		(*panItr)->panelCharacterImage->pos.y = cs->gridPos.y + row * cs->panelHeight + cs->panelImageOffset.y;
-		(*panItr)->panelBorderImage->pos.x = (*panItr)->panelCharacterImage->pos.x + cs->panelBorderOffset.x;
-		(*panItr)->panelBorderImage->pos.y = (*panItr)->panelCharacterImage->pos.y + cs->panelBorderOffset.y;
+		if((*panItr)->panelCharacterImage != NULL)
+		{
+			(*panItr)->panelCharacterImage->pos.x = cs->gridPos.x + column * cs->panelWidth + cs->panelImageOffset.x;
+			(*panItr)->panelCharacterImage->pos.y = cs->gridPos.y + row * cs->panelHeight + cs->panelImageOffset.y;
+		}
+		(*panItr)->panelBorderImage->pos.x = cs->gridPos.x + column * cs->panelWidth + cs->panelImageOffset.x + cs->panelBorderOffset.x;
+		(*panItr)->panelBorderImage->pos.y = cs->gridPos.y + row * cs->panelHeight + cs->panelImageOffset.y + cs->panelBorderOffset.y;
 
 		column++;
 		if(column >= cs->columns)
@@ -3454,10 +3656,14 @@ int ObjectManager::LoadHUD(string defFilePath, bool shouldLoadForPlayer[MAX_PLAY
 	string readyText = "";
 	string fightText = "";
 	string winText = "";
+	string hitsText = "";
 	string promptBGDefFilePath = "";
 	HSObject * promptBackground = NULL;
 	float underMeterAdjustRate = 0;
 	float healthMeterWidth = 0;
+	int promptPalette = 0;
+	int hitsPalette = 0;
+	int livesPalette = 0;
 		
 	if(root->Attribute("promptJustification") != NULL) { promptJustificationString = root->Attribute("promptJustification"); }
 	if(promptJustificationString.compare("RIGHT") == 0) { promptJustification = JUSTIFICATION_RIGHT; }
@@ -3471,21 +3677,29 @@ int ObjectManager::LoadHUD(string defFilePath, bool shouldLoadForPlayer[MAX_PLAY
 	if(root->Attribute("readyText") != NULL) { readyText = root->Attribute("readyText"); }
 	if(root->Attribute("fightText") != NULL) { fightText = root->Attribute("fightText"); }
 	if(root->Attribute("winText") != NULL) { winText = root->Attribute("winText"); }
+	if(root->Attribute("hitsText") != NULL) { hitsText = root->Attribute("hitsText"); }
 	if(root->Attribute("promptBGDefFilePath") != NULL) { promptBGDefFilePath = root->Attribute("promptBGDefFilePath"); }
 	root->QueryFloatAttribute("underMeterAdjustRate", &underMeterAdjustRate);
 	root->QueryFloatAttribute("healthMeterWidth", &healthMeterWidth);
+	root->QueryIntAttribute("promptPalette", &promptPalette);
+	root->QueryIntAttribute("hitsPalette", &hitsPalette);
+	root->QueryIntAttribute("livesPalette", &livesPalette);
 
 	if(int error = LoadHSFont(promptFontFilePath, &promptFont) != 0) { return error; }
 	prompt = new HSText(promptFont);
+	prompt->palette = promptPalette;
 	prompt->pos.x = promptPosX;
 	prompt->pos.y = promptPosY;
 	prompt->depth = MATCH_HUD_PROMPT_DEPTH;
 	prompt->justification = promptJustification;
 
-	if(int error = LoadDefinition(promptBGDefFilePath, &HUDObjects, &promptBackground) != 0) { return error; }
-	promptBackground->pos.x = promptBGPosX;
-	promptBackground->pos.y = promptBGPosY;
-	promptBackground->depth = MATCH_HUD_PROMPT_BACKGROUND_DEPTH;
+	if(!promptBGDefFilePath.empty())
+	{
+		if(int error = LoadDefinition(promptBGDefFilePath, &HUDObjects, &promptBackground) != 0) { return error; }
+		promptBackground->pos.x = promptBGPosX;
+		promptBackground->pos.y = promptBGPosY;
+		promptBackground->depth = MATCH_HUD_PROMPT_BACKGROUND_DEPTH;
+	}
 
 	hudManager->prompt = prompt;
 	hudManager->promptBackground = promptBackground;
@@ -3590,14 +3804,18 @@ int ObjectManager::LoadHUD(string defFilePath, bool shouldLoadForPlayer[MAX_PLAY
 			if(int error = LoadDefinition(healthUnderMeterDefFilePath, &HUDObjects, &healthUnderMeter) != 0) { return error; }
 			healthUnderMeter->depth = MATCH_HUD_UNDER_METER_DEPTH;
 
-			if(int error = LoadDefinition(healthMeterCoverDefFilePath, &HUDObjects, &healthMeterCover) != 0) { return error; }
-			healthMeterCover->depth = MATCH_HUD_METER_COVER_DEPTH;
+			if(!healthMeterCoverDefFilePath.empty())
+			{
+				if(int error = LoadDefinition(healthMeterCoverDefFilePath, &HUDObjects, &healthMeterCover) != 0) { return error; }
+				healthMeterCover->depth = MATCH_HUD_METER_COVER_DEPTH;
+			}
 		
 			healthMeter->pos.x = healthUnderMeter->pos.x = healthMeterCover->pos.x = HUDPositionX + healthMeterOffsetX;
 			healthMeter->pos.y = healthUnderMeter->pos.y = healthMeterCover->pos.y = HUDPositionY + healthMeterOffsetY;
 
 			if(int error = LoadHSFont(livesCounterFontFilePath, &livesCounterFont) != 0) { return error; }
 			livesCounter = new HSText(livesCounterFont);
+			livesCounter->palette = livesPalette;
 			livesCounter->pos.x = HUDPositionX + livesCounterOffsetX;
 			livesCounter->pos.y = HUDPositionY + livesCounterOffsetY;
 			livesCounter->depth = MATCH_HUD_LIVES_DEPTH;
@@ -3605,15 +3823,19 @@ int ObjectManager::LoadHUD(string defFilePath, bool shouldLoadForPlayer[MAX_PLAY
 
 			if(int error = LoadHSFont(comboCounterFontFilePath, &comboCounterFont) != 0) { return error; }
 			comboCounter = new HSText(comboCounterFont);
+			comboCounter->palette = hitsPalette;
 			comboCounter->pos.x = HUDPositionX + comboCounterOffsetX;
 			comboCounter->pos.y = HUDPositionY + comboCounterOffsetY;
 			comboCounter->depth = MATCH_HUD_COMBO_COUNTER_DEPTH;
 			comboCounter->justification = comboJustification;
 
-			if(int error = LoadDefinition(comboCounterBackgroundDefFilePath, &HUDObjects, &comboCounterBackground) != 0) { return error; }
-			comboCounterBackground->pos.x = HUDPositionX + comboCounterBGOffsetX;
-			comboCounterBackground->pos.y = HUDPositionY + comboCounterBGOffsetY;
-			comboCounterBackground->depth = MATCH_HUD_COMBO_COUNTER_BACKGROUND_DEPTH;
+			if(!comboCounterBackgroundDefFilePath.empty())
+			{
+				if(int error = LoadDefinition(comboCounterBackgroundDefFilePath, &HUDObjects, &comboCounterBackground) != 0) { return error; }
+				comboCounterBackground->pos.x = HUDPositionX + comboCounterBGOffsetX;
+				comboCounterBackground->pos.y = HUDPositionY + comboCounterBGOffsetY;
+				comboCounterBackground->depth = MATCH_HUD_COMBO_COUNTER_BACKGROUND_DEPTH;
+			}
 
 			HUD * newHUD = new HUD();
 			newHUD->characterIconPos.x = HUDPositionX + characterIconOffsetX;
@@ -3629,6 +3851,7 @@ int ObjectManager::LoadHUD(string defFilePath, bool shouldLoadForPlayer[MAX_PLAY
 			newHUD->livesCounter = livesCounter;
 			newHUD->comboCounter = comboCounter;
 			newHUD->comboCounterBackground = comboCounterBackground;
+			newHUD->hitsText = hitsText;
 
 			hudManager->HUDs[player] = newHUD;
 		}

@@ -2,6 +2,7 @@
 
 HSText::HSText(HSFont * font)
 {
+	palette = 0;
 	pos.x = 0;
 	pos.y = 0;
 	_font = font;
@@ -23,7 +24,10 @@ void HSText::SetText(string text)
 	if(_curText.compare(text) == 0) { return; }
 
 	DeleteText();
-	charListToClone = _font->GenerateText(text, pos, depth, justification);
+	if(_font != NULL)
+	{
+		charListToClone = _font->GenerateText(text, pos, depth, justification, palette);
+	}
 	_curText = text;
 }
 

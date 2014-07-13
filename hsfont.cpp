@@ -249,7 +249,7 @@ HSFont::~HSFont()
 	delete characters.ucZ.character;
 }
 
-list<HSCharToClone> HSFont::GenerateText(string text, HSVect2D pos, int depth, TextJustification justification)
+list<HSCharToClone> HSFont::GenerateText(string text, HSVect2D pos, int depth, TextJustification justification, int palette)
 {
 	list<HSCharToClone> result;
 	string::iterator stIt;
@@ -258,83 +258,83 @@ list<HSCharToClone> HSFont::GenerateText(string text, HSVect2D pos, int depth, T
 
 	for(stIt = text.begin(); stIt != text.end(); stIt++)
 	{
-		if(*stIt == 'a') { GenerateCharacter(characters.lcA, &textWidth, depth, &result); }
-		else if(*stIt == 'b') { GenerateCharacter(characters.lcB, &textWidth, depth, &result); }
-		else if(*stIt == 'c') { GenerateCharacter(characters.lcC, &textWidth, depth, &result); }
-		else if(*stIt == 'd') { GenerateCharacter(characters.lcD, &textWidth, depth, &result); }
-		else if(*stIt == 'e') { GenerateCharacter(characters.lcE, &textWidth, depth, &result); }
-		else if(*stIt == 'f') { GenerateCharacter(characters.lcF, &textWidth, depth, &result); }
-		else if(*stIt == 'g') { GenerateCharacter(characters.lcG, &textWidth, depth, &result); }
-		else if(*stIt == 'h') { GenerateCharacter(characters.lcH, &textWidth, depth, &result); }
-		else if(*stIt == 'i') { GenerateCharacter(characters.lcI, &textWidth, depth, &result); }
-		else if(*stIt == 'j') { GenerateCharacter(characters.lcJ, &textWidth, depth, &result); }
-		else if(*stIt == 'k') { GenerateCharacter(characters.lcK, &textWidth, depth, &result); }
-		else if(*stIt == 'l') { GenerateCharacter(characters.lcL, &textWidth, depth, &result); }
-		else if(*stIt == 'm') { GenerateCharacter(characters.lcM, &textWidth, depth, &result); }
-		else if(*stIt == 'n') { GenerateCharacter(characters.lcN, &textWidth, depth, &result); }
-		else if(*stIt == 'o') { GenerateCharacter(characters.lcO, &textWidth, depth, &result); }
-		else if(*stIt == 'p') { GenerateCharacter(characters.lcP, &textWidth, depth, &result); }
-		else if(*stIt == 'q') { GenerateCharacter(characters.lcQ, &textWidth, depth, &result); }
-		else if(*stIt == 'r') { GenerateCharacter(characters.lcR, &textWidth, depth, &result); }
-		else if(*stIt == 's') { GenerateCharacter(characters.lcS, &textWidth, depth, &result); }
-		else if(*stIt == 't') { GenerateCharacter(characters.lcT, &textWidth, depth, &result); }
-		else if(*stIt == 'u') { GenerateCharacter(characters.lcU, &textWidth, depth, &result); }
-		else if(*stIt == 'v') { GenerateCharacter(characters.lcV, &textWidth, depth, &result); }
-		else if(*stIt == 'w') { GenerateCharacter(characters.lcW, &textWidth, depth, &result); }
-		else if(*stIt == 'x') { GenerateCharacter(characters.lcX, &textWidth, depth, &result); }
-		else if(*stIt == 'y') { GenerateCharacter(characters.lcY, &textWidth, depth, &result); }
-		else if(*stIt == 'z') { GenerateCharacter(characters.lcZ, &textWidth, depth, &result); }
-		else if(*stIt == 'A') { GenerateCharacter(characters.ucA, &textWidth, depth, &result); }
-		else if(*stIt == 'B') { GenerateCharacter(characters.ucB, &textWidth, depth, &result); }
-		else if(*stIt == 'C') { GenerateCharacter(characters.ucC, &textWidth, depth, &result); }
-		else if(*stIt == 'D') { GenerateCharacter(characters.ucD, &textWidth, depth, &result); }
-		else if(*stIt == 'E') { GenerateCharacter(characters.ucE, &textWidth, depth, &result); }
-		else if(*stIt == 'F') { GenerateCharacter(characters.ucF, &textWidth, depth, &result); }
-		else if(*stIt == 'G') { GenerateCharacter(characters.ucG, &textWidth, depth, &result); }
-		else if(*stIt == 'H') { GenerateCharacter(characters.ucH, &textWidth, depth, &result); }
-		else if(*stIt == 'I') { GenerateCharacter(characters.ucI, &textWidth, depth, &result); }
-		else if(*stIt == 'J') { GenerateCharacter(characters.ucJ, &textWidth, depth, &result); }
-		else if(*stIt == 'K') { GenerateCharacter(characters.ucK, &textWidth, depth, &result); }
-		else if(*stIt == 'L') { GenerateCharacter(characters.ucL, &textWidth, depth, &result); }
-		else if(*stIt == 'M') { GenerateCharacter(characters.ucM, &textWidth, depth, &result); }
-		else if(*stIt == 'N') { GenerateCharacter(characters.ucN, &textWidth, depth, &result); }
-		else if(*stIt == 'O') { GenerateCharacter(characters.ucO, &textWidth, depth, &result); }
-		else if(*stIt == 'P') { GenerateCharacter(characters.ucP, &textWidth, depth, &result); }
-		else if(*stIt == 'Q') { GenerateCharacter(characters.ucQ, &textWidth, depth, &result); }
-		else if(*stIt == 'R') { GenerateCharacter(characters.ucR, &textWidth, depth, &result); }
-		else if(*stIt == 'S') { GenerateCharacter(characters.ucS, &textWidth, depth, &result); }
-		else if(*stIt == 'T') { GenerateCharacter(characters.ucT, &textWidth, depth, &result); }
-		else if(*stIt == 'U') { GenerateCharacter(characters.ucU, &textWidth, depth, &result); }
-		else if(*stIt == 'V') { GenerateCharacter(characters.ucV, &textWidth, depth, &result); }
-		else if(*stIt == 'W') { GenerateCharacter(characters.ucW, &textWidth, depth, &result); }
-		else if(*stIt == 'X') { GenerateCharacter(characters.ucX, &textWidth, depth, &result); }
-		else if(*stIt == 'Y') { GenerateCharacter(characters.ucY, &textWidth, depth, &result); }
-		else if(*stIt == 'Z') { GenerateCharacter(characters.ucZ, &textWidth, depth, &result); }
-		else if(*stIt == '0') { GenerateCharacter(characters.num0, &textWidth, depth, &result); }
-		else if(*stIt == '1') { GenerateCharacter(characters.num1, &textWidth, depth, &result); }
-		else if(*stIt == '2') { GenerateCharacter(characters.num2, &textWidth, depth, &result); }
-		else if(*stIt == '3') { GenerateCharacter(characters.num3, &textWidth, depth, &result); }
-		else if(*stIt == '4') { GenerateCharacter(characters.num4, &textWidth, depth, &result); }
-		else if(*stIt == '5') { GenerateCharacter(characters.num5, &textWidth, depth, &result); }
-		else if(*stIt == '6') { GenerateCharacter(characters.num6, &textWidth, depth, &result); }
-		else if(*stIt == '7') { GenerateCharacter(characters.num7, &textWidth, depth, &result); }
-		else if(*stIt == '8') { GenerateCharacter(characters.num8, &textWidth, depth, &result); }
-		else if(*stIt == '9') { GenerateCharacter(characters.num9, &textWidth, depth, &result); }
-		else if(*stIt == '!') { GenerateCharacter(characters.exclamation, &textWidth, depth, &result); }
-		else if(*stIt == '&') { GenerateCharacter(characters.ampersand, &textWidth, depth, &result); }
-		else if(*stIt == '(') { GenerateCharacter(characters.parenLeft, &textWidth, depth, &result); }
-		else if(*stIt == ')') { GenerateCharacter(characters.parenRight, &textWidth, depth, &result); }
-		else if(*stIt == '\\') { GenerateCharacter(characters.backslash, &textWidth, depth, &result); }
-		else if(*stIt == '/') { GenerateCharacter(characters.forwardslash, &textWidth, depth, &result); }
-		else if(*stIt == ':') { GenerateCharacter(characters.colon, &textWidth, depth, &result); }
-		else if(*stIt == '\'') { GenerateCharacter(characters.quoteSingle, &textWidth, depth, &result); }
-		else if(*stIt == '"') { GenerateCharacter(characters.quoteDouble, &textWidth, depth, &result); }
-		else if(*stIt == ',') { GenerateCharacter(characters.comma, &textWidth, depth, &result); }
-		else if(*stIt == '.') { GenerateCharacter(characters.period, &textWidth, depth, &result); }
-		else if(*stIt == '?') { GenerateCharacter(characters.question, &textWidth, depth, &result); }
-		else if(*stIt == '<') { GenerateCharacter(characters.lessThan, &textWidth, depth, &result); }
-		else if(*stIt == '>') { GenerateCharacter(characters.greaterThan, &textWidth, depth, &result); }
-		else if(*stIt == ' ') { GenerateCharacter(characters.space, &textWidth, depth, &result); }
+		if(*stIt == 'a') { GenerateCharacter(characters.lcA, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'b') { GenerateCharacter(characters.lcB, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'c') { GenerateCharacter(characters.lcC, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'd') { GenerateCharacter(characters.lcD, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'e') { GenerateCharacter(characters.lcE, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'f') { GenerateCharacter(characters.lcF, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'g') { GenerateCharacter(characters.lcG, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'h') { GenerateCharacter(characters.lcH, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'i') { GenerateCharacter(characters.lcI, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'j') { GenerateCharacter(characters.lcJ, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'k') { GenerateCharacter(characters.lcK, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'l') { GenerateCharacter(characters.lcL, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'm') { GenerateCharacter(characters.lcM, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'n') { GenerateCharacter(characters.lcN, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'o') { GenerateCharacter(characters.lcO, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'p') { GenerateCharacter(characters.lcP, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'q') { GenerateCharacter(characters.lcQ, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'r') { GenerateCharacter(characters.lcR, &textWidth, depth, &result, palette); }
+		else if(*stIt == 's') { GenerateCharacter(characters.lcS, &textWidth, depth, &result, palette); }
+		else if(*stIt == 't') { GenerateCharacter(characters.lcT, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'u') { GenerateCharacter(characters.lcU, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'v') { GenerateCharacter(characters.lcV, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'w') { GenerateCharacter(characters.lcW, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'x') { GenerateCharacter(characters.lcX, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'y') { GenerateCharacter(characters.lcY, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'z') { GenerateCharacter(characters.lcZ, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'A') { GenerateCharacter(characters.ucA, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'B') { GenerateCharacter(characters.ucB, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'C') { GenerateCharacter(characters.ucC, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'D') { GenerateCharacter(characters.ucD, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'E') { GenerateCharacter(characters.ucE, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'F') { GenerateCharacter(characters.ucF, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'G') { GenerateCharacter(characters.ucG, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'H') { GenerateCharacter(characters.ucH, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'I') { GenerateCharacter(characters.ucI, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'J') { GenerateCharacter(characters.ucJ, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'K') { GenerateCharacter(characters.ucK, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'L') { GenerateCharacter(characters.ucL, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'M') { GenerateCharacter(characters.ucM, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'N') { GenerateCharacter(characters.ucN, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'O') { GenerateCharacter(characters.ucO, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'P') { GenerateCharacter(characters.ucP, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'Q') { GenerateCharacter(characters.ucQ, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'R') { GenerateCharacter(characters.ucR, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'S') { GenerateCharacter(characters.ucS, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'T') { GenerateCharacter(characters.ucT, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'U') { GenerateCharacter(characters.ucU, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'V') { GenerateCharacter(characters.ucV, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'W') { GenerateCharacter(characters.ucW, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'X') { GenerateCharacter(characters.ucX, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'Y') { GenerateCharacter(characters.ucY, &textWidth, depth, &result, palette); }
+		else if(*stIt == 'Z') { GenerateCharacter(characters.ucZ, &textWidth, depth, &result, palette); }
+		else if(*stIt == '0') { GenerateCharacter(characters.num0, &textWidth, depth, &result, palette); }
+		else if(*stIt == '1') { GenerateCharacter(characters.num1, &textWidth, depth, &result, palette); }
+		else if(*stIt == '2') { GenerateCharacter(characters.num2, &textWidth, depth, &result, palette); }
+		else if(*stIt == '3') { GenerateCharacter(characters.num3, &textWidth, depth, &result, palette); }
+		else if(*stIt == '4') { GenerateCharacter(characters.num4, &textWidth, depth, &result, palette); }
+		else if(*stIt == '5') { GenerateCharacter(characters.num5, &textWidth, depth, &result, palette); }
+		else if(*stIt == '6') { GenerateCharacter(characters.num6, &textWidth, depth, &result, palette); }
+		else if(*stIt == '7') { GenerateCharacter(characters.num7, &textWidth, depth, &result, palette); }
+		else if(*stIt == '8') { GenerateCharacter(characters.num8, &textWidth, depth, &result, palette); }
+		else if(*stIt == '9') { GenerateCharacter(characters.num9, &textWidth, depth, &result, palette); }
+		else if(*stIt == '!') { GenerateCharacter(characters.exclamation, &textWidth, depth, &result, palette); }
+		else if(*stIt == '&') { GenerateCharacter(characters.ampersand, &textWidth, depth, &result, palette); }
+		else if(*stIt == '(') { GenerateCharacter(characters.parenLeft, &textWidth, depth, &result, palette); }
+		else if(*stIt == ')') { GenerateCharacter(characters.parenRight, &textWidth, depth, &result, palette); }
+		else if(*stIt == '\\') { GenerateCharacter(characters.backslash, &textWidth, depth, &result, palette); }
+		else if(*stIt == '/') { GenerateCharacter(characters.forwardslash, &textWidth, depth, &result, palette); }
+		else if(*stIt == ':') { GenerateCharacter(characters.colon, &textWidth, depth, &result, palette); }
+		else if(*stIt == '\'') { GenerateCharacter(characters.quoteSingle, &textWidth, depth, &result, palette); }
+		else if(*stIt == '"') { GenerateCharacter(characters.quoteDouble, &textWidth, depth, &result, palette); }
+		else if(*stIt == ',') { GenerateCharacter(characters.comma, &textWidth, depth, &result, palette); }
+		else if(*stIt == '.') { GenerateCharacter(characters.period, &textWidth, depth, &result, palette); }
+		else if(*stIt == '?') { GenerateCharacter(characters.question, &textWidth, depth, &result, palette); }
+		else if(*stIt == '<') { GenerateCharacter(characters.lessThan, &textWidth, depth, &result, palette); }
+		else if(*stIt == '>') { GenerateCharacter(characters.greaterThan, &textWidth, depth, &result, palette); }
+		else if(*stIt == ' ') { GenerateCharacter(characters.space, &textWidth, depth, &result, palette); }
 	}
 
 	if(result.size() > 1)
@@ -367,13 +367,14 @@ list<HSCharToClone> HSFont::GenerateText(string text, HSVect2D pos, int depth, T
 
 
 
-void HSFont::GenerateCharacter(HSCharacter character, float * textWidth, int depth, list<HSCharToClone> * charList)
+void HSFont::GenerateCharacter(HSCharacter character, float * textWidth, int depth, list<HSCharToClone> * charList, int palette)
 {
 	HSCharToClone result;
 
 	result.character = character.character;
 	result.width = character.charWidth;
 	result.depth = depth;
+	result.palette = palette;
 
 	if(textWidth != NULL)
 	{
