@@ -124,6 +124,14 @@ public:
 	list<HSPalette*> paletteRegistry;
 	list<HSAudio*> audioRegistry;
 	list<HSFont*> fontRegistry; //make a registry of these because a font involves hella load times. don't wanna load a font more than once
+
+	//objects and registries solely for the loading screen
+	list<HSObject*> loadingScreenObjects;
+	list<HSTexture*> loadingScreenTextures;
+	list<HSPalette*> loadingScreenPalettes;
+	list<HSFont*> loadingScreenFonts;
+	bool loadingLoadingScreen;
+
 	bool openGL3;
 	SDL_AudioSpec * obtainedAudioSpec;
 	
@@ -133,8 +141,7 @@ public:
 	HSObject * players[MAX_PLAYERS];
 	HSObject * focusObject[MAX_PLAYERS];
 
-	HSObject * loadingBackground;
-	HSFont * loadingFont;
+	string loadingString;
 	HSText * loadingText;
 	MenuManager * menuManager;
 	CharacterSelectManager * characterSelectManager;
@@ -150,7 +157,7 @@ public:
 	
 	int LoadMenuChooser(string defFilePath, HSFont * font, MenuChooser ** returnValue = NULL);
 	int CreateMenuKeySetting(HSFont * font, MenuKeySetting ** returnValue = NULL);
-	int LoadHSFont(string defFilePath, HSFont ** returnValue = NULL, bool useRegistry = true);
+	int LoadHSFont(string defFilePath, HSFont ** returnValue = NULL);
 	int LoadHSCharacter(XMLElement * xml, HSCharacter * hsChar, list<PaletteInstance> paletteInstances);
 
 	int LoadLoadingScreen(string defFilePath);
@@ -169,6 +176,7 @@ public:
 	int CloneObject(HSObject * objectToClone, list<HSObject*> * objects, HSObject ** returnValue = NULL);
 
 	int ClearAllObjects();
+	int ClearLoadingObjects();
 	int ClearSpecificObject(HSObject* object);
 
 protected:

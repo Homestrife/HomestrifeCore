@@ -613,7 +613,14 @@ int Main::SpawnText(HSText * text)
 		if(ctcIt->character == NULL) { continue; }
 
 		HSObject * newChar;
-		if(int error = objectManager->CloneObject(ctcIt->character, &objectManager->HUDObjects, &newChar) != 0) { return error; }
+		if(objectManager->loadingLoadingScreen)
+		{
+			if(int error = objectManager->CloneObject(ctcIt->character, &objectManager->loadingScreenObjects, &newChar) != 0) { return error; }
+		}
+		else
+		{
+			if(int error = objectManager->CloneObject(ctcIt->character, &objectManager->HUDObjects, &newChar) != 0) { return error; }
+		}
 		newChar->pos.x = ctcIt->pos.x;
 		newChar->pos.y = ctcIt->pos.y;
 		newChar->depth = ctcIt->depth;
@@ -797,33 +804,23 @@ int Main::ChangeGameState(GameState newState)
 
 int Main::StartLoading()
 {
-	if(int error = objectManager->LoadLoadingScreen("data\\hud\\Loading\\loadingScreen.xml") != 0) { return error; }
-	objectManager->loadingText->SetText("Loading");
+	objectManager->loadingLoadingScreen = true;
+	if(int error = objectManager->LoadLoadingScreen("data\\hud\\Loading\\loadingScreen.xml") != 0) { return error; objectManager->loadingLoadingScreen = false; }
+	objectManager->loadingText->SetText(objectManager->loadingString);
 	SpawnText(objectManager->loadingText);
 
 	objectManager->loadTexturesAndPalettes = true;
 	objectManager->doRender = true;
 	renderingManager->Execute();
 
+	objectManager->loadingLoadingScreen = false;
+
 	return 0;
 }
 
 int Main::EndLoading()
 {
-	if(objectManager->loadingText != NULL)
-	{
-		objectManager->loadingText->DeleteText();
-		delete objectManager->loadingText;
-		delete objectManager->loadingFont;
-		objectManager->loadingText = NULL;
-		objectManager->loadingFont = NULL;
-	}
-
-	if(objectManager->loadingBackground != NULL)
-	{
-		objectManager->loadingBackground->toDelete = true;
-		objectManager->loadingBackground = NULL;
-	}
+	if(int error = objectManager->ClearLoadingObjects() != 0) { return error; }
 
 	return 0;
 }

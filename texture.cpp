@@ -49,7 +49,7 @@ int freadError(FILE * file, string texFilePath)
 	return -1;
 }
 
-int LoadTGAToTexture(HSTexture * hsTex, bool openGL3, bool useTGAPalette)
+int LoadTGAToTexture(HSTexture * hsTex, bool openGL3, bool useTGAPalette, HSPalette ** hsPal)
 {
 	glGetError();
 
@@ -161,6 +161,11 @@ int LoadTGAToTexture(HSTexture * hsTex, bool openGL3, bool useTGAPalette)
 		{
 			UpdateLog("Error reading palette data from indexed TGA file: " + texFilePath, true);
 			return -1;
+		}
+
+		if(hsPal != NULL)
+		{
+			*hsPal = hsTex->ownPalette;
 		}
 	}
 	else

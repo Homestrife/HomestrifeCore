@@ -61,12 +61,18 @@ ObjectManager::ObjectManager()
 	paletteRegistry.clear();
 	audioRegistry.clear();
 	fontRegistry.clear();
+
+	loadingScreenObjects.clear();
+	loadingScreenTextures.clear();
+	loadingScreenPalettes.clear();
+	loadingScreenFonts.clear();
+	loadingLoadingScreen = false;
+
 	newObjectId = 1;
 	openGL3 = false;
 	obtainedAudioSpec = NULL;
 	currentAudio.clear();
-	loadingBackground = NULL;
-	loadingFont = NULL;
+	loadingString = "";
 	loadingText = NULL;
 	menuManager = NULL;
 	characterSelectManager = NULL;
@@ -294,14 +300,30 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 				//see if the palette has already been loaded
 				bool alreadyLoaded = false;
 				list<HSPalette*>::iterator plIt;
-				for ( plIt=paletteRegistry.begin(); plIt != paletteRegistry.end(); plIt++)
+				if(loadingLoadingScreen)
 				{
-					if((*plIt)->paletteFilePath.compare(palFilePath) == 0)
+					for ( plIt=loadingScreenPalettes.begin(); plIt != loadingScreenPalettes.end(); plIt++)
 					{
-						newPalInst.hsPal = (*plIt);
-						(*plIt)->usingCount++;
-						alreadyLoaded = true;
-						break;
+						if((*plIt)->paletteFilePath.compare(palFilePath) == 0)
+						{
+							newPalInst.hsPal = (*plIt);
+							(*plIt)->usingCount++;
+							alreadyLoaded = true;
+							break;
+						}
+					}
+				}
+				else
+				{
+					for ( plIt=paletteRegistry.begin(); plIt != paletteRegistry.end(); plIt++)
+					{
+						if((*plIt)->paletteFilePath.compare(palFilePath) == 0)
+						{
+							newPalInst.hsPal = (*plIt);
+							(*plIt)->usingCount++;
+							alreadyLoaded = true;
+							break;
+						}
 					}
 				}
 
@@ -318,7 +340,14 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 					//	return error;
 					//}
 
-					paletteRegistry.push_back(newPal);
+					if(loadingLoadingScreen)
+					{
+						loadingScreenPalettes.push_back(newPal);
+					}
+					else
+					{
+						paletteRegistry.push_back(newPal);
+					}
 					newPalInst.hsPal = newPal;
 				}
 
@@ -921,15 +950,32 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 						//see if the texture has already been loaded
 						list<HSTexture*>::iterator trIt;
 						bool texNotLoaded = true;
-						for ( trIt=textureRegistry.begin(); trIt != textureRegistry.end(); trIt++)
+						if(loadingLoadingScreen)
 						{
-							if((*trIt)->textureFilePath.compare(textureFilePath) == 0)
+							for ( trIt=loadingScreenTextures.begin(); trIt != loadingScreenTextures.end(); trIt++)
 							{
-								//texture has been loaded
-								newTexInst.hsTex = (*trIt);
-								(*trIt)->usingCount++;
-								texNotLoaded = false;
-								break;
+								if((*trIt)->textureFilePath.compare(textureFilePath) == 0)
+								{
+									//texture has been loaded
+									newTexInst.hsTex = (*trIt);
+									(*trIt)->usingCount++;
+									texNotLoaded = false;
+									break;
+								}
+							}
+						}
+						else
+						{
+							for ( trIt=textureRegistry.begin(); trIt != textureRegistry.end(); trIt++)
+							{
+								if((*trIt)->textureFilePath.compare(textureFilePath) == 0)
+								{
+									//texture has been loaded
+									newTexInst.hsTex = (*trIt);
+									(*trIt)->usingCount++;
+									texNotLoaded = false;
+									break;
+								}
 							}
 						}
 
@@ -949,7 +995,14 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 							//}
 
 							newTexInst.hsTex = newTex;
-							textureRegistry.push_back(newTex);
+							if(loadingLoadingScreen)
+							{
+								loadingScreenTextures.push_back(newTex);
+							}
+							else
+							{
+								textureRegistry.push_back(newTex);
+							}
 						}
 	
 						newTexInst.offset.x = 0;
@@ -2639,9 +2692,25 @@ int ObjectManager::CreateMenuKeySetting(HSFont * font, MenuKeySetting ** returnV
 	return 0;
 }
 
-int ObjectManager::LoadHSFont(string defFilePath, HSFont ** returnValue, bool useRegistry)
+int ObjectManager::LoadHSFont(string defFilePath, HSFont ** returnValue)
 {
-	if(useRegistry)
+	if(loadingLoadingScreen)
+	{
+		list<HSFont*>::iterator fontItr;
+		for(fontItr = loadingScreenFonts.begin(); fontItr != loadingScreenFonts.end(); fontItr++)
+		{
+			if((*fontItr)->fontFilePath.compare(defFilePath) == 0)
+			{
+				if(returnValue != NULL)
+				{
+					*returnValue = (*fontItr);
+				}
+
+				return 0;
+			}
+		}
+	}
+	else
 	{
 		list<HSFont*>::iterator fontItr;
 		for(fontItr = fontRegistry.begin(); fontItr != fontRegistry.end(); fontItr++)
@@ -2715,14 +2784,30 @@ int ObjectManager::LoadHSFont(string defFilePath, HSFont ** returnValue, bool us
 			//see if the palette has already been loaded
 			bool alreadyLoaded = false;
 			list<HSPalette*>::iterator plIt;
-			for ( plIt=paletteRegistry.begin(); plIt != paletteRegistry.end(); plIt++)
+			if(loadingLoadingScreen)
 			{
-				if((*plIt)->paletteFilePath.compare(palFilePath) == 0)
+				for ( plIt=loadingScreenPalettes.begin(); plIt != loadingScreenPalettes.end(); plIt++)
 				{
-					newPalInst.hsPal = (*plIt);
-					(*plIt)->usingCount++;
-					alreadyLoaded = true;
-					break;
+					if((*plIt)->paletteFilePath.compare(palFilePath) == 0)
+					{
+						newPalInst.hsPal = (*plIt);
+						(*plIt)->usingCount++;
+						alreadyLoaded = true;
+						break;
+					}
+				}
+			}
+			else
+			{
+				for ( plIt=paletteRegistry.begin(); plIt != paletteRegistry.end(); plIt++)
+				{
+					if((*plIt)->paletteFilePath.compare(palFilePath) == 0)
+					{
+						newPalInst.hsPal = (*plIt);
+						(*plIt)->usingCount++;
+						alreadyLoaded = true;
+						break;
+					}
 				}
 			}
 
@@ -2739,7 +2824,15 @@ int ObjectManager::LoadHSFont(string defFilePath, HSFont ** returnValue, bool us
 				//	return error;
 				//}
 
-				paletteRegistry.push_back(newPal);
+				if(loadingLoadingScreen)
+				{
+					loadingScreenPalettes.push_back(newPal);
+				}
+				else
+				{
+					paletteRegistry.push_back(newPal);
+				}
+
 				newPalInst.hsPal = newPal;
 			}
 
@@ -2854,7 +2947,11 @@ int ObjectManager::LoadHSFont(string defFilePath, HSFont ** returnValue, bool us
 		*returnValue = newFont;
 	}
 	
-	if(useRegistry)
+	if(loadingLoadingScreen)
+	{
+		loadingScreenFonts.push_back(newFont);
+	}
+	else
 	{
 		fontRegistry.push_back(newFont);
 	}
@@ -2919,6 +3016,8 @@ int ObjectManager::LoadLoadingScreen(string defFilePath)
 	float loadingTextPosX = 0;
 	float loadingTextPosY = 0;
 	int loadingTextPalette = 0;
+	HSObject * loadingBackground = NULL;
+	HSFont * loadingFont = NULL;
 
 	backgroundDefFilePath = root->Attribute("backgroundDefFilePath");
 	root->QueryFloatAttribute("backgroundPosX", &backgroundPosX);
@@ -2927,14 +3026,15 @@ int ObjectManager::LoadLoadingScreen(string defFilePath)
 	root->QueryFloatAttribute("loadingTextPosX", &loadingTextPosX);
 	root->QueryFloatAttribute("loadingTextPosY", &loadingTextPosY);
 	root->QueryIntAttribute("loadingTextPalette", &loadingTextPalette);
+	loadingString = root->Attribute("loadingText");
 
 	string loadingTextJustificationString = "";
 	if(root->Attribute("loadingTextJustification") != NULL) { loadingTextJustificationString = root->Attribute("loadingTextJustification"); }
 	if(loadingTextJustificationString.compare("RIGHT") == 0) { loadingTextJustification = JUSTIFICATION_RIGHT; }
 	else if(loadingTextJustificationString.compare("CENTER") == 0) { loadingTextJustification = JUSTIFICATION_CENTER; }
 
-	if(int error = LoadHSFont(loadingTextFontFilePath, &loadingFont, false) != 0) { return error; }
-	if(int error = LoadDefinition(backgroundDefFilePath, &HUDObjects, &loadingBackground) != 0) { return error; }
+	if(int error = LoadHSFont(loadingTextFontFilePath, &loadingFont) != 0) { return error; }
+	if(int error = LoadDefinition(backgroundDefFilePath, &loadingScreenObjects, &loadingBackground) != 0) { return error; }
 	loadingBackground->pos.x = backgroundPosX;
 	loadingBackground->pos.y = backgroundPosY;
 	loadingBackground->depth = LOADING_BACKGROUND_DEPTH;
@@ -4635,6 +4735,74 @@ int ObjectManager::ClearAllObjects()
 	}
 
 	fontRegistry.clear();
+
+	return 0;
+}
+
+int ObjectManager::ClearLoadingObjects()
+{
+	list<HSObject*>::iterator objIt;
+	for ( objIt=loadingScreenObjects.begin(); objIt != loadingScreenObjects.end(); objIt++)
+	{
+		delete (*objIt);
+	}
+
+	loadingScreenObjects.clear();
+
+	list<HSTexture*>::iterator texIt;
+	for ( texIt=loadingScreenTextures.begin(); texIt != loadingScreenTextures.end(); texIt++)
+	{
+		list<HSTextureSlice*>::iterator tsIt;
+		for ( tsIt=(*texIt)->textureSlices.begin(); tsIt != (*texIt)->textureSlices.end(); tsIt++)
+		{
+			if((*tsIt)->bufferID != 0)
+			{
+				buffersToDelete.push_back((*tsIt)->bufferID);
+				(*tsIt)->bufferID = 0;
+			}
+			if((*tsIt)->vaoID != 0)
+			{
+				vaosToDelete.push_back((*tsIt)->vaoID);
+				(*tsIt)->vaoID = 0;
+			}
+			if((*tsIt)->textureID != 0)
+			{
+				texturesToDelete.push_back((*tsIt)->textureID);
+				(*tsIt)->textureID = 0;
+			}
+			delete (*tsIt);
+		}
+		delete (*texIt);
+	}
+
+	loadingScreenTextures.clear();
+
+	list<HSPalette*>::iterator palIt;
+	for ( palIt=loadingScreenPalettes.begin(); palIt != loadingScreenPalettes.end(); palIt++)
+	{
+		if((*palIt)->textureID != 0)
+		{
+			palettesToDelete.push_back((*palIt)->textureID);
+			(*palIt)->textureID = 0;
+		}
+		delete (*palIt);
+	}
+
+	loadingScreenPalettes.clear();
+
+	clearTexturesAndPalettes = true;
+
+	delete loadingText;
+	loadingText = NULL;
+	loadingString = "";
+
+	list<HSFont*>::iterator fontIt;
+	for (fontIt = loadingScreenFonts.begin(); fontIt != loadingScreenFonts.end(); fontIt++)
+	{
+		delete *fontIt;
+	}
+
+	loadingScreenFonts.clear();
 
 	return 0;
 }
