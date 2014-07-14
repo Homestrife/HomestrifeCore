@@ -23,6 +23,7 @@ public:
 	HSText * livesCounter;
 	HSText * comboCounter;
 	HSObject * comboCounterBackground;
+	string hitsText;
 
 	TerrainObject * objectToTrack;
 

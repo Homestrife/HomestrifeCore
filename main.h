@@ -12,11 +12,6 @@
 #define STICK_THRESHOLD 18000 //how far a stick must be tilted before it actually registers as a direction being "pressed"
 #define STICK_HARD_THRESHOLD 32700 //how far a stick must be tilted before it actually registers as a direction being pressed hard
 
-#define MAIN_MENU_POS_X -940
-#define MAIN_MENU_POS_Y -520
-#define PAUSE_MENU_POS_X -940
-#define PAUSE_MENU_POS_Y -353
-
 #define JOYSTICK_UNKNOWN 1000
 #define JOYBUTTON_UNKNOWN 1000
 

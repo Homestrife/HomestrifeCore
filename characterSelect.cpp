@@ -233,6 +233,9 @@ CharacterSelect::CharacterSelect()
 	characterSelectBackground = NULL;
 	characterSelectTitle = "";
 	title = NULL;
+	selectCharacterText = "";
+	selectPaletteText = "";
+	readyText = "";
 	gridPos.x = 0;
 	gridPos.y = 0;
 	rows = 0;
@@ -467,6 +470,48 @@ void CharacterSelect::ChangeCharacterSelectPlayerState(CharacterSelectPlayerStat
 
 	characterSelectPlayerState[player] = state;
 
+	if(state == READY)
+	{
+		//make sure two of the same character don't have the same palette
+		string curDefFilePath = cursors[player]->currentPanel->portraitReference[player]->characterDefFilePath;
+		HSObject * curImage = cursors[player]->currentPanel->portraitReference[player]->portraitImage;
+		bool adjusting = true;
+		int startPalette = curImage->GetPalette();
+
+		while(adjusting)
+		{
+			adjusting = false;
+			for(int i = 0; i < MAX_PLAYERS; i++)
+			{
+				if(i != player
+					&& characterSelectPlayerState[i] == READY
+					&& cursors[i]->currentPanel->portraitReference[i]->characterDefFilePath.compare(curDefFilePath) == 0
+					&& cursors[i]->currentPanel->portraitReference[i]->portraitImage->GetPalette() == curImage->GetPalette())
+				{
+					curImage->NextPalette();
+					if(curImage->GetPalette() != startPalette)
+					{
+						//only keep going if we haven't looped back to the palette we started at
+						adjusting = true;
+					}
+					break;
+				}
+			}
+		}
+	}
+	else if(state == SELECTING_CHARACTER)
+	{
+		//return all player portraits back to the default palette
+		list<CharacterSelectPortrait*>::iterator pItr;
+		for(pItr = portraits[player].begin(); pItr != portraits[player].end(); pItr++)
+		{
+			if((*pItr)->portraitImage != NULL)
+			{
+				(*pItr)->portraitImage->SetPalette(0);
+			}
+		}
+	}
+
 	Refresh();
 }
 
@@ -568,7 +613,10 @@ void CharacterSelect::Refresh()
 	for(panIt = panels.begin(); panIt != panels.end(); panIt++)
 	{
 		(*panIt)->panelBorderImage->visible = _visible;
-		(*panIt)->panelCharacterImage->visible = _visible;
+		if((*panIt)->panelCharacterImage != NULL)
+		{
+			(*panIt)->panelCharacterImage->visible = _visible;
+		}
 	}
 
 	for(int i = 0; i < MAX_PLAYERS; i++)
@@ -599,7 +647,10 @@ void CharacterSelect::Refresh()
 		list<CharacterSelectPortrait*>::iterator csIt;
 		for(csIt = portraits[i].begin(); csIt != portraits[i].end(); csIt++)
 		{
-			(*csIt)->portraitImage->visible = false;
+			if((*csIt)->portraitImage != NULL)
+			{
+				(*csIt)->portraitImage->visible = false;
+			}
 		}
 
 		characterName[i]->DeleteText();
@@ -611,14 +662,17 @@ void CharacterSelect::Refresh()
 			{
 				characterName[i]->SetText(cursors[i]->currentPanel->portraitReference[i]->characterName);
 
-				cursors[i]->currentPanel->portraitReference[i]->portraitImage->visible = true;
-				if(_prevPalette[i])
+				if(cursors[i]->currentPanel->portraitReference[i]->portraitImage != NULL)
 				{
-					cursors[i]->currentPanel->portraitReference[i]->portraitImage->PrevPalette();
-				}
-				else if(_nextPalette[i])
-				{
-					cursors[i]->currentPanel->portraitReference[i]->portraitImage->NextPalette();
+					cursors[i]->currentPanel->portraitReference[i]->portraitImage->visible = true;
+					if(_prevPalette[i])
+					{
+						cursors[i]->currentPanel->portraitReference[i]->portraitImage->PrevPalette();
+					}
+					else if(_nextPalette[i])
+					{
+						cursors[i]->currentPanel->portraitReference[i]->portraitImage->NextPalette();
+					}
 				}
 			}
 
@@ -627,15 +681,15 @@ void CharacterSelect::Refresh()
 
 			if(characterSelectPlayerState[i] == SELECTING_CHARACTER)
 			{
-				portraitInstructions[i]->SetText("Select Character");
+				portraitInstructions[i]->SetText(selectCharacterText);
 			}
 			else if(characterSelectPlayerState[i] == SELECTING_PALETTE)
 			{
-				portraitInstructions[i]->SetText("Select Color Palette");
+				portraitInstructions[i]->SetText(selectPaletteText);
 			}
 			else if(characterSelectPlayerState[i] == READY)
 			{
-				portraitInstructions[i]->SetText("Player Ready");
+				portraitInstructions[i]->SetText(readyText);
 			}
 		}
 	}
@@ -761,12 +815,15 @@ bool CharacterSelectManager::PlayerConfirm(int player)
 		}
 		break;
 	case STAGE_SELECT:
-		ChangeCharacterSelectState(MUSIC_SELECT);
+		//ChangeCharacterSelectState(MUSIC_SELECT);
+		return true; //ignore music select for now
 		break;
 	case MUSIC_SELECT:
 		return true;
 		break;
 	}
+
+	return false;
 }
 
 bool CharacterSelectManager::PlayerCancel(int player)

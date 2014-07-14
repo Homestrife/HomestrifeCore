@@ -594,7 +594,11 @@ HSMenu::HSMenu(HSFont * font) : HSText(font)
 	activeCursor = NULL;
 	cursorIndex = 0;
 	items.clear();
-	titleHeight = font->charHeight;
+	titleHeight = 0;
+	if(font != NULL)
+	{
+		titleHeight = font->charHeight;
+	}
 	titleSeparation = 0;
 	cursorWidth = 0;
 	cursorSeparation = 0;

@@ -16,6 +16,7 @@ struct HSCharToClone
 	HSVect2D pos;
 	float width;
 	int depth;
+	int palette;
 };
 
 struct HSCharacter
@@ -127,7 +128,6 @@ class HSFont
 {
 public:
 	string fontFilePath;
-	int usingCount;
 	Characters characters;
 	float charHeight;
 	float charSeparation;
@@ -135,8 +135,8 @@ public:
 	HSFont();
 	~HSFont();
 
-	list<HSCharToClone> GenerateText(string text, HSVect2D pos, int depth, TextJustification justification);
-	void GenerateCharacter(HSCharacter character, float * textWidth, int depth, list<HSCharToClone> * charList);
+	list<HSCharToClone> GenerateText(string text, HSVect2D pos, int depth, TextJustification justification, int palette);
+	void GenerateCharacter(HSCharacter character, float * textWidth, int depth, list<HSCharToClone> * charList, int palette);
 
 protected:
 };

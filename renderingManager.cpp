@@ -1307,7 +1307,27 @@ int RenderingManager::LoadTexturesAndPalettes()
 	{
 		if((*texIt)->textureSlices.size() > 0) { continue; }
 
-		if(int i = LoadTGAToTexture(*texIt, objectManager->openGL3, (*texIt)->useTGAPalette) != 0) { return i; }
+		HSPalette * palette = NULL;
+
+		if(int i = LoadTGAToTexture(*texIt, objectManager->openGL3, (*texIt)->useTGAPalette, &palette) != 0) { return i; }
+
+		if(palette != NULL)
+		{
+			objectManager->paletteRegistry.push_back(palette);
+		}
+	}
+	for(texIt = objectManager->loadingScreenTextures.begin(); texIt != objectManager->loadingScreenTextures.end(); texIt++)
+	{
+		if((*texIt)->textureSlices.size() > 0) { continue; }
+
+		HSPalette * palette = NULL;
+
+		if(int i = LoadTGAToTexture(*texIt, objectManager->openGL3, (*texIt)->useTGAPalette, &palette) != 0) { return i; }
+
+		if(palette != NULL)
+		{
+			objectManager->loadingScreenPalettes.push_back(palette);
+		}
 	}
 	
 	list<HSPalette*>::iterator palIt;
@@ -1316,7 +1336,13 @@ int RenderingManager::LoadTexturesAndPalettes()
 		if((*palIt)->textureID != 0) { continue; }
 
 		if(int i = LoadHSPToPalette(*palIt) != 0) { return i; }
-	}\
+	}
+	for(palIt = objectManager->loadingScreenPalettes.begin(); palIt != objectManager->loadingScreenPalettes.end(); palIt++)
+	{
+		if((*palIt)->textureID != 0) { continue; }
+
+		if(int i = LoadHSPToPalette(*palIt) != 0) { return i; }
+	}
 
 	return 0;
 }
@@ -1442,6 +1468,20 @@ int RenderingManager::Render()
 	//ChangeShaderProgram(0);
 
 	for ( objIt=objectManager->HUDObjects.begin(); objIt != objectManager->HUDObjects.end(); objIt++)
+	{
+		if(!(*objIt)->visible) { continue; }
+
+		list<TextureInstance>::iterator texIt;
+		for ( texIt=(*objIt)->curHold->textures.begin(); texIt != (*objIt)->curHold->textures.end(); texIt++)
+		{
+			//a quick kludge to keep the HUD from being affected by parallax. Should add some sort of shader input variable later
+			float depth = (*objIt)->depth;
+			(*objIt)->depth = 0;
+			RenderTexture((*objIt), (*texIt));
+			(*objIt)->depth = depth;
+		}
+	}
+	for ( objIt=objectManager->loadingScreenObjects.begin(); objIt != objectManager->loadingScreenObjects.end(); objIt++)
 	{
 		if(!(*objIt)->visible) { continue; }
 

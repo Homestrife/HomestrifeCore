@@ -615,10 +615,18 @@ int Main::SpawnText(HSText * text)
 		if(ctcIt->character == NULL) { continue; }
 
 		HSObject * newChar;
-		if(int error = objectManager->CloneObject(ctcIt->character, &objectManager->HUDObjects, &newChar) != 0) { return error; }
+		if(objectManager->loadingLoadingScreen)
+		{
+			if(int error = objectManager->CloneObject(ctcIt->character, &objectManager->loadingScreenObjects, &newChar) != 0) { return error; }
+		}
+		else
+		{
+			if(int error = objectManager->CloneObject(ctcIt->character, &objectManager->HUDObjects, &newChar) != 0) { return error; }
+		}
 		newChar->pos.x = ctcIt->pos.x;
 		newChar->pos.y = ctcIt->pos.y;
 		newChar->depth = ctcIt->depth;
+		newChar->SetPalette(ctcIt->palette);
 
 		text->characterList.push_back(newChar);
 	}
@@ -798,31 +806,23 @@ int Main::ChangeGameState(GameState newState)
 
 int Main::StartLoading()
 {
-	if(int error = objectManager->LoadLoadingScreen("data/hud/Loading/loadingScreen.xml") != 0) { return error; }
-	objectManager->loadingText->SetText("Loading");
+	objectManager->loadingLoadingScreen = true;
+	if(int error = objectManager->LoadLoadingScreen("data\\hud\\Loading\\loadingScreen.xml") != 0) { return error; objectManager->loadingLoadingScreen = false; }
+	objectManager->loadingText->SetText(objectManager->loadingString);
 	SpawnText(objectManager->loadingText);
 
 	objectManager->loadTexturesAndPalettes = true;
 	objectManager->doRender = true;
 	renderingManager->Execute();
 
+	objectManager->loadingLoadingScreen = false;
+
 	return 0;
 }
 
 int Main::EndLoading()
 {
-	if(objectManager->loadingText != NULL)
-	{
-		objectManager->loadingText->DeleteText();
-		delete objectManager->loadingText;
-		objectManager->loadingText = NULL;
-	}
-
-	if(objectManager->loadingBackground != NULL)
-	{
-		objectManager->loadingBackground->toDelete = true;
-		objectManager->loadingBackground = NULL;
-	}
+	if(int error = objectManager->ClearLoadingObjects() != 0) { return error; }
 
 	return 0;
 }
@@ -1027,11 +1027,8 @@ int Main::InitializeMainMenu()
 {
 	//load all main menu elements and place them in HUDObjects
 	HSMenu * mainMenu;
-	HSVect2D menuPos;
-	menuPos.x = MAIN_MENU_POS_X;
-	menuPos.y = MAIN_MENU_POS_Y;
 	
-	if(int error = objectManager->LoadHSMenu("data/hud/Menus/Main Menu/Main Menu.xml", menuPos, &mainMenu) != 0) { return error; }
+	if(int error = objectManager->LoadHSMenuCollection("data\\hud\\Menus\\mainMenuCollection.xml", &mainMenu) != 0) { return error; }
 
 	objectManager->menuManager = new MenuManager(mainMenu);
 	objectManager->menuManager->SetHidden(false);
@@ -1153,11 +1150,8 @@ int Main::InitializeMatch()
 	}
 
 	HSMenu * pauseMenu;
-	HSVect2D menuPos;
-	menuPos.x = PAUSE_MENU_POS_X;
-	menuPos.y = PAUSE_MENU_POS_Y;
 
-	if(int error = objectManager->LoadHSMenu("data/hud/Menus/Pause Menu/Pause Menu.xml", menuPos, &pauseMenu) !=0) { return error; }
+	if(int error = objectManager->LoadHSMenuCollection("data\\hud\\Menus\\pauseMenuCollection.xml", &pauseMenu) !=0) { return error; }
 
 	objectManager->menuManager = new MenuManager(pauseMenu);
 	objectManager->menuManager->SetHidden(true);

@@ -6,6 +6,7 @@
 class HSText : public HSOrderable
 {
 public:
+	int palette;
 	HSVect2D pos;
 	list<HSCharToClone> charListToClone;
 	list<HSObject*> characterList;
@@ -20,6 +21,7 @@ public:
 
 protected:
 	HSFont * _font;
+	string _curText;
 };
 
 #endif
