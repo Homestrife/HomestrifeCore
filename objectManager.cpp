@@ -3101,15 +3101,24 @@ int ObjectManager::LoadCharacterSelect(string defFilePath, string pcFilePath, st
 			int titlePalette = 0;
 			int characterNamePalette = 0;
 			int instructionsPalette = 0;
+			string backgroundFilePath = "";
+			string characterSelectTitle = "";
+			string selectCharacterText = "";
+			string selectPaletteText = "";
+			string readyText = "";
+			string titleFontFilePath = "";
+			string panelBorderFilePath = "";
+			string characterNameFontFilePath = "";
+			string instructionsFontFilePath = "";
 	
-			string backgroundFilePath = i->Attribute("backgroundFilePath");
+			if(i->Attribute("backgroundFilePath") != NULL) { backgroundFilePath = i->Attribute("backgroundFilePath"); }
 			i->QueryFloatAttribute("backgroundPosX", &backgroundPosX);
 			i->QueryFloatAttribute("backgroundPosY", &backgroundPosY);
-			string characterSelectTitle = i->Attribute("titleText");
-			string selectCharacterText = i->Attribute("selectCharacterText");
-			string selectPaletteText = i->Attribute("selectPaletteText");
-			string readyText = i->Attribute("readyText");
-			string titleFontFilePath = i->Attribute("titleFontFilePath");
+			if(i->Attribute("characterSelectTitle") != NULL) { characterSelectTitle = i->Attribute("titleText"); }
+			if(i->Attribute("selectCharacterText") != NULL) { selectCharacterText = i->Attribute("selectCharacterText"); }
+			if(i->Attribute("selectPaletteText") != NULL) { selectPaletteText = i->Attribute("selectPaletteText"); }
+			if(i->Attribute("readyText") != NULL) { readyText = i->Attribute("readyText"); }
+			if(i->Attribute("titleFontFilePath") != NULL) { titleFontFilePath = i->Attribute("titleFontFilePath"); }
 			i->QueryFloatAttribute("titlePosX", &titlePosX);
 			i->QueryFloatAttribute("titlePosY", &titlePosY);
 			i->QueryFloatAttribute("gridPosX", &gridPosX);
@@ -3122,11 +3131,11 @@ int ObjectManager::LoadCharacterSelect(string defFilePath, string pcFilePath, st
 			i->QueryFloatAttribute("panelBorderOffsetY", &panelBorderOffsetY);
 			i->QueryFloatAttribute("panelImageOffsetX", &panelImageOffsetX);
 			i->QueryFloatAttribute("panelImageOffsetY", &panelImageOffsetY);
-			string panelBorderFilePath = i->Attribute("panelBorderFilePath");
+			if(i->Attribute("panelBorderFilePath") != NULL) { panelBorderFilePath = i->Attribute("panelBorderFilePath"); }
 			i->QueryFloatAttribute("portraitBorderOffsetX", &portraitBorderOffsetX);
 			i->QueryFloatAttribute("portraitBorderOffsetY", &portraitBorderOffsetY);
-			string characterNameFontFilePath = i->Attribute("characterNameFontFilePath");
-			string instructionsFontFilePath = i->Attribute("instructionsFontFilePath");
+			if(i->Attribute("characterNameFontFilePath") != NULL) { characterNameFontFilePath = i->Attribute("characterNameFontFilePath"); }
+			if(i->Attribute("instructionsFontFilePath") != NULL) { instructionsFontFilePath = i->Attribute("instructionsFontFilePath"); }
 			i->QueryIntAttribute("titlePalette", &titlePalette);
 			i->QueryIntAttribute("characterNamePalette", &characterNamePalette);
 			i->QueryIntAttribute("instructionsPalette", &instructionsPalette);
@@ -3196,6 +3205,8 @@ int ObjectManager::LoadCharacterSelect(string defFilePath, string pcFilePath, st
 					TextJustification characterNameJustification = JUSTIFICATION_LEFT;
 					HSFont * instructionsFont;
 					TextJustification instructionJustification = JUSTIFICATION_LEFT;
+					string cursorFilePath = "";
+					string portraitBorderFilePath = "";
 
 					k->QueryIntAttribute("player", &playerNum);
 					k->QueryFloatAttribute("portraitPosX", &portraitPosX);
@@ -3204,8 +3215,8 @@ int ObjectManager::LoadCharacterSelect(string defFilePath, string pcFilePath, st
 					k->QueryFloatAttribute("characterNamePosY", &characterNamePosY);
 					k->QueryFloatAttribute("instructionsPosX", &instructionsPosX);
 					k->QueryFloatAttribute("instructionsPosY", &instructionsPosY);
-					string cursorFilePath = k->Attribute("cursorFilePath");
-					string portraitBorderFilePath = k->Attribute("portraitBorderFilePath");
+					if(k->Attribute("cursorFilePath") != NULL) { cursorFilePath = k->Attribute("cursorFilePath"); }
+					if(k->Attribute("portraitBorderFilePath") != NULL) { portraitBorderFilePath = k->Attribute("portraitBorderFilePath"); }
 
 					string characterNameJustificationString = "";
 					if(k->Attribute("characterNameJustification") != NULL) { characterNameJustificationString = k->Attribute("characterNameJustification"); }
@@ -3283,21 +3294,21 @@ int ObjectManager::LoadCharacterSelect(string defFilePath, string pcFilePath, st
 			int titlePalette = 0;
 			int stageNamePalette = 0;
 
-			titleText = i->Attribute("titleText");
+			if(i->Attribute("titleText") != NULL) { titleText = i->Attribute("titleText"); }
 			i->QueryFloatAttribute("titlePosX", &titlePosX);
 			i->QueryFloatAttribute("titlePosY", &titlePosY);
 			i->QueryFloatAttribute("backgroundPosX", &backgroundPosX);
 			i->QueryFloatAttribute("backgroundPosY", &backgroundPosY);
-			titleFontFilePath = i->Attribute("titleFontFilePath");
-			backgroundFilePath = i->Attribute("backgroundFilePath");
+			if(i->Attribute("titleFontFilePath") != NULL) { titleFontFilePath = i->Attribute("titleFontFilePath"); }
+			if(i->Attribute("backgroundFilePath") != NULL) { backgroundFilePath = i->Attribute("backgroundFilePath"); }
 			i->QueryFloatAttribute("previewPosX", &previewPosX);
 			i->QueryFloatAttribute("previewPosY", &previewPosY);
 			i->QueryFloatAttribute("previewBorderOffsetX", &previewBorderOffsetX);
 			i->QueryFloatAttribute("previewBorderOffsetY", &previewBorderOffsetY);
 			i->QueryFloatAttribute("stageNamePosX", &stageNamePosX);
 			i->QueryFloatAttribute("stageNamePosY", &stageNamePosY);
-			stageNameFontFilePath = i->Attribute("stageNameFontFilePath");
-			previewBorderFilePath = i->Attribute("previewBorderFilePath");
+			if(i->Attribute("stageNameFontFilePath") != NULL) { stageNameFontFilePath = i->Attribute("stageNameFontFilePath"); }
+			if(i->Attribute("previewBorderFilePath") != NULL) { previewBorderFilePath = i->Attribute("previewBorderFilePath"); }
 			i->QueryIntAttribute("titlePalette", &titlePalette);
 			i->QueryIntAttribute("stageNamePalette", &stageNamePalette);
 
@@ -3363,16 +3374,16 @@ int ObjectManager::LoadCharacterSelect(string defFilePath, string pcFilePath, st
 			int titlePalette = 0;
 			int musicNamePalette = 0;
 
-			titleText = i->Attribute("titleText");
+			if(i->Attribute("titleText") != NULL) { titleText = i->Attribute("titleText"); }
 			i->QueryFloatAttribute("titlePosX", &titlePosX);
 			i->QueryFloatAttribute("titlePosY", &titlePosY);
 			i->QueryFloatAttribute("backgroundPosX", &backgroundPosX);
 			i->QueryFloatAttribute("backgroundPosY", &backgroundPosY);
-			titleFontFilePath = i->Attribute("titleFontFilePath");
-			backgroundFilePath = i->Attribute("backgroundFilePath");
+			if(i->Attribute("titleFontFilePath") != NULL) { titleFontFilePath = i->Attribute("titleFontFilePath"); }
+			if(i->Attribute("backgroundFilePath") != NULL) { backgroundFilePath = i->Attribute("backgroundFilePath"); }
 			i->QueryFloatAttribute("musicNamePosX", &musicNamePosX);
 			i->QueryFloatAttribute("musicNamePosY", &musicNamePosY);
-			musicNameFontFilePath = i->Attribute("musicNameFontFilePath");
+			if(i->Attribute("musicNameFontFilePath") != NULL) { musicNameFontFilePath = i->Attribute("musicNameFontFilePath"); }
 			i->QueryIntAttribute("titlePalette", &titlePalette);
 			i->QueryIntAttribute("musicNamePalette", &musicNamePalette);
 
@@ -3466,11 +3477,17 @@ int ObjectManager::LoadPlayableCharacters(string pcFilePath, string panelBorderF
 		HSObject * portrait = NULL;
 
 		i->QueryIntAttribute("order", &order);
-		string characterName = i->Attribute("characterName");
-		string defFilePath = i->Attribute("defFilePath");
-		string hudIconDefFilePath = i->Attribute("hudIconDefFilePath");
-		string panelFilePath = i->Attribute("panelFilePath");
-		string portraitFilePath = i->Attribute("portraitFilePath");
+		string characterName = "";
+		string defFilePath = "";
+		string hudIconDefFilePath = "";
+		string panelFilePath = "";
+		string portraitFilePath = "";
+		
+		if(i->Attribute("characterName") != NULL) { characterName = i->Attribute("characterName"); }
+		if(i->Attribute("defFilePath") != NULL) { defFilePath = i->Attribute("defFilePath"); }
+		if(i->Attribute("hudIconDefFilePath") != NULL) { hudIconDefFilePath = i->Attribute("hudIconDefFilePath"); }
+		if(i->Attribute("panelFilePath") != NULL) { panelFilePath = i->Attribute("panelFilePath"); }
+		if(i->Attribute("portraitFilePath") != NULL) { portraitFilePath = i->Attribute("portraitFilePath"); }
 
 		CharacterSelectPanel * newPanel = new CharacterSelectPanel();
 		newPanel->orderID = order;
@@ -3642,9 +3659,9 @@ int ObjectManager::LoadPlayableStages(string psFilePath)
 		HSObject * preview = NULL;
 
 		i->QueryIntAttribute("order", &order);
-		stageName = i->Attribute("name");
-		defFilePath = i->Attribute("defFilePath");
-		previewFilePath = i->Attribute("previewFilePath");
+		if(i->Attribute("name") != NULL) { stageName = i->Attribute("name"); }
+		if(i->Attribute("defFilePath") != NULL) { defFilePath = i->Attribute("defFilePath"); }
+		if(i->Attribute("previewFilePath") != NULL) { previewFilePath = i->Attribute("previewFilePath"); }
 
 		if(int error = LoadDefinition(previewFilePath, &HUDObjects, &preview) != 0) { return error; }
 		preview->pos.x = sc->imagePos.x;
@@ -3704,8 +3721,8 @@ int ObjectManager::LoadPlayableMusic(string pmFilePath)
 		string musicFilePath = "";
 
 		i->QueryIntAttribute("order", &order);
-		musicName = i->Attribute("name");
-		musicFilePath = i->Attribute("musicFilePath");
+		if(i->Attribute("name") != NULL) { musicName = i->Attribute("name"); }
+		if(i->Attribute("musicFilePath") != NULL) { musicFilePath = i->Attribute("musicFilePath"); }
 
 		MusicChooserItem * newItem = new MusicChooserItem();
 
