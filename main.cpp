@@ -807,7 +807,7 @@ int Main::ChangeGameState(GameState newState)
 int Main::StartLoading()
 {
 	objectManager->loadingLoadingScreen = true;
-	if(int error = objectManager->LoadLoadingScreen("data\\hud\\Loading\\loadingScreen.xml") != 0) { return error; objectManager->loadingLoadingScreen = false; }
+	if(int error = objectManager->LoadLoadingScreen("data/hud/Loading/loadingScreen.xml") != 0) { return error; objectManager->loadingLoadingScreen = false; }
 	objectManager->loadingText->SetText(objectManager->loadingString);
 	SpawnText(objectManager->loadingText);
 
@@ -1028,7 +1028,7 @@ int Main::InitializeMainMenu()
 	//load all main menu elements and place them in HUDObjects
 	HSMenu * mainMenu;
 	
-	if(int error = objectManager->LoadHSMenuCollection("data\\hud\\Menus\\mainMenuCollection.xml", &mainMenu) != 0) { return error; }
+	if(int error = objectManager->LoadHSMenuCollection("data/hud/Menus/mainMenuCollection.xml", &mainMenu) != 0) { return error; }
 
 	objectManager->menuManager = new MenuManager(mainMenu);
 	objectManager->menuManager->SetHidden(false);
@@ -1151,7 +1151,7 @@ int Main::InitializeMatch()
 
 	HSMenu * pauseMenu;
 
-	if(int error = objectManager->LoadHSMenuCollection("data\\hud\\Menus\\pauseMenuCollection.xml", &pauseMenu) !=0) { return error; }
+	if(int error = objectManager->LoadHSMenuCollection("data/hud/Menus/pauseMenuCollection.xml", &pauseMenu) !=0) { return error; }
 
 	objectManager->menuManager = new MenuManager(pauseMenu);
 	objectManager->menuManager->SetHidden(true);
