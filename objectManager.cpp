@@ -1676,6 +1676,7 @@ int ObjectManager::LoadHSMenu(string defFilePath, HSVect2D menuPos, HSMenu ** re
 				HSFont * chooserFont = NULL;
 				if(int error = LoadHSFont(itemFontDefFilePath, &chooserFont) != 0) { return error; }
 				LoadMenuChooser(chooserDefFilePath, chooserFont, &chooser);
+				chooser->palette = itemPalette;
 
 				chooser->parentMenuItem = newItem;
 
@@ -1730,6 +1731,7 @@ int ObjectManager::LoadHSMenu(string defFilePath, HSVect2D menuPos, HSMenu ** re
 				HSFont * keySettingFont = NULL;
 				if(int error = LoadHSFont(itemFontDefFilePath, &keySettingFont) != 0) { return error; }
 				CreateMenuKeySetting(keySettingFont, &keysetting);
+				keysetting->palette = itemPalette;
 
 				keysetting->parentMenuItem = newItem;
 
