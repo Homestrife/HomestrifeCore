@@ -2973,14 +2973,18 @@ int ObjectManager::LoadHSCharacter(XMLElement * xml, HSCharacter * hsChar, list<
 
 	if(int error = LoadDefinition(defFilePath, NULL, &newObject) != 0) { return error; }
 
-	//add the font palettes to the character object
-	list<PaletteInstance>::iterator piItr;
-	for(piItr = paletteInstances.begin(); piItr != paletteInstances.end(); piItr++)
+	if(paletteInstances.size() > 0)
 	{
-		newObject->palettes.push_back(*piItr);
+		//add the font palettes to the character object
+		list<PaletteInstance>::iterator piItr;
+		for(piItr = paletteInstances.begin(); piItr != paletteInstances.end(); piItr++)
+		{
+			newObject->palettes.push_back(*piItr);
+		}
+		newObject->palettes.sort(HSOrderableSort);
+		newObject->useTGAPalettes = false;
+		newObject->SetPalette(0);
 	}
-	newObject->palettes.sort(HSOrderableSort);
-	newObject->SetPalette(0);
 
 	hsChar->character = newObject;
 
