@@ -815,12 +815,15 @@ bool CharacterSelectManager::PlayerConfirm(int player)
 		}
 		break;
 	case STAGE_SELECT:
-		ChangeCharacterSelectState(MUSIC_SELECT);
+		//ChangeCharacterSelectState(MUSIC_SELECT);
+		return true; //ignore music select for now
 		break;
 	case MUSIC_SELECT:
 		return true;
 		break;
 	}
+
+	return false;
 }
 
 bool CharacterSelectManager::PlayerCancel(int player)

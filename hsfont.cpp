@@ -334,6 +334,20 @@ list<HSCharToClone> HSFont::GenerateText(string text, HSVect2D pos, int depth, T
 		else if(*stIt == '?') { GenerateCharacter(characters.question, &textWidth, depth, &result, palette); }
 		else if(*stIt == '<') { GenerateCharacter(characters.lessThan, &textWidth, depth, &result, palette); }
 		else if(*stIt == '>') { GenerateCharacter(characters.greaterThan, &textWidth, depth, &result, palette); }
+		else if(*stIt == '@') { GenerateCharacter(characters.at, &textWidth, depth, &result, palette); }
+		else if(*stIt == '#') { GenerateCharacter(characters.hash, &textWidth, depth, &result, palette); }
+		else if(*stIt == '$') { GenerateCharacter(characters.dollar, &textWidth, depth, &result, palette); }
+		else if(*stIt == '%') { GenerateCharacter(characters.percent, &textWidth, depth, &result, palette); }
+		else if(*stIt == '^') { GenerateCharacter(characters.carat, &textWidth, depth, &result, palette); }
+		else if(*stIt == '*') { GenerateCharacter(characters.asterisk, &textWidth, depth, &result, palette); }
+		else if(*stIt == '-') { GenerateCharacter(characters.minus, &textWidth, depth, &result, palette); }
+		else if(*stIt == '_') { GenerateCharacter(characters.underscore, &textWidth, depth, &result, palette); }
+		else if(*stIt == '+') { GenerateCharacter(characters.plus, &textWidth, depth, &result, palette); }
+		else if(*stIt == '=') { GenerateCharacter(characters.equals, &textWidth, depth, &result, palette); }
+		else if(*stIt == '[') { GenerateCharacter(characters.bracketLeft, &textWidth, depth, &result, palette); }
+		else if(*stIt == ']') { GenerateCharacter(characters.bracketRight, &textWidth, depth, &result, palette); }
+		else if(*stIt == ';') { GenerateCharacter(characters.semicolon, &textWidth, depth, &result, palette); }
+		else if(*stIt == '`') { GenerateCharacter(characters.quoteBack, &textWidth, depth, &result, palette); }
 		else if(*stIt == ' ') { GenerateCharacter(characters.space, &textWidth, depth, &result, palette); }
 	}
 
