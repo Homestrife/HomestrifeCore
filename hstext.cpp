@@ -45,3 +45,4 @@ void HSText::DeleteText()
 	characterList.clear();
 	charListToClone.clear();
 	_curText = "";
+}
