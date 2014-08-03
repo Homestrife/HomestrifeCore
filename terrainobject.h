@@ -3,12 +3,28 @@
 
 #include "hsobject.h"
 
+#define DEFAULT_HITSTOP 10
+
+enum HitLevel
+{
+	HIT_HIGH,
+	HIT_LOW,
+	HIT_MID, //can hit high or low depending on relative elevation and vertical velocity
+	HIT_STRICTLY_MID //always hits mid
+};
+
 enum Blockability
 {
-	UNBLOCKABLE, //unblockable!
-	HIGH, //must be blocked high
-	LOW, //must be blocked low
-	MID //can be blocked high or low
+	UNBLOCKABLE,
+	BLOCKABLE
+};
+
+enum Invulnerability
+{
+	INVULN_NONE,
+	INVULN_HIGH,
+	INVULN_LOW,
+	INVULN_FULL
 };
 
 class TerrainObjectHold : public HSObjectHold
@@ -33,6 +49,7 @@ public:
 	
 	//how the object must be blocked
 	Blockability blockability;
+	HitLevel hitLevel;
 
 	//whether or not this object must be blocked in a direction relative to its horizontal motion.
 	//otherwise, it must be blocked based on its relative horizontal position
@@ -45,9 +62,11 @@ public:
 	int damage;
 
 	//how long this object is frozen after a hit/hurt impact
+	bool overrideOwnHitstop;
 	int ownHitstop;
 
 	//how long a hittable thing is frozen after a hit/hurt impact
+	bool overrideVictimHitstop;
 	int victimHitstop;
 
 	//for how long a hittable thing is stunned when hit by this object
@@ -65,6 +84,10 @@ public:
 	//whether or not to clear out the victims list, if past attack boxes hit anything. (this allows multiple hits in one attack)
 	bool resetHits;
 
+	bool changeHurtBoxAttributes;
+
+	Invulnerability invulnerability;
+
 	TerrainObjectHold();
 	~TerrainObjectHold();
 
@@ -75,7 +98,7 @@ protected:
 
 struct AttackResults
 {
-	bool struck; //lets the object know it was actually struck
+	int timesStruck; //lets the object know it was actually struck
 	bool didStrike; //lets the object know that it hit something
 	bool hFlip;
 	int damage; //this is cumulative
@@ -83,6 +106,7 @@ struct AttackResults
 	int hitstun;
 	int blockstun;
 	HSVect2D force;
+	HitLevel hitLevel;
 	Blockability blockability;
 	bool IPSTriggered;
 };
@@ -125,7 +149,9 @@ public:
 	//statistics defined by the last hold to change them. They automatically get reset to default values whenever a nextHold is null, or an event is triggered
 	list<AudioInstance> hitAudioList;
 	list<AudioInstance> blockedAudioList;
+	HitLevel hitLevel;
 	Blockability blockability;
+	Invulnerability invulnerability;
 	bool horizontalDirectionBasedBlock;
 	bool reversedHorizontalBlock;
 	short damage;
@@ -158,7 +184,7 @@ public:
 	virtual int Update();
 	virtual int CollideAttack(list<HSObject*> * gameObjects);
 	virtual void ApplyAttackResults();
-	virtual void HandleHurtCollision(TerrainObject * attacker);
+	virtual bool HandleHurtCollision(TerrainObject * attacker);
 	virtual list<AudioInstance*> GetAudio(); //get any audio this object currently wishes to play
 
 	virtual bool IsTerrain();

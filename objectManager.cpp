@@ -420,15 +420,24 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 					else if(bString.compare("false") == 0) { newTOHold->changeAttackBoxAttributes = false; }
 				}
 
+				//get hitLevel
+				const char * hl = holdDef->Attribute("hitLevel");
+				if(hl != NULL)
+				{
+					bString.assign(hl);
+					if(bString.compare("HIT_HIGH") == 0) { newTOHold->hitLevel = HIT_HIGH; }
+					else if(bString.compare("HIT_LOW") == 0) { newTOHold->hitLevel = HIT_LOW; }
+					else if(bString.compare("HIT_MID") == 0) { newTOHold->hitLevel = HIT_MID; }
+					else if(bString.compare("HIT_STRICTLY_MID") == 0) { newTOHold->hitLevel = HIT_STRICTLY_MID; }
+				}
+
 				//get blockability
 				const char * b = holdDef->Attribute("blockability");
 				if(b != NULL)
 				{
 					bString.assign(b);
 					if(bString.compare("UNBLOCKABLE") == 0) { newTOHold->blockability = UNBLOCKABLE; }
-					else if(bString.compare("HIGH") == 0) { newTOHold->blockability = HIGH; }
-					else if(bString.compare("LOW") == 0) { newTOHold->blockability = LOW; }
-					else if(bString.compare("MID") == 0) { newTOHold->blockability = MID; }
+					else if(bString.compare("BLOCKABLE") == 0) { newTOHold->blockability = BLOCKABLE; }
 				}
 
 				//get horizontalDirectionBasedBlock
@@ -453,7 +462,9 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 				holdDef->QueryIntAttribute("damage", &newTOHold->damage);
 
 				//get hitstop
+				holdDef->QueryBoolAttribute("overrideOwnHitstop", &newTOHold->overrideOwnHitstop);
 				holdDef->QueryIntAttribute("ownHitstop", &newTOHold->ownHitstop);
+				holdDef->QueryBoolAttribute("overrideVictimHitstop", &newTOHold->overrideVictimHitstop);
 				holdDef->QueryIntAttribute("victimHitstop", &newTOHold->victimHitstop);
 
 				//get hitstun
@@ -492,6 +503,26 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 					eventHoldId = 0;
 					eventHoldsDef->QueryUnsignedAttribute("healthDeath", &eventHoldId);
 					if(newHold->id == eventHoldId) { newTObject->terrainEventHolds.healthDeath = newTOHold; }
+				}
+
+				//get changeHurtBoxAttributes
+				const char * chba = holdDef->Attribute("changeHurtBoxAttributes");
+				if(chba != NULL)
+				{
+					bString.assign(chba);
+					if(bString.compare("true") == 0) { newTOHold->changeHurtBoxAttributes = true; }
+					else if(bString.compare("false") == 0) { newTOHold->changeHurtBoxAttributes = false; }
+				}
+
+				//get invulnerability
+				const char * inv = holdDef->Attribute("invulnerability");
+				if(inv != NULL)
+				{
+					bString.assign(inv);
+					if(bString.compare("INVULN_NONE") == 0) { newTOHold->invulnerability = INVULN_NONE; }
+					else if(bString.compare("INVULN_HIGH") == 0) { newTOHold->invulnerability = INVULN_HIGH; }
+					else if(bString.compare("INVULN_LOW") == 0) { newTOHold->invulnerability = INVULN_LOW; }
+					else if(bString.compare("INVULN_FULL") == 0) { newTOHold->invulnerability = INVULN_FULL; }
 				}
 			}
 
@@ -559,6 +590,11 @@ int ObjectManager::LoadDefinition(string defFilePath, list<HSObject*> * objects,
 					if(bString.compare("true") == 0) { newFHold->changeCancels = true; }
 					else if(bString.compare("false") == 0) { newFHold->changeCancels = false; }
 				}
+
+				//get super armor
+				holdDef->QueryIntAttribute("superArmorHits", &newFHold->superArmorHits);
+				holdDef->QueryIntAttribute("superArmorDamage", &newFHold->superArmorDamage);
+				holdDef->QueryFloatAttribute("superArmorDamageScaling", &newFHold->superArmorDamageScaling);
 
 				//get cancels
 				const char * dc = holdDef->Attribute("dashCancel");
@@ -4394,6 +4430,7 @@ int ObjectManager::CloneObject(HSObject * objectToClone, list<HSObject*> * objec
 			TerrainObjectHold * newTOH = (TerrainObjectHold*)newHold;
 
 			newTOH->blockability = tohToClone->blockability;
+			newTOH->hitLevel = tohToClone->hitLevel;
 			newTOH->ownHitstop = tohToClone->ownHitstop;
 			newTOH->victimHitstop = tohToClone->victimHitstop;
 			newTOH->blockstun = tohToClone->blockstun;

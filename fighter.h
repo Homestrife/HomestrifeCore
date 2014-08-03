@@ -7,7 +7,7 @@
 #define AIR_DASH_INPUT_FRAMES RUN_INPUT_FRAMES //max number of frames between the two left/right taps that activate an air run/dash
 #define MOVING_TURN_THRESHOLD 10 //number of frames after walk/run stop that turning will trigger the walking/running turn animation
 #define COMMAND_INPUT_THRESHOLD 10 //number of frames allowed between individual direction inputs for a command
-#define BUFFERED_ACTION_LIFETIME 10 //number of frames to hold on to buffered inputs
+#define BUFFERED_ACTION_LIFETIME 8 //number of frames to hold on to buffered inputs
 #define TAP_THRESHOLD 10 //number of frames between a press and release of a button to count as a "tap"
 #define HARD_PRESS_THRESHOLD 0 //number of frames the stick has to go from neutral to hard pressed to be equivalent to a double-tap
 #define WAIT_AFTER_KNOCKOUT 120 //how many frames to wait after a knockout to respawn
@@ -166,6 +166,10 @@ public:
 	//whether or not to immediately leave the airdash state upon reaching this hold
 	bool endAirDash;
 
+	int superArmorHits;
+	int superArmorDamage;
+	float superArmorDamageScaling;
+
 	FighterHold();
 	~FighterHold();
 
@@ -311,7 +315,7 @@ public:
 	FighterState state;
 	FighterFacing facing;
 	bool blocking;
-	Blockability hitstunBlockability;
+	HitLevel hitstunHitLevel;
 	FighterJump jump;
 	FighterAirDash airDash;
 	float currentSurfaceFriction;
@@ -339,6 +343,11 @@ public:
 	HSVectComp fighterPushXAccel;
 	bool disableAirControl;
 	bool endAirDash;
+	int superArmorHits;
+	int superArmorDamage;
+	float superArmorDamageScaling;
+	bool hasHitSuperArmor;
+	bool hasDamageSuperArmor;
 
 	Cancels defaultCancels;
 
@@ -379,7 +388,7 @@ public:
 	int CollideFighters(list<HSObject*> * gameObjects);
 	virtual void ApplyAttackResults();
 	virtual void HandleAttackCollision(TerrainObject * targetObject);
-	virtual void HandleHurtCollision(TerrainObject * attacker);
+	virtual bool HandleHurtCollision(TerrainObject * attacker);
 	virtual list<SpawnObject*> GetSpawnObjects(); //get any objects this object currently wishes to spawn
 	virtual list<AudioInstance*> GetAudio(); //get any audio this object currently wishes to play
 	

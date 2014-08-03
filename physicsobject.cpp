@@ -37,7 +37,7 @@ PhysicsObject::PhysicsObject() : TerrainObject()
 	ignoreJumpThroughTerrain = false;
 	takesTerrainDamage = false;
 
-	blockability = MID;
+	blockability = BLOCKABLE;
 	horizontalDirectionBasedBlock = false;
 	reversedHorizontalBlock = false;
 	damage = 0;

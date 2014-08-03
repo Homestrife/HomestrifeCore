@@ -805,7 +805,7 @@ int Main::ChangeGameState(GameState newState)
 int Main::StartLoading()
 {
 	objectManager->loadingLoadingScreen = true;
-	if(int error = objectManager->LoadLoadingScreen("data\\hud\\Loading\\loadingScreen.xml") != 0) { return error; objectManager->loadingLoadingScreen = false; }
+	if(int error = objectManager->LoadLoadingScreen("data/hud/Loading/loadingScreen.xml") != 0) { return error; objectManager->loadingLoadingScreen = false; }
 	objectManager->loadingText->SetText(objectManager->loadingString);
 	SpawnText(objectManager->loadingText);
 
@@ -1026,7 +1026,7 @@ int Main::InitializeMainMenu()
 	//load all main menu elements and place them in HUDObjects
 	HSMenu * mainMenu;
 	
-	if(int error = objectManager->LoadHSMenuCollection("data\\hud\\Menus\\mainMenuCollection.xml", &mainMenu) != 0) { return error; }
+	if(int error = objectManager->LoadHSMenuCollection("data/hud/Menus/mainMenuCollection.xml", &mainMenu) != 0) { return error; }
 
 	objectManager->menuManager = new MenuManager(mainMenu);
 	objectManager->menuManager->SetHidden(false);
@@ -1052,7 +1052,7 @@ int Main::InitializeCharacterSelect()
 {
 	objectManager->characterSelectManager = new CharacterSelectManager();
 	
-	if(int error = objectManager->LoadCharacterSelect("data\\hud\\Menus\\Character Select\\CharacterSelect.xml", "data\\characters\\playableCharacters.xml", "data\\stages\\playableStages.xml", "data\\music\\playableMusic.xml") != 0) { return error; }
+	if(int error = objectManager->LoadCharacterSelect("data/hud/Menus/Character Select/CharacterSelect.xml", "data/characters/playableCharacters.xml", "data/stages/playableStages.xml", "data/music/playableMusic.xml") != 0) { return error; }
 
 	objectManager->characterSelectManager->ChangeCharacterSelectState(CHARACTERS_SELECT);
 
@@ -1111,7 +1111,7 @@ int Main::InitializeMatch()
 
 	//load HUD
 	objectManager->hudManager = new HUDManager();
-	if(int error = objectManager->LoadHUD("data\\hud\\TestHUD\\TestHUD.xml", objectManager->characterSelectChoices.participating) != 0) { return error; }
+	if(int error = objectManager->LoadHUD("data/hud/TestHUD/TestHUD.xml", objectManager->characterSelectChoices.participating) != 0) { return error; }
 
 	for(int i = 0; i < MAX_PLAYERS; i++)
 	{
@@ -1149,7 +1149,7 @@ int Main::InitializeMatch()
 
 	HSMenu * pauseMenu;
 
-	if(int error = objectManager->LoadHSMenuCollection("data\\hud\\Menus\\pauseMenuCollection.xml", &pauseMenu) !=0) { return error; }
+	if(int error = objectManager->LoadHSMenuCollection("data/hud/Menus/pauseMenuCollection.xml", &pauseMenu) !=0) { return error; }
 
 	objectManager->menuManager = new MenuManager(pauseMenu);
 	objectManager->menuManager->SetHidden(true);
@@ -1369,7 +1369,7 @@ int Main::LoadKeyConfig()
 {
 	//get the XML structure from the file
 	XMLDocument * file = new XMLDocument();
-	if(int error = file->LoadFile("data\\config\\keyConfig.xml") != 0)
+	if(int error = file->LoadFile("data/config/keyConfig.xml") != 0)
 	{
 		//file doesn't exist, so just set some defaults and then save the configuration
 		DefaultKeyConfig();
@@ -1909,7 +1909,7 @@ void Main::ApplyAndSaveVideoSettings()
 
 	file->InsertEndChild(config);
 
-	file->SaveFile("data\\config\\videoConfig.xml");
+	file->SaveFile("data/config/videoConfig.xml");
 }
 
 int Main::SaveKeyConfig()
@@ -1937,7 +1937,7 @@ int Main::SaveKeyConfig()
 
 	file->InsertEndChild(config);
 
-	file->SaveFile("data\\config\\keyConfig.xml");
+	file->SaveFile("data/config/keyConfig.xml");
 
 	return 0;
 }

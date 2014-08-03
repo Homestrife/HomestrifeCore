@@ -671,7 +671,7 @@ int RenderingManager::LoadVideoConfig()
 {
 	//get the XML structure from the file
 	XMLDocument * file = new XMLDocument();
-	if(int error = file->LoadFile("data\\config\\videoConfig.xml") != 0)
+	if(int error = file->LoadFile("data/config/videoConfig.xml") != 0)
 	{
 		//file doesn't exist, so just set some defaults and then save the configuration
 		DefaultVideoConfig();
@@ -767,7 +767,7 @@ int RenderingManager::SaveVideoConfig()
 
 	file->InsertEndChild(config);
 
-	file->SaveFile("data\\config\\videoConfig.xml");
+	file->SaveFile("data/config/videoConfig.xml");
 
 	return 0;
 }

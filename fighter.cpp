@@ -24,6 +24,9 @@ FighterHold::FighterHold() : PhysicsObjectHold()
 	cancels.lightQCF = NEVER;
 	cancels.lightUp = NEVER;
 	changeFighterAttributes = false;
+	superArmorDamage = 0;
+	superArmorHits = 0;
+	superArmorDamageScaling = 0;
 }
 
 FighterHold::~FighterHold()
@@ -60,7 +63,7 @@ Fighter::Fighter() : PhysicsObject()
 	state = JUMPING;
 	facing = RIGHT;
 	blocking = false;
-	hitstunBlockability = MID;
+	hitstunHitLevel = HIT_MID;
 	jump = NO_JUMP;
 	airDash = NO_AIR_DASH;
 	currentSurfaceFriction = 0;
@@ -88,6 +91,11 @@ Fighter::Fighter() : PhysicsObject()
 	fighterPushXAccel = 0;
 	disableAirControl = false;
 	endAirDash = false;
+	superArmorDamage = 0;
+	superArmorHits = 0;
+	superArmorDamageScaling = 1;
+	hasHitSuperArmor = false;
+	hasDamageSuperArmor = false;
 
 	defaultCancels.jump = NEVER;
 	defaultCancels.dash = NEVER;
@@ -260,6 +268,18 @@ int Fighter::AdvanceHolds()
 		if(curHitstop > 0)
 		{
 			return 0;
+		}
+	}
+
+	if(bufferedAction != NO_ACTION)
+	{
+		if(bufferedActionAge > BUFFERED_ACTION_LIFETIME)
+		{
+			bufferedAction = NO_ACTION;
+		}
+		else
+		{
+			bufferedActionAge++;
 		}
 	}
 
@@ -458,18 +478,6 @@ int Fighter::ExecuteAction(InputStates * inputHistory, int frame)
 {
 	landingAction = NO_ACTION;
 	turnUponLanding = false;
-
-	if(bufferedAction != NO_ACTION)
-	{
-		if(bufferedActionAge > BUFFERED_ACTION_LIFETIME)
-		{
-			bufferedAction = NO_ACTION;
-		}
-		else
-		{
-			bufferedActionAge++;
-		}
-	}
 
 	//stun
 	if(curHitstun > 0 || curHitstop > 0 || state == KNOCKOUT || state == KNOCKOUT_AIR)
@@ -1334,19 +1342,22 @@ int Fighter::Update()
 
 	if(state == STANDING || state == CROUCHING || (state == JUMPING && jumpStartup) || state == KNOCKOUT)
 	{
-		if(sliding)
+		if(curHitstop <= 0)
 		{
-			float totalFriction = (1 - friction) * (1 - currentSurfaceFriction);
-			vel.x *= totalFriction;
-			if(abs(vel.x) < MIN_VEL)
+			if(sliding)
+			{
+				float totalFriction = (1 - friction) * (1 - currentSurfaceFriction);
+				vel.x *= totalFriction;
+				if(abs(vel.x) < MIN_VEL)
+				{
+					vel.x = 0;
+					sliding = false;
+				}
+			}
+			else
 			{
 				vel.x = 0;
-				sliding = false;
 			}
-		}
-		else
-		{
-			vel.x = 0;
 		}
 	}
 	else
@@ -1799,7 +1810,7 @@ int Fighter::HandleJumpLanding()
 	falls = false;
 	attacking = false;
 
-	if(airVelocityCategory != LOW_VELOCITY)
+	if(airVelocityCategory != LOW_VELOCITY || curHitstun > 0 || curBlockstun > 0)
 	{
 		sliding = true;
 	}
@@ -1835,15 +1846,15 @@ int Fighter::HandleJumpLanding()
 			state = STANDING;
 			if(curHitstun > 0)
 			{
-				if(hitstunBlockability == MID || hitstunBlockability == UNBLOCKABLE)
+				if(hitstunHitLevel == HIT_MID)
 				{
 					ChangeHold(fighterEventHolds.hitstunLightMidStanding);
 				}
-				else if(hitstunBlockability == HIGH)
+				else if(hitstunHitLevel == HIT_HIGH)
 				{
 					ChangeHold(fighterEventHolds.hitstunLightHighStanding);
 				}
-				else if(hitstunBlockability == LOW)
+				else if(hitstunHitLevel == HIT_LOW)
 				{
 					ChangeHold(fighterEventHolds.hitstunLightLowStanding);
 				}
@@ -1872,15 +1883,15 @@ int Fighter::HandleJumpLanding()
 			if(curHitstun > 0)
 			{
 				state = STANDING;
-				if(hitstunBlockability == MID || hitstunBlockability == UNBLOCKABLE)
+				if(hitstunHitLevel == HIT_MID)
 				{
 					ChangeHold(fighterEventHolds.hitstunLightMidStanding);
 				}
-				else if(hitstunBlockability == HIGH)
+				else if(hitstunHitLevel == HIT_HIGH)
 				{
 					ChangeHold(fighterEventHolds.hitstunLightHighStanding);
 				}
-				else if(hitstunBlockability == LOW)
+				else if(hitstunHitLevel == HIT_LOW)
 				{
 					ChangeHold(fighterEventHolds.hitstunLightLowStanding);
 				}
@@ -1977,15 +1988,15 @@ int Fighter::HandleJumpLanding()
 			if(curHitstun > 0)
 			{
 				state = STANDING;
-				if(hitstunBlockability == MID || hitstunBlockability == UNBLOCKABLE)
+				if(hitstunHitLevel == HIT_MID)
 				{
 					ChangeHold(fighterEventHolds.hitstunLightMidStanding);
 				}
-				else if(hitstunBlockability == HIGH)
+				else if(hitstunHitLevel == HIT_HIGH)
 				{
 					ChangeHold(fighterEventHolds.hitstunLightHighStanding);
 				}
-				else if(hitstunBlockability == LOW)
+				else if(hitstunHitLevel == HIT_LOW)
 				{
 					ChangeHold(fighterEventHolds.hitstunLightLowStanding);
 				}
@@ -2299,7 +2310,7 @@ int Fighter::CollideFighters(list<HSObject*> * gameObjects)
 
 void Fighter::ApplyAttackResults()
 {
-	if(!attackResults.struck)
+	if(attackResults.timesStruck <= 0)
 	{
 		if(attackResults.didStrike)
 		{
@@ -2308,6 +2319,35 @@ void Fighter::ApplyAttackResults()
 
 		ResetAttackResults();
 		return;
+	}
+
+	if(attackResults.blockstun <= 0 && (hasDamageSuperArmor || hasHitSuperArmor))
+	{
+		if(hasDamageSuperArmor)
+		{
+			superArmorDamage -= attackResults.damage;
+		}
+		if(hasHitSuperArmor)
+		{
+			superArmorHits -= attackResults.timesStruck;
+		}
+
+		int scaledDamage = (float)attackResults.damage * superArmorDamageScaling;
+
+		if(((hasDamageSuperArmor && superArmorDamage >= 0) || (hasHitSuperArmor && superArmorHits >= 0)) && scaledDamage < curHealth)
+		{
+			curHealth -= scaledDamage;
+			curHitstop = attackResults.hitstop;
+
+			ResetAttackResults();
+			return;
+		}
+
+		superArmorDamage = 0;
+		superArmorHits = 0;
+		superArmorDamageScaling = 1.0;
+		hasDamageSuperArmor = false;
+		hasHitSuperArmor = false;
 	}
 
 	if(state == JUMPING && jumpStartup)
@@ -2387,10 +2427,10 @@ void Fighter::ApplyAttackResults()
 		else if(curHealth > health) { curHealth = health; }
 	}
 
-	hitstunBlockability = attackResults.blockability;
-	curHitstop = attackResults.hitstop;
+	hitstunHitLevel = attackResults.hitLevel;
 	curHitstun = attackResults.hitstun;
 	curBlockstun = attackResults.blockstun;
+	curHitstop = attackResults.hitstop;
 	vel.x = attackResults.force.x * -facing;
 	vel.y = attackResults.force.y;
 
@@ -2420,22 +2460,22 @@ void Fighter::ApplyAttackResults()
 		if(state == STANDING || state == WALKING || state == RUNNING)
 		{
 			state = STANDING;
-			if(hitstunBlockability == MID || hitstunBlockability == UNBLOCKABLE)
+			if(hitstunHitLevel == HIT_MID)
 			{
 				ChangeHold(fighterEventHolds.hitstunLightMidStanding);
 			}
-			else if(hitstunBlockability == HIGH)
+			else if(hitstunHitLevel == HIT_HIGH)
 			{
 				ChangeHold(fighterEventHolds.hitstunLightHighStanding);
 			}
-			else if(hitstunBlockability == LOW)
+			else if(hitstunHitLevel == HIT_LOW)
 			{
 				ChangeHold(fighterEventHolds.hitstunLightLowStanding);
 			}
 		}
 		else if(state == CROUCHING)
 		{
-			if(hitstunBlockability == MID || hitstunBlockability == UNBLOCKABLE || hitstunBlockability == HIGH)
+			if(hitstunHitLevel == HIT_MID || hitstunHitLevel == HIT_HIGH)
 			{
 				ChangeHold(fighterEventHolds.hitstunLightMidCrouching);
 			}
@@ -2473,7 +2513,7 @@ void Fighter::ApplyAttackResults()
 void Fighter::HandleAttackCollision(TerrainObject * targetObject)
 {
 	//first, let the target know it's been hit
-	targetObject->HandleHurtCollision(this);
+	if(!targetObject->HandleHurtCollision(this)) { return; }
 
 	//save the target so this object doesn't strike it again until the attack is over
 	victims.push_back(targetObject->id);
@@ -2484,70 +2524,101 @@ void Fighter::HandleAttackCollision(TerrainObject * targetObject)
 	inComboString = true;
 }
 
-void Fighter::HandleHurtCollision(TerrainObject * attacker)
+bool Fighter::HandleHurtCollision(TerrainObject * attacker)
 {
-	attackResults.struck = true;
-	attackResults.blockability = attacker->blockability;
-
-	FighterFacing reqBlockDirection = LEFT;
-	attackResults.hFlip = true;
-	if(pos.x < attacker->pos.x)
+	//get the effective hit level
+	HitLevel effectiveHitLevel = attacker->hitLevel;
+	if(state == JUMPING || attacker->hitLevel == HIT_STRICTLY_MID
+		|| (attacker->hitLevel == HIT_HIGH && attacker->pos.y > pos.y)
+		|| (attacker->hitLevel == HIT_LOW && attacker->pos.y < pos.y))
 	{
-		reqBlockDirection = RIGHT;
-		attackResults.hFlip = false;
+		effectiveHitLevel = HIT_MID;
 	}
-
-	if(blocking && facing == reqBlockDirection && attacker->blockability != UNBLOCKABLE)
+	else if(effectiveHitLevel == HIT_MID)
 	{
-		Blockability effectiveBlockability = attacker->blockability;
-		bool blocked = false;
-		if(state == JUMPING)
+		if(attacker->IsFighter() && ((Fighter*)attacker)->state == JUMPING)
 		{
-			blocked = true;
+			if(attacker->pos.y <= pos.y && attacker->vel.y > 0)
+			{
+				effectiveHitLevel = HIT_HIGH;
+			}
+			else if(attacker->pos.y >= pos.y && attacker->vel.y < 0)
+			{
+				effectiveHitLevel = HIT_LOW;
+			}
 		}
-		else if((attacker->blockability == HIGH && attacker->pos.y > pos.y)
-			|| (attacker->blockability == LOW && attacker->pos.y < pos.y))
-		{
-			effectiveBlockability = MID;
-		}
-		else if(attacker->blockability == MID)
+		else
 		{
 			if(attacker->pos.y < pos.y && attacker->vel.y >= 0)
 			{
-				effectiveBlockability = HIGH;
+				effectiveHitLevel = HIT_HIGH;
 			}
 			else if(attacker->pos.y > pos.y && attacker->vel.y <= 0)
 			{
-				effectiveBlockability = LOW;
+				effectiveHitLevel = HIT_LOW;
 			}
-		}
-
-		if(!blocked
-			&& ((effectiveBlockability == MID)
-			|| (effectiveBlockability == HIGH && state == STANDING) 
-			|| (effectiveBlockability == LOW && state == CROUCHING)))
-		{
-			blocked = true;
-		}
-
-		if(blocked)
-		{
-			attackResults.damage += attacker->damage / 10;
-			attackResults.hitstop = attacker->victimHitstop;
-			attackResults.blockstun = attacker->blockstun;
-			attackResults.force.x = attacker->force.x;
-			attackResults.force.y = 0;
-			attacker->numBlockedByThisFrame++;
-		
-			if(attacker->IsFighter())
-			{
-				((Fighter*)attacker)->wasBlocked = true;
-			}
-
-			return;
 		}
 	}
 
+	//handle invuln
+	if(invulnerability == INVULN_FULL
+		|| (effectiveHitLevel == HIT_HIGH && invulnerability == INVULN_HIGH)
+		|| (effectiveHitLevel == HIT_LOW && invulnerability == INVULN_LOW))
+	{
+		return false;
+	}
+
+	//handle blocking
+	attackResults.timesStruck++;
+	attackResults.hitLevel = effectiveHitLevel;
+
+	FighterFacing reqBlockDirection = LEFT;
+	attackResults.hFlip = true;
+	if((attacker->horizontalDirectionBasedBlock && attacker->hFlip)
+		|| (pos.x < attacker->pos.x))
+	{
+		if(attacker->hFlip)
+		{
+			reqBlockDirection = RIGHT;
+			attackResults.hFlip = false;
+		}
+	}
+
+	if(attacker->reversedHorizontalBlock)
+	{
+		if(reqBlockDirection == RIGHT)
+		{
+			reqBlockDirection = LEFT;
+			attackResults.hFlip = true;
+		}
+		else
+		{
+			reqBlockDirection = RIGHT;
+			attackResults.hFlip = false;
+		}
+	}
+
+	if(blocking && facing == reqBlockDirection && attacker->blockability != UNBLOCKABLE
+		&& (effectiveHitLevel == HIT_MID
+		|| (effectiveHitLevel == HIT_HIGH && state == STANDING) 
+		|| (effectiveHitLevel == HIT_LOW && state == CROUCHING)))
+	{
+		attackResults.damage += attacker->damage / 10;
+		attackResults.hitstop = attacker->victimHitstop;
+		attackResults.blockstun = attacker->blockstun;
+		attackResults.force.x = attacker->force.x;
+		attackResults.force.y = 0;
+		attacker->numBlockedByThisFrame++;
+		
+		if(attacker->IsFighter())
+		{
+			((Fighter*)attacker)->wasBlocked = true;
+		}
+
+		return true;
+	}
+
+	//handle being hit
 	attackResults.damage += attacker->damage;
 	attackResults.hitstop = attacker->victimHitstop;
 	attackResults.hitstun = attacker->hitstun;
@@ -2636,6 +2707,8 @@ void Fighter::HandleHurtCollision(TerrainObject * attacker)
 			comboTrack.push_back(newTrack);
 		}
 	}
+
+	return true;
 }
 
 list<SpawnObject*> Fighter::GetSpawnObjects()
@@ -2670,6 +2743,14 @@ bool Fighter::AdvanceHold(HSObjectHold* hold)
 			endAirDash = fHold->endAirDash;
 		}
 
+		if(fHold->changeHurtBoxAttributes)
+		{
+			superArmorHits = fHold->superArmorHits;
+			superArmorDamage = fHold->superArmorDamage;
+			if(superArmorHits > 0) { hasHitSuperArmor = true; }
+			if(superArmorDamage > 0) { hasDamageSuperArmor = true; }
+		}
+
 		return true;
 	}
 
@@ -2693,7 +2774,9 @@ HSObjectHold * Fighter::GetDefaultHold()
 	attacking = false;
 	victims.clear();
 	hitAudioList.clear();
-	blockability = MID;
+	hitLevel = HIT_MID;
+	blockability = BLOCKABLE;
+	invulnerability = INVULN_NONE;
 	horizontalDirectionBasedBlock = false;
 	reversedHorizontalBlock = false;
 	damage = 0;
@@ -2710,6 +2793,10 @@ HSObjectHold * Fighter::GetDefaultHold()
 	ignoreGravity = false;
 	disableAirControl = false;
 	endAirDash = false;
+	superArmorDamage = 0;
+	superArmorHits = 0;
+	hasHitSuperArmor = false;
+	hasDamageSuperArmor = false;
 
 	HSObjectHold * returnHold = NULL;
 
@@ -2768,22 +2855,22 @@ HSObjectHold * Fighter::GetDefaultHold()
 		if(state == STANDING || state == WALKING || state == RUNNING)
 		{
 			state = STANDING;
-			if(hitstunBlockability == MID || hitstunBlockability == UNBLOCKABLE)
+			if(hitstunHitLevel == HIT_MID)
 			{
 				returnHold =  fighterEventHolds.hitstunLightMidStanding;
 			}
-			else if(hitstunBlockability == HIGH)
+			else if(hitstunHitLevel == HIT_HIGH)
 			{
 				returnHold =  fighterEventHolds.hitstunLightHighStanding;
 			}
-			else if(hitstunBlockability == LOW)
+			else if(hitstunHitLevel == HIT_LOW)
 			{
 				returnHold =  fighterEventHolds.hitstunLightLowStanding;
 			}
 		}
 		else if(state == CROUCHING)
 		{
-			if(hitstunBlockability == MID || hitstunBlockability == UNBLOCKABLE || hitstunBlockability == HIGH)
+			if(hitstunHitLevel == HIT_MID || hitstunHitLevel == HIT_HIGH)
 			{
 				returnHold =  fighterEventHolds.hitstunLightMidCrouching;
 			}

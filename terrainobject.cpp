@@ -12,11 +12,15 @@ TerrainObjectHold::TerrainObjectHold() : HSObjectHold()
 	lastHurtBox = NULL;
 	hitAudioList.clear();
 	changeAttackBoxAttributes = false;
-	blockability = MID;
+	hitLevel = HIT_MID;
+	blockability = BLOCKABLE;
+	invulnerability = INVULN_NONE;
 	horizontalDirectionBasedBlock = false;
 	reversedHorizontalBlock = false;
 	damage = 0;
+	overrideOwnHitstop = false;
 	ownHitstop = 0;
+	overrideVictimHitstop = false;
 	victimHitstop = 0;
 	hitstun = 0;
 	blockstun = 0;
@@ -24,6 +28,7 @@ TerrainObjectHold::TerrainObjectHold() : HSObjectHold()
 	force.y = 0;
 	trips = false;
 	resetHits = false;
+	changeHurtBoxAttributes = false;
 }
 
 TerrainObjectHold::~TerrainObjectHold()
@@ -124,12 +129,11 @@ bool TerrainObject::AdvanceHold(HSObjectHold* hold)
 			//get the new statistics
 			hitAudioList = tHold->hitAudioList;
 			blockedAudioList = tHold->blockedAudioList;
+			hitLevel = tHold->hitLevel;
 			blockability = tHold->blockability;
 			horizontalDirectionBasedBlock = tHold->horizontalDirectionBasedBlock;
 			reversedHorizontalBlock = tHold->reversedHorizontalBlock;
 			damage = tHold->damage;
-			ownHitstop = tHold->ownHitstop;
-			victimHitstop = tHold->victimHitstop;
 			hitstun = tHold->hitstun;
 			blockstun = tHold->blockstun;
 			force.x = tHold->force.x;
@@ -138,6 +142,29 @@ bool TerrainObject::AdvanceHold(HSObjectHold* hold)
 
 			//reset victims
 			if(tHold->resetHits) { victims.clear(); }
+		}
+
+		if(tHold->changeHurtBoxAttributes)
+		{
+			invulnerability = tHold->invulnerability;
+		}
+
+		if(tHold->overrideOwnHitstop)
+		{
+			ownHitstop = tHold->ownHitstop;
+		}
+		else
+		{
+			ownHitstop = DEFAULT_HITSTOP;
+		}
+
+		if(tHold->overrideVictimHitstop)
+		{
+			victimHitstop = tHold->victimHitstop;
+		}
+		else
+		{
+			victimHitstop = DEFAULT_HITSTOP;
 		}
 
 		return true;
@@ -155,7 +182,9 @@ HSObjectHold * TerrainObject::GetDefaultHold()
 {
 	victims.clear();
 	hitAudioList.clear();
-	blockability = MID;
+	hitLevel = HIT_MID;
+	blockability = BLOCKABLE;
+	invulnerability = INVULN_NONE;
 	horizontalDirectionBasedBlock = false;
 	reversedHorizontalBlock = false;
 	damage = 0;
@@ -206,7 +235,7 @@ bool TerrainObject::AreRectanglesColliding(HSVect2D * boxOnePos, HSBox * boxOne,
 void TerrainObject::ResetAttackResults()
 {
 	//reset all of the attack results to zero or null
-	attackResults.struck = false;
+	attackResults.timesStruck = 0;
 	attackResults.didStrike = false;
 	attackResults.hFlip = false;
 	attackResults.damage = 0;
@@ -215,16 +244,48 @@ void TerrainObject::ResetAttackResults()
 	attackResults.blockstun = 0;
 	attackResults.force.x = 0;
 	attackResults.force.y = 0;
-	attackResults.blockability = MID;
+	attackResults.hitLevel = HIT_MID;
+	attackResults.blockability = BLOCKABLE;
 	attackResults.IPSTriggered = false;
 }
 
-void TerrainObject::HandleHurtCollision(TerrainObject * attacker)
+bool TerrainObject::HandleHurtCollision(TerrainObject * attacker)
 {
-	attackResults.struck = true;
+	//get the effective hit level
+	HitLevel effectiveHitLevel = attacker->hitLevel;
+	if(attacker->hitLevel == HIT_STRICTLY_MID
+		|| (attacker->hitLevel == HIT_HIGH && attacker->pos.y > pos.y)
+		|| (attacker->hitLevel == HIT_LOW && attacker->pos.y < pos.y))
+	{
+		effectiveHitLevel = HIT_MID;
+	}
+	else if(attacker->blockability == HIT_MID)
+	{
+		if(attacker->pos.y < pos.y && attacker->vel.y >= 0)
+		{
+			effectiveHitLevel = HIT_HIGH;
+		}
+		else if(attacker->pos.y > pos.y && attacker->vel.y <= 0)
+		{
+			effectiveHitLevel = HIT_LOW;
+		}
+	}
+
+	//handle invuln
+	if(invulnerability == INVULN_FULL
+		|| (effectiveHitLevel == HIT_HIGH && invulnerability == INVULN_HIGH)
+		|| (effectiveHitLevel == HIT_LOW && invulnerability == INVULN_LOW))
+	{
+		return false;
+	}
+
+	//handle getting hit
+	attackResults.timesStruck++;
 	attackResults.damage += attacker->damage;
 	attackResults.hitstop = attacker->victimHitstop;
 	attacker->numHitThisFrame++;
+
+	return true;
 }
 
 list<AudioInstance*> TerrainObject::GetAudio()
@@ -342,7 +403,7 @@ list<AudioInstance*> TerrainObject::GetAudio()
 void TerrainObject::HandleAttackCollision(TerrainObject * targetObject)
 {
 	//first, let the target know it's been hit
-	targetObject->HandleHurtCollision(this);
+	if(!targetObject->HandleHurtCollision(this)) { return; }
 
 	//save the target so this object doesn't strike it again until the attack is over
 	victims.push_back(targetObject->id);
@@ -505,7 +566,7 @@ int TerrainObject::CollideAttack(list<HSObject*> * gameObjects)
 
 void TerrainObject::ApplyAttackResults()
 {
-	if(!attackResults.struck)
+	if(attackResults.timesStruck <= 0)
 	{
 		if(attackResults.didStrike)
 		{
